@@ -29,7 +29,7 @@ object SimulationsSampleParam extends App {
       println(s"Done Running simulation lenormand2012 alpha=$alpha pAccMin=$pAccMin replication=$replication ($step steps)")
 
       Files.write(
-        Paths.get("../output/blocks/lenormand2012_%d_%.1f_%.2f_%d_%d.csv"
+        Paths.get("../output/blocks/param_sampling/lenormand2012_%d_%.1f_%.2f_%d_%d.csv"
                     .formatLocal(java.util.Locale.US, 5000, alpha, pAccMin, step, replication)),
         posterior.map{_.head}.mkString("\n").getBytes(StandardCharsets.UTF_8)
       )
@@ -51,7 +51,7 @@ object SimulationsSampleParam extends App {
       println(s"Done Running simulation steadyState alpha=$alpha pAccMin=$pAccMin parallel=$parallel replication=$replication ($step steps)")
 
       Files.write(
-        Paths.get("../output/blocks/steadyState_%d_%.1f_%.2f_%d_%d_%d.csv".formatLocal(java.util.Locale.US, 5000, alpha, pAccMin, parallel, step, replication)),
+        Paths.get("../output/blocks/param_sampling/steadyState_%d_%.1f_%.2f_%d_%d_%d.csv".formatLocal(java.util.Locale.US, 5000, alpha, pAccMin, parallel, step, replication)),
         posterior.map{_.head}.mkString("\n").getBytes(StandardCharsets.UTF_8)
       )
     }

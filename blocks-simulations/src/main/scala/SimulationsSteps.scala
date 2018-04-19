@@ -27,7 +27,7 @@ object SimulationsSteps extends App {
 
     for { (posterior,i) <- resLenormand2012 } yield {
       Files.write(
-        Paths.get("../output/blocks/lenormand2012_%d_%.1f_%.2f_%d_%d.csv"
+        Paths.get("../output/blocks/5steps/lenormand2012_%d_%.1f_%.2f_%d_%d.csv"
                     .formatLocal(java.util.Locale.US, 5000, 0.1, 0.01, i, 1)),
         posterior.map{_.head}.mkString("\n").getBytes(StandardCharsets.UTF_8)
       )
@@ -41,7 +41,7 @@ object SimulationsSteps extends App {
       println(i)
       Console.flush()
       Files.write(
-        Paths.get("../output/blocks/steadyState_%d_%.1f_%.2f_%d_%d_%d.csv".formatLocal(java.util.Locale.US, 5000, 0.1, 0.01, 1, i, 1)),
+        Paths.get("../output/blocks/5steps/steadyState_%d_%.1f_%.2f_%d_%d_%d.csv".formatLocal(java.util.Locale.US, 5000, 0.1, 0.01, 1, i, 1)),
         posterior.map{_.head}.mkString("\n").getBytes(StandardCharsets.UTF_8)
       )
     }

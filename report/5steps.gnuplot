@@ -1,3 +1,7 @@
+cmToPix(cm, dpi) = dpi * cm / 2.54
+set terminal png truecolor size cmToPix(7, 300),cmToPix(5, 300) font ",12"
+set output "5steps.png"
+
 bins = 300
 lowerBound = -10
 upperBound = 10

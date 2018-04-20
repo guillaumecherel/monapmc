@@ -16,9 +16,15 @@ import qualified Data.Vector as V
 import qualified Statistics.Sample.Histogram as S
 import System.Environment
 import System.Exit
+import System.Directory
 import Text.Read
 import qualified Text.Parsec as P
 
+-- listSimulations :: FilePath -> IO (Either P.ParseError [SimulationResult])
+-- listSimulations dir = do
+--   fs <- listDirectory dir
+--   fmap (traverse loadSimulation) fs
+  
 normal :: Double -> Double -> Double -> Double
 normal x mean var =
   exp(- ((x - mean) ** 2.0) / (2.0 * var)) / sqrt(2.0 * pi * var)
@@ -37,6 +43,15 @@ scaledHistogram lowerBound upperBound bins xs =
       binWidth = (upperBound - lowerBound) / fromIntegral bins
       scalingFactor = 1.0 / (sum (map snd hist) * binWidth)
   in map (\(x, h) -> (x, h * scalingFactor)) hist
+
+scaledHistogramLeastSquares :: Double -> Double -> Int -> (Double -> Double)  -> [Double]-> [(Double, Double)]
+scaledHistogramLeastSquares lowerBound upperBound bins targetDensity xs  = 
+  let hist = histogram lowerBound upperBound bins xs
+      counts = map snd hist
+      binWidth = fst (head hist) - fst (head $ tail hist)
+      density = map targetDensity [x + (binWidth / 2.0) | (x, _) <- hist]
+      scalingFactor = foldl' (\s (c, d) -> s + c * d) 0 (zip counts density) / foldl' (\s d -> s + d ** 2) 0 counts
+  in map (fmap (* scalingFactor)) hist
 
 read1DSample :: FilePath -> T.Text -> Either P.ParseError [Double]
 read1DSample = --mapM ((fmap fst) . TR.double) (T.lines text)
@@ -128,6 +143,9 @@ parseSteadyState = do
 parserSkipDirname :: (P.Stream s m Char) => P.ParsecT s u m ()
 parserSkipDirname = P.optional $ P.many (P.try $ P.many (P.noneOf "/") <> P.string "/")
 
+densityFromName :: String -> (Double -> Double)
+densityFromName "toyPosterior" = toyPosterior
+
 toyPosterior :: Double -> Double
 toyPosterior x =
   0.5 * normal x 0.0 (1.0 / 100.0) + 0.5 * normal x 0.0 1.0
@@ -137,38 +155,31 @@ toyPosteriorSample lowerBound upperBound samples =
   let every = (upperBound - lowerBound) / fromIntegral samples
   in [(x, toyPosterior x) | x <- [lowerBound, lowerBound + every .. upperBound]]
 
-toyPosteriorScaledHistogram :: Double -> Double -> Int -> [Double] -> [(Double, Double)]
--- toyPosteriorScaledHistogram = scaledHistogram
-toyPosteriorScaledHistogram lowerBound upperBound bins xs = 
-  let hist = histogram lowerBound upperBound bins xs
-      counts = map snd hist
-      binWidth = fst (head hist) - fst (head $ tail hist)
-      density = map toyPosterior [x + (binWidth / 2.0) | (x, _) <- hist]
-      scalingFactor = foldl' (\s (c, d) -> s + c * d) 0 (zip counts density) / foldl' (\s d -> s + d ** 2) 0 counts
-  in map (fmap (* scalingFactor)) hist
 
-posteriorL2 :: (Double -> Double) -> [Double] -> Double
-posteriorL2 density xs =
-  let lowerBound = -10
-      upperBound = 10
-      bins = 300
-      scaledHist = toyPosteriorScaledHistogram lowerBound upperBound bins xs
+posteriorL2 :: Double -> Double -> Int -> (Double -> Double) -> [Double] -> Double
+posteriorL2 lowerBound upperBound bins targetDensity xs =
+  let scaledHist = scaledHistogram lowerBound upperBound bins xs
       binWidth = (upperBound - lowerBound) / fromIntegral bins
-      density = [toyPosterior (x + (binWidth / 2.0)) | (x,_) <- scaledHist]
+      density = [targetDensity (x + (binWidth / 2.0)) | (x,_) <- scaledHist]
       scaledHistHeights = map snd scaledHist
   in sqrt $ getSum $ foldMap (\(d,h) -> Sum $ (d - h) ** 2) (zip density scaledHistHeights)
 
-toyPosteriorL2 :: [Double] -> Double
-toyPosteriorL2 = posteriorL2 toyPosterior
-
-toyPosteriorL2Mean :: L.Fold SimulationResult Double
-toyPosteriorL2Mean = L.premap (toyPosteriorL2 . getSample) L.mean
+posteriorL2Mean :: Double -> Double -> Int -> (Double -> Double) -> L.Fold SimulationResult Double
+posteriorL2Mean lowerBound upperBound bins density = L.premap (posteriorL2 lowerBound upperBound bins density . getSample) L.mean
 
 numberSimusMean :: L.Fold SimulationResult Double
 numberSimusMean = L.premap (fromIntegral . numberSimus) L.mean
 
+alphaMean :: L.Fold SimulationResult Double
+alphaMean = L.premap (getAlpha . getAlgorithm) L.mean
+
 groupReplications :: L.Fold SimulationResult r -> L.Fold SimulationResult (M.Map Algorithm r)
 groupReplications = L.groupBy getAlgorithm
+
+filterSimulations :: (Eq a) => [(SimulationResult -> a, a)] -> L.Fold SimulationResult b -> L.Fold SimulationResult b
+filterSimulations filters = L.prefilter allPass 
+  where allPass s = all (pass s) filters
+        pass s (g, t) = g s == t
 
 numberSimus :: SimulationResult -> Int
 numberSimus SimulationResult {getAlgorithm=Lenormand2012 {getN=n, getAlpha=alpha}, getStep=step} = numberSimusLenormand2012 n (floor $ fromIntegral n * alpha) step
@@ -207,23 +218,34 @@ main = do
       parseResult <- loadSimulation simuOutputFile
       case parseResult of
         Left err -> die ("Error reading file: " ++ simuOutputFile ++ "\n" ++ show err)
-        Right simRes -> putStrLn $ columns2 " " $ toyPosteriorScaledHistogram (read lowerBound) (read upperBound) (read bins) (getSample simRes)
+        Right simRes -> putStrLn $ columns2 " " $ scaledHistogram (read lowerBound) (read upperBound) (read bins) (getSample simRes)
 
-    ["toy_posterior_L2", simuOutputFile] -> do
+    ["posterior_L2", lowerBound, upperBound, bins, density, simuOutputFile] -> do
       parseResult <- loadSimulation simuOutputFile
       case parseResult of
         Left err -> die ("Error reading file: " ++ simuOutputFile ++ "\n" ++ show err)
-        Right simRes -> print $ toyPosteriorL2 (getSample simRes)
+        Right simRes -> print $ posteriorL2 (read lowerBound) (read upperBound) (read bins) (densityFromName density) (getSample simRes)
 
     ["number_simulations_lenormand2012", n, nAlpha, step] -> print $ numberSimusLenormand2012 (read n) (read nAlpha) (read step)
 
     ["number_simulations_steadyState", step] -> print $ numberSimusSteadyState (read step)
 
-    "L2_vs_number_simulations":files -> do
+    "L2_vs_number_simulations":lowerBound:upperBound:bins:density:files -> do
            parseResults <- traverse loadSimulation files
            case sequence parseResults of
              Left err -> die ("Error reading file: " ++ show err)
-             Right simRess -> putStrLn $ columns2 " " $ (M.elems) $ L.fold (groupReplications ((,) <$> numberSimusMean <*> toyPosteriorL2Mean)) simRess
-             -- [(numberSimus simRes, toyPosteriorL2 (getSample simRes)) | simRes <- simRess]
+             Right simRess -> putStrLn $ columns2 " " $ (M.elems) $ L.fold (groupReplications ((,) <$> numberSimusMean <*> posteriorL2Mean (read lowerBound) (read upperBound) (read bins) (densityFromName density) )) simRess
+
+    "L2_vs_alpha":lowerBound:upperBound:bins:density:files -> do
+           parseResults <- traverse loadSimulation files
+           case sequence parseResults of
+             Left err -> die ("Error reading file: " ++ show err)
+             Right simRess -> putStrLn $ columns2 " " $ (M.elems) $ L.fold (groupReplications ((,) <$> alphaMean <*> posteriorL2Mean (read lowerBound) (read upperBound) (read bins) (densityFromName density) )) simRess
+
+    "nsimus_vs_alpha":files -> do
+           parseResults <- traverse loadSimulation files
+           case sequence parseResults of
+             Left err -> die ("Error reading file: " ++ show err)
+             Right simRess -> putStrLn $ columns2 " " $ (M.elems) $ L.fold (groupReplications ((,) <$> numberSimusMean <*> alphaMean)) simRess
 
     _ -> putStrLn $ "Unknown command " ++ show args

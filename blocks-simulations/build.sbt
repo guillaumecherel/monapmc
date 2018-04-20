@@ -9,5 +9,7 @@ lazy val root = (project in file(".")).
     )),
     name := "Blocks simulations",
     libraryDependencies += scalaTest % Test,
-    libraryDependencies += "fr.iscpif" %% "blocks" % "0.1.0-SNAPSHOT"
+    libraryDependencies += "fr.iscpif" %% "blocks" % "0.1.0-SNAPSHOT",
+    fork := true
+
   )

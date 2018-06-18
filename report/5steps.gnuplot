@@ -17,26 +17,20 @@ normal(x, mean, var) = exp(- ((x - mean) ** 2.0) / (2.0 * var)) / sqrt(2.0 * pi 
 posterior(x) = 0.5 * normal(x, 0.0, 1.0 / 100.0) + 0.5 * normal(x, 0.0, 1.0)
 
 set multiplot layout 3,5 columnsfirst
-do for [i in "0 1 2 3 6"] {
+do for [i in "0 1 2 3 4"] {
   set title "lenormand2012 step ".i
-  print "< ../bin/formulas toy_scaled_histogram  ../output/blocks/5steps/lenormand2012_5000_0.1_0.01_".i."_1.csv ".lowerBound." ".upperBound." ".bins
-  plot "< ../bin/formulas toy_scaled_histogram  ../output/blocks/5steps/lenormand2012_5000_0.1_0.01_".i."_1.csv ".lowerBound." ".upperBound." ".bins w boxes t "" fs solid, \
+  plot "../output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_".i."_1.csv" w boxes t "" fs solid, \
        posterior(x) t "" w l lc "black"
 
   set title "lenormand2012 easyABC step ".i
-  print "< ../bin/formulas toy_scaled_histogram  ../output/easyABC/lenormand2012_5000_0.1_0.01_".i."_1.csv ".lowerBound." ".upperBound." ".bins
-  plot "< ../bin/formulas toy_scaled_histogram  ../output/easyABC/lenormand2012_5000_0.1_0.01_".i."_1.csv ".lowerBound." ".upperBound." ".bins w boxes t "" fs solid, \
+  plot "../output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_".i."_1.csv" w boxes t "" fs solid, \
        posterior(x) t "" w l lc "black"
 
-  # set title "beaumont2009 easyABC step ".i
-  # print "< ../bin/formulas toy_scaled_histogram  ../output/easyABC/beaumont2009_5000_2.0_0.01_".i."_1.csv ".lowerBound." ".upperBound." ".bins
-  # plot "< ../bin/formulas toy_scaled_histogram  ../output/easyABC/beaumont2009_5000_2.0_0.01_".i."_1.csv ".lowerBound." ".upperBound." ".bins w boxes t "" fs solid, \
-  #      posterior(x) t "" w l lc "black"
-
-  iSteadyState = 5000 * (i + 1)
-  set title "steadyState step ".iSteadyState
-  print "< ../bin/formulas toy_scaled_histogram  ../output/blocks/5steps/steadyState_5000_0.1_0.01_1_".iSteadyState."_1.csv ".lowerBound." ".upperBound." ".bins
-  plot "< ../bin/formulas toy_scaled_histogram  ../output/blocks/5steps/steadyState_5000_0.1_0.01_1_".iSteadyState."_1.csv ".lowerBound." ".upperBound." ".bins w boxes t "" fs solid, \
+  set title "beaumont2009 easyABC step ".i
+  plot "../output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_".i."_1.csv" w boxes t "" fs solid, \
        posterior(x) t "" w l lc "black"
+
+  #iSteadyState = 5000 * (i + 1)
+  #set title "steadyState step ".iSteadyState
 }
 unset multiplot

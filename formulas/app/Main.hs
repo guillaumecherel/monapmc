@@ -1,4 +1,3 @@
-~~~~{.haskell file="formulas/app/Main.hs"}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
@@ -26,11 +25,7 @@ import Output
 import qualified ABC.Lenormand2012 as Lenormand2012
 import qualified ABC.SteadyState as SteadyState
 import qualified Util.SteadyState as SteadyState (start, step, scanIndices) 
-~~~~~~~~
 
-Run the methods on the toy model.
-
-~~~~ {.haskell file="formulas/app/Main.hs"}
 lenormand2012Steps :: [SimulationResult]
 lenormand2012Steps = fmap getSimulationResult steps
   where steps = zip [1..] $ take 20 $ evalRand (Lenormand2012.lenormand2012 p toyModel :: Rand StdGen [Lenormand2012.S]) (mkStdGen seed)
@@ -77,20 +72,12 @@ steadyStateSteps = fmap (fmap getSimulationResult) enumSteps
         
 
 rootSquaredError expected x = sqrt ((x - expected) ** 2)
-~~~~~~~~
 
-Save each step to the appropriate file.
-
-~~~~ {.haskell file="formulas/app/Main.hs"}
 saveSimulationResult :: FilePath -> SimulationResult -> IO ()
 saveSimulationResult dir s = writeFile path contents
   where path = (dir </> simulationResultFileName s) 
         contents = (column (V.toList $ fmap V.head $ getSample s))
-~~~~~~~~
 
-Create the rule to generate the simulation result files.
-
-~~~~ {.haskell file="formulas/app/Main.hs"}
 buildSimulationResult :: FilePath -> SimulationResult -> Rules ()
 buildSimulationResult dir s =
   (dir </> simulationResultFileName s) %> \target -> do
@@ -116,11 +103,7 @@ buildSteadyStateSteps = do
           (saveSimulationResult "output/formulas/simulationResult/5steps/")
           steadyStateSteps'
      
-~~~~~~~~
 
-Run the algorithms of Lenormand2012 and Beaumont2009 implemented in the R package easyABC. 
-
-~~~~ {.haskell file="formulas/app/Main.hs"}
 buildEasyABCSteps :: Rules ()
 buildEasyABCSteps =
   ["output/easyABC/simulationResult/5steps/lenormand2012_5000_0.1_0.01_" <> show i <> "_1.csv" | i <- [0..4]] 
@@ -128,25 +111,13 @@ buildEasyABCSteps =
   &%> \targets -> do
     need ["easyABC_Steps.R"]
     cmd_ ("Rscript" :: String) ["easyABC_Steps.R" :: String]
-~~~~~~~~
 
-Compute a histogram of a simulation result posterior sample.
-
-~~~~ {.haskell file="formulas/app/Main.hs"}
 histogramToy :: SimulationResult -> [(Double, Double)]
 histogramToy s = scaledHistogram (-10) 10 300 (V.toList $ fmap V.head $ getSample s)
-~~~~~~~~
 
-Compute the histogram for simulation result and save them to the appropriate file.
-
-~~~~ {.haskell file="formulas/app/Main.hs"}
 saveHistogram :: FilePath -> [(Double, Double)] -> IO ()
 saveHistogram path histogram = writeFile path (columns2 " " histogram)
-~~~~~~~~
 
-To create the histogram for a given simulation result, we need to load the simulation result from its file, compute the histogram and save it to a file.
-
-~~~~ {.haskell file="formulas/app/Main.hs"}
 buildHistogram :: FilePath -> FilePath -> Rules ()
 buildHistogram targetPattern sourceDir = do
   targetPattern %> \target -> do
@@ -168,11 +139,7 @@ buildHistograms = do
   buildHistogram 
     "output/formulas/scaledHistogram/toy/*.csv"       
     "output/formulas/simulationResult/5steps/"
-~~~~~~~~
 
-Generate the figure.
-
-~~~~ {.haskell file="formulas/app/Main.hs"}
 buildFigurePosteriorSteps :: Rules ()
 buildFigurePosteriorSteps =
   "report/5steps.png" %> \target -> do
@@ -182,11 +149,7 @@ buildFigurePosteriorSteps =
         ++ [ "output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_" <> show i <> "_1.csv" | i <- [0..4]]
         ++ [ "output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_" <> show i <> "_1.csv" | i <- [0..4]]
     cmd_ (Cwd "report/") (unpack "gnuplot") ([unpack "-c", "5steps.gnuplot"])
-~~~~~~~~
 
-![](report/5steps.png)
-
-~~~~ {.haskell file="formulas/app/Main.hs"}
 main :: IO ()
 main = shakeArgs shakeOptions{shakeVerbosity=Normal,
                               shakeColor=True} $ do
@@ -197,5 +160,4 @@ main = shakeArgs shakeOptions{shakeVerbosity=Normal,
   buildEasyABCSteps
   buildHistograms
   buildFigurePosteriorSteps
-~~~~~~~~
 

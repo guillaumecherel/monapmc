@@ -83,11 +83,6 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
   <![endif]-->
 </head>
 <body>
-<nav id="TOC">
-<ul>
-<li><a href="#now-load-them-back-as-simulation-results">– Now load them back as simulation results</a></li>
-</ul>
-</nav>
 <pre class="sourceCodeFilePath"><code>file: formulas/app/Main.hs</code></pre>
 <div class="sourceCode" id="cb2" data-file="formulas/app/Main.hs"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="ot">{-# LANGUAGE OverloadedStrings #-}</span></a>
 <a class="sourceLine" id="cb2-2" data-line-number="2"><span class="ot">{-# LANGUAGE NoImplicitPrelude #-}</span></a>
@@ -95,9 +90,9 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb2-4" data-line-number="4"><span class="kw">import</span> <span class="dt">Protolude</span> </a>
 <a class="sourceLine" id="cb2-5" data-line-number="5"></a>
 <a class="sourceLine" id="cb2-6" data-line-number="6"><span class="kw">import</span> <span class="dt">Control.Monad.Fail</span> (fail)</a>
-<a class="sourceLine" id="cb2-7" data-line-number="7"><span class="kw">import</span> <span class="dt">Control.Monad.Random</span> (<span class="dt">Rand</span>, <span class="dt">MonadRandom</span>, evalRand)</a>
+<a class="sourceLine" id="cb2-7" data-line-number="7"><span class="kw">import</span> <span class="dt">Control.Monad.Random</span> (<span class="dt">Rand</span>, <span class="dt">RandT</span>, <span class="dt">MonadRandom</span>, evalRand, evalRandT)</a>
 <a class="sourceLine" id="cb2-8" data-line-number="8"><span class="kw">import</span> <span class="dt">Data.String</span> (<span class="dt">String</span>)</a>
-<a class="sourceLine" id="cb2-9" data-line-number="9"><span class="kw">import</span> <span class="dt">Data.Text</span> (<span class="dt">Text</span>, unpack)</a>
+<a class="sourceLine" id="cb2-9" data-line-number="9"><span class="kw">import</span> <span class="dt">Data.Text</span> (<span class="dt">Text</span>, pack, unpack, replace)</a>
 <a class="sourceLine" id="cb2-10" data-line-number="10"><span class="kw">import</span> <span class="dt">Data.Text.IO</span> (writeFile)</a>
 <a class="sourceLine" id="cb2-11" data-line-number="11"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.Vector</span> <span class="kw">as</span> <span class="dt">V</span></a>
 <a class="sourceLine" id="cb2-12" data-line-number="12"><span class="kw">import</span> <span class="dt">System.Random</span> (<span class="dt">StdGen</span>, mkStdGen)</a>
@@ -113,13 +108,15 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb2-22" data-line-number="22"><span class="kw">import</span> <span class="dt">Formulas</span></a>
 <a class="sourceLine" id="cb2-23" data-line-number="23"><span class="kw">import</span> <span class="dt">Input</span></a>
 <a class="sourceLine" id="cb2-24" data-line-number="24"><span class="kw">import</span> <span class="dt">Output</span> </a>
-<a class="sourceLine" id="cb2-25" data-line-number="25"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">ABC.Lenormand2012</span> <span class="kw">as</span> <span class="dt">Lenormand2012</span></a></code></pre></div>
+<a class="sourceLine" id="cb2-25" data-line-number="25"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">ABC.Lenormand2012</span> <span class="kw">as</span> <span class="dt">Lenormand2012</span></a>
+<a class="sourceLine" id="cb2-26" data-line-number="26"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">ABC.SteadyState</span> <span class="kw">as</span> <span class="dt">SteadyState</span></a>
+<a class="sourceLine" id="cb2-27" data-line-number="27"><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Util.SteadyState</span> <span class="kw">as</span> <span class="dt">SteadyState</span> (start, step, scanIndices) </a></code></pre></div>
 <p>Run the methods on the toy model.</p>
 <pre class="sourceCodeFilePath"><code>file: formulas/app/Main.hs</code></pre>
 <div class="sourceCode" id="cb4" data-file="formulas/app/Main.hs"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="ot">lenormand2012Steps ::</span> [<span class="dt">SimulationResult</span>]</a>
 <a class="sourceLine" id="cb4-2" data-line-number="2">lenormand2012Steps <span class="fu">=</span> fmap getSimulationResult steps</a>
-<a class="sourceLine" id="cb4-3" data-line-number="3">  <span class="kw">where</span> steps <span class="fu">=</span> zip [<span class="dv">0</span><span class="fu">..</span>] <span class="fu">$</span> take <span class="dv">10</span> <span class="fu">$</span> evalRand (Lenormand2012.lenormand2012 p<span class="ot"> toyModel ::</span> <span class="dt">Rand</span> <span class="dt">StdGen</span> [<span class="dt">Lenormand2012.S</span>]) (mkStdGen seed)</a>
-<a class="sourceLine" id="cb4-4" data-line-number="4">        seed <span class="fu">=</span> <span class="dv">42</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">  <span class="kw">where</span> steps <span class="fu">=</span> zip [<span class="dv">1</span><span class="fu">..</span>] <span class="fu">$</span> take <span class="dv">20</span> <span class="fu">$</span> evalRand (Lenormand2012.lenormand2012 p<span class="ot"> toyModel ::</span> <span class="dt">Rand</span> <span class="dt">StdGen</span> [<span class="dt">Lenormand2012.S</span>]) (mkStdGen seed)</a>
+<a class="sourceLine" id="cb4-4" data-line-number="4">        seed <span class="fu">=</span> <span class="dv">41</span></a>
 <a class="sourceLine" id="cb4-5" data-line-number="5">        algo <span class="fu">=</span> <span class="dt">Lenormand2012</span> <span class="dv">5000</span> <span class="fl">0.1</span> <span class="fl">0.01</span></a>
 <a class="sourceLine" id="cb4-6" data-line-number="6">        p <span class="fu">=</span> <span class="dt">Lenormand2012.P</span></a>
 <a class="sourceLine" id="cb4-7" data-line-number="7">          { Lenormand2012.n <span class="fu">=</span> getN algo</a>
@@ -135,10 +132,33 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb4-17" data-line-number="17">          , getReplication <span class="fu">=</span> <span class="dv">1</span></a>
 <a class="sourceLine" id="cb4-18" data-line-number="18">          , getSample <span class="fu">=</span> Lenormand2012.thetas s }</a>
 <a class="sourceLine" id="cb4-19" data-line-number="19"></a>
-<a class="sourceLine" id="cb4-20" data-line-number="20"><span class="co">-- steadyStateStepsSteps:: [SimulationResult]</span></a>
-<a class="sourceLine" id="cb4-21" data-line-number="21"><span class="co">-- steadyStateSteps = steps (SteadyState.steadyState toyModel)</span></a>
-<a class="sourceLine" id="cb4-22" data-line-number="22"></a>
-<a class="sourceLine" id="cb4-23" data-line-number="23">rootSquaredError expected x <span class="fu">=</span> sqrt ((x <span class="fu">-</span> expected) <span class="fu">**</span> <span class="dv">2</span>)</a></code></pre></div>
+<a class="sourceLine" id="cb4-20" data-line-number="20"><span class="ot">steadyStateSteps ::</span> <span class="dt">IO</span> [<span class="dt">SimulationResult</span>]</a>
+<a class="sourceLine" id="cb4-21" data-line-number="21">steadyStateSteps <span class="fu">=</span> fmap (fmap getSimulationResult) enumSteps</a>
+<a class="sourceLine" id="cb4-22" data-line-number="22">  <span class="kw">where</span> steps <span class="fu">=</span> flip evalRandT (mkStdGen startSeed) scan</a>
+<a class="sourceLine" id="cb4-23" data-line-number="23">        needSteps <span class="fu">=</span> [<span class="dv">5000</span>, <span class="dv">10000</span> <span class="fu">..</span> <span class="dv">100000</span>]</a>
+<a class="sourceLine" id="cb4-24" data-line-number="24">        enumSteps <span class="fu">=</span> zip needSteps <span class="fu">&lt;$&gt;</span> steps</a>
+<a class="sourceLine" id="cb4-25" data-line-number="25">        scan <span class="fu">=</span> SteadyState.scanIndices needSteps ssr</a>
+<a class="sourceLine" id="cb4-26" data-line-number="26">        ssr <span class="fu">=</span> SteadyState.runner p model</a>
+<a class="sourceLine" id="cb4-27" data-line-number="27">        model (seed, xs) <span class="fu">=</span> return <span class="fu">$</span> evalRand (toyModel xs) (mkStdGen seed)</a>
+<a class="sourceLine" id="cb4-28" data-line-number="28">        startSeed <span class="fu">=</span> <span class="dv">41</span></a>
+<a class="sourceLine" id="cb4-29" data-line-number="29">        algo <span class="fu">=</span> <span class="dt">SteadyState</span> <span class="dv">5000</span> <span class="fl">0.1</span> <span class="fl">0.01</span> <span class="dv">1</span></a>
+<a class="sourceLine" id="cb4-30" data-line-number="30">        p <span class="fu">=</span> <span class="dt">SteadyState.P</span></a>
+<a class="sourceLine" id="cb4-31" data-line-number="31">          { SteadyState.n <span class="fu">=</span> getN algo</a>
+<a class="sourceLine" id="cb4-32" data-line-number="32">          , SteadyState.nAlpha <span class="fu">=</span> floor <span class="fu">$</span> (getAlpha algo) <span class="fu">*</span> (fromIntegral <span class="fu">$</span> getN algo)</a>
+<a class="sourceLine" id="cb4-33" data-line-number="33">          , SteadyState.pAccMin <span class="fu">=</span> getPAccMin algo</a>
+<a class="sourceLine" id="cb4-34" data-line-number="34">          , SteadyState.parallel <span class="fu">=</span> getParallel algo</a>
+<a class="sourceLine" id="cb4-35" data-line-number="35">          , SteadyState.priorSample <span class="fu">=</span> toyPriorRandomSample</a>
+<a class="sourceLine" id="cb4-36" data-line-number="36">          , SteadyState.priorDensity <span class="fu">=</span> toyPrior</a>
+<a class="sourceLine" id="cb4-37" data-line-number="37">          , SteadyState.distanceToData <span class="fu">=</span> rootSquaredError <span class="dv">0</span> <span class="fu">.</span> V.head</a>
+<a class="sourceLine" id="cb4-38" data-line-number="38">          }</a>
+<a class="sourceLine" id="cb4-39" data-line-number="39">        getSimulationResult (i, s) <span class="fu">=</span> <span class="dt">SimulationResult</span> </a>
+<a class="sourceLine" id="cb4-40" data-line-number="40">          { getAlgorithm <span class="fu">=</span> algo</a>
+<a class="sourceLine" id="cb4-41" data-line-number="41">          , getStep <span class="fu">=</span> i</a>
+<a class="sourceLine" id="cb4-42" data-line-number="42">          , getReplication <span class="fu">=</span> <span class="dv">1</span></a>
+<a class="sourceLine" id="cb4-43" data-line-number="43">          , getSample <span class="fu">=</span> fmap (SteadyState.getTheta <span class="fu">.</span> SteadyState.getSimulation <span class="fu">.</span> SteadyState.getReady) (SteadyState.accepteds s) }</a>
+<a class="sourceLine" id="cb4-44" data-line-number="44">        </a>
+<a class="sourceLine" id="cb4-45" data-line-number="45"></a>
+<a class="sourceLine" id="cb4-46" data-line-number="46">rootSquaredError expected x <span class="fu">=</span> sqrt ((x <span class="fu">-</span> expected) <span class="fu">**</span> <span class="dv">2</span>)</a></code></pre></div>
 <p>Save each step to the appropriate file.</p>
 <pre class="sourceCodeFilePath"><code>file: formulas/app/Main.hs</code></pre>
 <div class="sourceCode" id="cb6" data-file="formulas/app/Main.hs"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="ot">saveSimulationResult ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">SimulationResult</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
@@ -153,7 +173,25 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb8-4" data-line-number="4">    traced <span class="st">&quot;simulation&quot;</span> (saveSimulationResult dir s)</a>
 <a class="sourceLine" id="cb8-5" data-line-number="5"></a>
 <a class="sourceLine" id="cb8-6" data-line-number="6">buildLenormand2012Steps <span class="fu">=</span> </a>
-<a class="sourceLine" id="cb8-7" data-line-number="7">  mconcat (fmap (buildSimulationResult <span class="st">&quot;output/formulas/simulationResult/5steps&quot;</span>) lenormand2012Steps)</a></code></pre></div>
+<a class="sourceLine" id="cb8-7" data-line-number="7">  <span class="co">-- mconcat (fmap (buildSimulationResult &quot;output/formulas/simulationResult/5steps&quot;) lenormand2012Steps)</span></a>
+<a class="sourceLine" id="cb8-8" data-line-number="8">  [<span class="st">&quot;output/formulas/simulationResult/5steps&quot;</span> <span class="fu">&lt;/&gt;</span> simulationResultFileName s </a>
+<a class="sourceLine" id="cb8-9" data-line-number="9">    <span class="fu">|</span> s <span class="ot">&lt;-</span> lenormand2012Steps] <span class="fu">&amp;%&gt;</span> \targets <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb8-10" data-line-number="10">      traced <span class="st">&quot;Simulation&quot;</span> </a>
+<a class="sourceLine" id="cb8-11" data-line-number="11">    <span class="fu">$</span> traverse_</a>
+<a class="sourceLine" id="cb8-12" data-line-number="12">      (saveSimulationResult <span class="st">&quot;output/formulas/simulationResult/5steps&quot;</span>)</a>
+<a class="sourceLine" id="cb8-13" data-line-number="13">      lenormand2012Steps</a>
+<a class="sourceLine" id="cb8-14" data-line-number="14"> </a>
+<a class="sourceLine" id="cb8-15" data-line-number="15"><span class="ot">buildSteadyStateSteps ::</span> <span class="dt">Rules</span> ()</a>
+<a class="sourceLine" id="cb8-16" data-line-number="16">buildSteadyStateSteps <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb8-17" data-line-number="17">  steadyStateSteps&#39; <span class="ot">&lt;-</span> liftIO steadyStateSteps</a>
+<a class="sourceLine" id="cb8-18" data-line-number="18">  liftIO <span class="fu">$</span> putStrLn (show (fmap simulationResultFileName steadyStateSteps&#39;)<span class="ot"> ::</span> <span class="dt">String</span>)</a>
+<a class="sourceLine" id="cb8-19" data-line-number="19">  [<span class="st">&quot;output/formulas/simulationResult/5steps&quot;</span> <span class="fu">&lt;/&gt;</span> simulationResultFileName s</a>
+<a class="sourceLine" id="cb8-20" data-line-number="20">    <span class="fu">|</span> s <span class="ot">&lt;-</span> steadyStateSteps&#39;] <span class="fu">&amp;%&gt;</span> \targets <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb8-21" data-line-number="21">      traced <span class="st">&quot;Simulation&quot;</span></a>
+<a class="sourceLine" id="cb8-22" data-line-number="22">        <span class="fu">$</span> traverse_</a>
+<a class="sourceLine" id="cb8-23" data-line-number="23">          (saveSimulationResult <span class="st">&quot;output/formulas/simulationResult/5steps/&quot;</span>)</a>
+<a class="sourceLine" id="cb8-24" data-line-number="24">          steadyStateSteps&#39;</a>
+<a class="sourceLine" id="cb8-25" data-line-number="25">     </a></code></pre></div>
 <p>Run the algorithms of Lenormand2012 and Beaumont2009 implemented in the R package easyABC.</p>
 <pre class="sourceCodeFilePath"><code>file: formulas/app/Main.hs</code></pre>
 <div class="sourceCode" id="cb10" data-file="formulas/app/Main.hs"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="ot">buildEasyABCSteps ::</span> <span class="dt">Rules</span> ()</a>
@@ -163,56 +201,59 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb10-5" data-line-number="5">  <span class="fu">&amp;%&gt;</span> \targets <span class="ot">-&gt;</span> <span class="kw">do</span></a>
 <a class="sourceLine" id="cb10-6" data-line-number="6">    need [<span class="st">&quot;easyABC_Steps.R&quot;</span>]</a>
 <a class="sourceLine" id="cb10-7" data-line-number="7">    cmd_ (<span class="st">&quot;Rscript&quot;</span><span class="ot"> ::</span> <span class="dt">String</span>) [<span class="st">&quot;easyABC_Steps.R&quot;</span><span class="ot"> ::</span> <span class="dt">String</span>]</a></code></pre></div>
-<h2 id="now-load-them-back-as-simulation-results">– Now load them back as simulation results</h2>
-<p>– ~~~~ {.haskell file=“formulas/app/Main.hs”} – ioEasyABCSteps :: IO [SimulationResult] – ioEasyABCSteps = loadAllSimulations “output/easyABC/simulationResult/5steps” – ~~~~~~~~</p>
-<p>Compute a scaled histogram of a simulation result sample.</p>
+<p>Compute a histogram of a simulation result posterior sample.</p>
 <pre class="sourceCodeFilePath"><code>file: formulas/app/Main.hs</code></pre>
 <div class="sourceCode" id="cb12" data-file="formulas/app/Main.hs"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="ot">histogramToy ::</span> <span class="dt">SimulationResult</span> <span class="ot">-&gt;</span> [(<span class="dt">Double</span>, <span class="dt">Double</span>)]</a>
 <a class="sourceLine" id="cb12-2" data-line-number="2">histogramToy s <span class="fu">=</span> scaledHistogram (<span class="fu">-</span><span class="dv">10</span>) <span class="dv">10</span> <span class="dv">300</span> (V.toList <span class="fu">$</span> fmap V.head <span class="fu">$</span> getSample s)</a></code></pre></div>
-<p>Compute the histograms for simulation result and save them to the appropriate file.</p>
+<p>Compute the histogram for simulation result and save them to the appropriate file.</p>
 <pre class="sourceCodeFilePath"><code>file: formulas/app/Main.hs</code></pre>
-<div class="sourceCode" id="cb14" data-file="formulas/app/Main.hs"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1"><span class="ot">saveHistogramToy ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">SimulationResult</span> <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
-<a class="sourceLine" id="cb14-2" data-line-number="2">saveHistogramToy dir s <span class="fu">=</span> writeFile path (columns2 <span class="st">&quot; &quot;</span> histogram)</a>
-<a class="sourceLine" id="cb14-3" data-line-number="3">  <span class="kw">where</span> path <span class="fu">=</span> dir <span class="fu">&lt;/&gt;</span> simulationResultFileName s</a>
-<a class="sourceLine" id="cb14-4" data-line-number="4">        histogram <span class="fu">=</span> histogramToy s</a></code></pre></div>
-<p>To create the histogram for a given simulation result file, we need to load the simulation result, compute the histogram and save it to a file.</p>
+<div class="sourceCode" id="cb14" data-file="formulas/app/Main.hs"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1"><span class="ot">saveHistogram ::</span> FilePath <span class="ot">-&gt;</span> [(<span class="dt">Double</span>, <span class="dt">Double</span>)] <span class="ot">-&gt;</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb14-2" data-line-number="2">saveHistogram path histogram <span class="fu">=</span> writeFile path (columns2 <span class="st">&quot; &quot;</span> histogram)</a></code></pre></div>
+<p>To create the histogram for a given simulation result, we need to load the simulation result from its file, compute the histogram and save it to a file.</p>
 <pre class="sourceCodeFilePath"><code>file: formulas/app/Main.hs</code></pre>
 <div class="sourceCode" id="cb16" data-file="formulas/app/Main.hs"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1"><span class="ot">buildHistogram ::</span> <span class="dt">FilePath</span> <span class="ot">-&gt;</span> FilePath <span class="ot">-&gt;</span> <span class="dt">Rules</span> ()</a>
-<a class="sourceLine" id="cb16-2" data-line-number="2">buildHistogram targetDir source <span class="fu">=</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb16-3" data-line-number="3">  es <span class="ot">&lt;-</span> liftIO <span class="fu">$</span> loadSimulation source</a>
-<a class="sourceLine" id="cb16-4" data-line-number="4">  <span class="kw">case</span> es <span class="kw">of</span></a>
-<a class="sourceLine" id="cb16-5" data-line-number="5">    <span class="dt">Left</span> err <span class="ot">-&gt;</span> action <span class="fu">$</span> fail <span class="fu">$</span> show err</a>
-<a class="sourceLine" id="cb16-6" data-line-number="6">    <span class="dt">Right</span> s <span class="ot">-&gt;</span></a>
-<a class="sourceLine" id="cb16-7" data-line-number="7">      (targetDir <span class="fu">&lt;/&gt;</span> simulationResultFileName s) <span class="fu">%&gt;</span> \target <span class="ot">-&gt;</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb16-8" data-line-number="8">        need [source]</a>
-<a class="sourceLine" id="cb16-9" data-line-number="9">        traced <span class="st">&quot;histogram&quot;</span> (saveHistogramToy targetDir s)</a>
-<a class="sourceLine" id="cb16-10" data-line-number="10"></a>
-<a class="sourceLine" id="cb16-11" data-line-number="11"><span class="ot">buildHistograms ::</span> <span class="dt">Rules</span> ()</a>
-<a class="sourceLine" id="cb16-12" data-line-number="12">buildHistograms <span class="fu">=</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb16-13" data-line-number="13">  simFilesSteps <span class="ot">&lt;-</span> liftIO <span class="fu">$</span> glob <span class="st">&quot;output/formulas/simulationResult/5steps/*.csv&quot;</span></a>
-<a class="sourceLine" id="cb16-14" data-line-number="14">  traverse_ (buildHistogram <span class="st">&quot;output/formulas/scaledHistogram/toy&quot;</span>) simFilesSteps</a>
-<a class="sourceLine" id="cb16-15" data-line-number="15">  simFilesStepsEasyABC <span class="ot">&lt;-</span> liftIO <span class="fu">$</span> glob <span class="st">&quot;output/easyABC/simulationResult/5steps/*.csv&quot;</span></a>
-<a class="sourceLine" id="cb16-16" data-line-number="16">  traverse_ (buildHistogram <span class="st">&quot;output/easyABC/scaledHistogram/toy&quot;</span>) simFilesStepsEasyABC</a></code></pre></div>
+<a class="sourceLine" id="cb16-2" data-line-number="2">buildHistogram targetPattern sourceDir <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb16-3" data-line-number="3">  targetPattern <span class="fu">%&gt;</span> \target <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb16-4" data-line-number="4">    <span class="kw">let</span> source <span class="fu">=</span> sourceDir <span class="fu">&lt;/&gt;</span> takeFileName target</a>
+<a class="sourceLine" id="cb16-5" data-line-number="5">    need [source]</a>
+<a class="sourceLine" id="cb16-6" data-line-number="6">    es <span class="ot">&lt;-</span> liftIO <span class="fu">$</span> loadSimulation source</a>
+<a class="sourceLine" id="cb16-7" data-line-number="7">    <span class="kw">case</span> es <span class="kw">of</span></a>
+<a class="sourceLine" id="cb16-8" data-line-number="8">      <span class="dt">Left</span> err <span class="ot">-&gt;</span> fail <span class="fu">$</span> show err</a>
+<a class="sourceLine" id="cb16-9" data-line-number="9">      <span class="dt">Right</span> s <span class="ot">-&gt;</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb16-10" data-line-number="10">        <span class="kw">let</span> histogram <span class="fu">=</span> histogramToy s</a>
+<a class="sourceLine" id="cb16-11" data-line-number="11">        traced <span class="st">&quot;histogram&quot;</span> (saveHistogram target histogram)</a>
+<a class="sourceLine" id="cb16-12" data-line-number="12"></a>
+<a class="sourceLine" id="cb16-13" data-line-number="13"><span class="ot">buildHistograms ::</span> <span class="dt">Rules</span> ()</a>
+<a class="sourceLine" id="cb16-14" data-line-number="14">buildHistograms <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb16-15" data-line-number="15">  buildHistogram </a>
+<a class="sourceLine" id="cb16-16" data-line-number="16">    <span class="st">&quot;output/easyABC/scaledHistogram/toy/*.csv&quot;</span>       </a>
+<a class="sourceLine" id="cb16-17" data-line-number="17">    <span class="st">&quot;output/easyABC/simulationResult/5steps/&quot;</span></a>
+<a class="sourceLine" id="cb16-18" data-line-number="18">    </a>
+<a class="sourceLine" id="cb16-19" data-line-number="19">  buildHistogram </a>
+<a class="sourceLine" id="cb16-20" data-line-number="20">    <span class="st">&quot;output/formulas/scaledHistogram/toy/*.csv&quot;</span>       </a>
+<a class="sourceLine" id="cb16-21" data-line-number="21">    <span class="st">&quot;output/formulas/simulationResult/5steps/&quot;</span></a></code></pre></div>
 <p>Generate the figure.</p>
 <pre class="sourceCodeFilePath"><code>file: formulas/app/Main.hs</code></pre>
 <div class="sourceCode" id="cb18" data-file="formulas/app/Main.hs"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" data-line-number="1"><span class="ot">buildFigurePosteriorSteps ::</span> <span class="dt">Rules</span> ()</a>
 <a class="sourceLine" id="cb18-2" data-line-number="2">buildFigurePosteriorSteps <span class="fu">=</span></a>
 <a class="sourceLine" id="cb18-3" data-line-number="3">  <span class="st">&quot;report/5steps.png&quot;</span> <span class="fu">%&gt;</span> \target <span class="ot">-&gt;</span> <span class="kw">do</span></a>
 <a class="sourceLine" id="cb18-4" data-line-number="4">    need <span class="fu">$</span> [ <span class="st">&quot;report/5steps.gnuplot&quot;</span> ]</a>
-<a class="sourceLine" id="cb18-5" data-line-number="5">        <span class="fu">++</span> [ <span class="st">&quot;output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_&quot;</span> <span class="fu">&lt;&gt;</span> show i <span class="fu">&lt;&gt;</span> <span class="st">&quot;_1.csv&quot;</span> <span class="fu">|</span> i <span class="ot">&lt;-</span> [<span class="dv">0</span><span class="fu">..</span><span class="dv">4</span>]]</a>
-<a class="sourceLine" id="cb18-6" data-line-number="6">        <span class="fu">++</span> [ <span class="st">&quot;output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_&quot;</span> <span class="fu">&lt;&gt;</span> show i <span class="fu">&lt;&gt;</span> <span class="st">&quot;_1.csv&quot;</span> <span class="fu">|</span> i <span class="ot">&lt;-</span> [<span class="dv">0</span><span class="fu">..</span><span class="dv">4</span>]]</a>
-<a class="sourceLine" id="cb18-7" data-line-number="7">        <span class="fu">++</span> [ <span class="st">&quot;output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_&quot;</span> <span class="fu">&lt;&gt;</span> show i <span class="fu">&lt;&gt;</span> <span class="st">&quot;_1.csv&quot;</span> <span class="fu">|</span> i <span class="ot">&lt;-</span> [<span class="dv">0</span><span class="fu">..</span><span class="dv">4</span>]]</a>
-<a class="sourceLine" id="cb18-8" data-line-number="8">    cmd_ (<span class="dt">Cwd</span> <span class="st">&quot;report/&quot;</span>) (unpack <span class="st">&quot;gnuplot&quot;</span>) ([unpack <span class="st">&quot;-c&quot;</span>, <span class="st">&quot;5steps.gnuplot&quot;</span>])</a></code></pre></div>
+<a class="sourceLine" id="cb18-5" data-line-number="5">        <span class="fu">++</span> [ <span class="st">&quot;output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_&quot;</span> <span class="fu">&lt;&gt;</span> show i <span class="fu">&lt;&gt;</span> <span class="st">&quot;_1.csv&quot;</span> <span class="fu">|</span> i <span class="ot">&lt;-</span> [<span class="dv">1</span><span class="fu">..</span><span class="dv">9</span>]]</a>
+<a class="sourceLine" id="cb18-6" data-line-number="6">        <span class="fu">++</span> [ <span class="st">&quot;output/formulas/scaledHistogram/toy/steadyState_5000_0.10_0.01_1_&quot;</span> <span class="fu">&lt;&gt;</span> show (<span class="dv">5000</span> <span class="fu">*</span> (i <span class="fu">+</span> <span class="dv">1</span>)) <span class="fu">&lt;&gt;</span> <span class="st">&quot;_1.csv&quot;</span> <span class="fu">|</span> i <span class="ot">&lt;-</span> [<span class="dv">1</span><span class="fu">..</span><span class="dv">9</span>]]</a>
+<a class="sourceLine" id="cb18-7" data-line-number="7">        <span class="fu">++</span> [ <span class="st">&quot;output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_&quot;</span> <span class="fu">&lt;&gt;</span> show i <span class="fu">&lt;&gt;</span> <span class="st">&quot;_1.csv&quot;</span> <span class="fu">|</span> i <span class="ot">&lt;-</span> [<span class="dv">0</span><span class="fu">..</span><span class="dv">4</span>]]</a>
+<a class="sourceLine" id="cb18-8" data-line-number="8">        <span class="fu">++</span> [ <span class="st">&quot;output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_&quot;</span> <span class="fu">&lt;&gt;</span> show i <span class="fu">&lt;&gt;</span> <span class="st">&quot;_1.csv&quot;</span> <span class="fu">|</span> i <span class="ot">&lt;-</span> [<span class="dv">0</span><span class="fu">..</span><span class="dv">4</span>]]</a>
+<a class="sourceLine" id="cb18-9" data-line-number="9">    cmd_ (<span class="dt">Cwd</span> <span class="st">&quot;report/&quot;</span>) (unpack <span class="st">&quot;gnuplot&quot;</span>) ([unpack <span class="st">&quot;-c&quot;</span>, <span class="st">&quot;5steps.gnuplot&quot;</span>])</a></code></pre></div>
 <p><img src="report/5steps.png" /></p>
 <pre class="sourceCodeFilePath"><code>file: formulas/app/Main.hs</code></pre>
 <div class="sourceCode" id="cb20" data-file="formulas/app/Main.hs"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1"><span class="ot">main ::</span> <span class="dt">IO</span> ()</a>
 <a class="sourceLine" id="cb20-2" data-line-number="2">main <span class="fu">=</span> shakeArgs shakeOptions{shakeVerbosity<span class="fu">=</span><span class="dt">Normal</span>,</a>
 <a class="sourceLine" id="cb20-3" data-line-number="3">                              shakeColor<span class="fu">=</span><span class="dt">True</span>} <span class="fu">$</span> <span class="kw">do</span></a>
 <a class="sourceLine" id="cb20-4" data-line-number="4">  want <span class="fu">$</span> [<span class="st">&quot;report/5steps.png&quot;</span>] </a>
-<a class="sourceLine" id="cb20-5" data-line-number="5">  </a>
+<a class="sourceLine" id="cb20-5" data-line-number="5"></a>
 <a class="sourceLine" id="cb20-6" data-line-number="6">  buildLenormand2012Steps</a>
-<a class="sourceLine" id="cb20-7" data-line-number="7">  buildEasyABCSteps</a>
-<a class="sourceLine" id="cb20-8" data-line-number="8">  buildHistograms</a>
-<a class="sourceLine" id="cb20-9" data-line-number="9">  buildFigurePosteriorSteps</a></code></pre></div>
+<a class="sourceLine" id="cb20-7" data-line-number="7">  buildSteadyStateSteps</a>
+<a class="sourceLine" id="cb20-8" data-line-number="8">  buildEasyABCSteps</a>
+<a class="sourceLine" id="cb20-9" data-line-number="9">  buildHistograms</a>
+<a class="sourceLine" id="cb20-10" data-line-number="10">  buildFigurePosteriorSteps</a></code></pre></div>
 </body>
 </html>

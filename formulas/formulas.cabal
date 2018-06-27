@@ -19,7 +19,9 @@ library
                        Input,
                        Output,
                        ABC.Lenormand2012,
-                       Distribution
+                       ABC.SteadyState,
+                       Distribution,
+                       Util.SteadyState
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5,
                        protolude >= 0.2.2,
@@ -74,6 +76,7 @@ test-suite formulas-test
                        statistics >= 0.14.0.2,
                        formulas
   other-modules:       Test.ABC.Lenormand2012,
+                       Test.ABC.SteadyState,
                        Test.ToyModel,
                        Test.Util
   default-language:    Haskell2010

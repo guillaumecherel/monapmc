@@ -85,7 +85,8 @@ step p f s = do
                                 $ fmap fst $ mfilter snd
                                 $ mzip newThetas (V.drop (nAlpha p) select)
   let weightsSelected = (fmap fst $ mfilter snd $ mzip (weights s) select) <> newWeightsSelected
-  let newSigmaSquared = weightedCovariance (LA.fromLists $ fmap V.toList $ V.toList thetaSelected) (LA.fromList $ V.toList weightsSelected)
+  -- TODO: scale 2 ?
+  let newSigmaSquared = LA.scale 2 $ weightedCovariance (LA.fromLists $ fmap V.toList $ V.toList thetaSelected) (LA.fromList $ V.toList weightsSelected)
   let newS =  S { thetas = thetaSelected
                  , weights = weightsSelected
                  , rhos = rhoSelected

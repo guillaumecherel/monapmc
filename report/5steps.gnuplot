@@ -16,8 +16,13 @@ set isosamples 500
 normal(x, mean, var) = exp(- ((x - mean) ** 2.0) / (2.0 * var)) / sqrt(2.0 * pi * var)
 posterior(x) = 0.5 * normal(x, 0.0, 1.0 / 100.0) + 0.5 * normal(x, 0.0, 1.0)
 
-set multiplot layout 3,5 columnsfirst
-do for [i in "0 1 2 3 4"] {
+set multiplot layout 4,5 columnsfirst
+do for [i in "1 2 3 4 9"] {
+  iSteadyState = 5000 * i
+  set title "steadyState step ".iSteadyState
+  plot "../output/formulas/scaledHistogram/toy/steadyState_5000_0.10_0.01_1_".iSteadyState."_1.csv" w boxes t "" fs solid, \
+       posterior(x) t "" w l lc "black"
+
   set title "lenormand2012 step ".i
   plot "../output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_".i."_1.csv" w boxes t "" fs solid, \
        posterior(x) t "" w l lc "black"
@@ -30,7 +35,5 @@ do for [i in "0 1 2 3 4"] {
   plot "../output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_".i."_1.csv" w boxes t "" fs solid, \
        posterior(x) t "" w l lc "black"
 
-  #iSteadyState = 5000 * (i + 1)
-  #set title "steadyState step ".iSteadyState
 }
 unset multiplot

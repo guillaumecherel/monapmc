@@ -1,0 +1,102 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
+
+module Main where
+
+import Prelude (($), undefined)
+
+import qualified Control.Foldl as L
+import Control.Monad.Random
+import System.IO (IO)
+import Data.Text
+import qualified Data.Vector as V
+import System.Environment
+import System.Random
+import System.Exit
+import TextShow (TextShow, showt)
+
+import Formulas
+import Input
+import Output
+import Distribution
+import qualified ABC.Lenormand2012 as Lenormand2012
+
+
+main :: IO ()
+main = do
+  return ()
+--   args <- getArgs
+--   case args of
+--     ["toy_posterior_sample",theta,lowerBound,upperBound, samples] ->
+--       putStrLn $ columns2 " " $ toyPosteriorRegularSample (read theta) (read lowerBound) (read upperBound) (read samples)
+-- 
+--     ["toy_histogram", simuOutputFile, lowerBound, upperBound, bins] -> do
+--       parseResult <- loadSimulation simuOutputFile
+--       case parseResult of
+--         Left err -> die $ show err
+--         Right simRes -> putStrLn $ columns2 " " $ histogram (read lowerBound) (read upperBound) (read bins) (getSample simRes)
+-- 
+--     ["toy_scaled_histogram", simuOutputFile, lowerBound, upperBound, bins] -> do
+--       parseResult <- loadSimulation simuOutputFile
+--       case parseResult of
+--         Left err -> die ("Error reading file: " ++ simuOutputFile ++ "\n" ++ show err)
+--         Right simRes -> putStrLn $ columns2 " " $ scaledHistogram (read lowerBound) (read upperBound) (read bins) (getSample simRes)
+-- 
+--     ["posterior_L2", lowerBound, upperBound, bins, densityName, simuOutputFile] -> do
+--       parseResult <- loadSimulation simuOutputFile
+--       case parseResult of
+--         Left err -> die ("Error reading file: " ++ simuOutputFile ++ "\n" ++ show err)
+--         Right simRes -> case readDensity densityName of
+--           Left err -> die $ show err
+--           Right density ->
+--             print $ posteriorL2 (read lowerBound) (read upperBound) (read bins) density (getSample simRes)
+-- 
+--     ["number_simulations_lenormand2012", n, nAlpha, step] -> print $ numberSimusLenormand2012 (read n) (read nAlpha) (read step)
+-- 
+--     ["number_simulations_steadyState", step] -> print $ numberSimusSteadyState (read step)
+-- 
+--     "L2_vs_number_simulations":lowerBound:upperBound:bins:densityName:files -> do
+--       parseResults <- traverse loadSimulation files
+--       case sequence parseResults of
+--         Left err -> die ("Error reading file: " ++ show err)
+--         Right simRess -> case readDensity densityName of
+--           Left err -> die $ show err
+--           Right density -> 
+--             putStrLn $ columns2 " " $ L.fold (l2VsNSimus (read lowerBound) (read upperBound) (read bins) density) simRess 
+-- 
+--     "L2_vs_alpha":lowerBound:upperBound:bins:densityName:files -> do
+--       parseResults <- traverse loadSimulation files
+--       case sequence parseResults of
+--         Left err -> die ("Error reading file: " ++ show err)
+--         Right simRess -> case readDensity densityName of
+--           Left err -> die $ show err
+--           Right density -> 
+--             putStrLn $ columns2 " " $ L.fold (l2VsAlpha (read lowerBound) (read upperBound) (read bins) density) simRess
+-- 
+--     "nsimus_vs_alpha":files -> do
+--       parseResults <- traverse loadSimulation files
+--       case sequence parseResults of
+--         Left err -> die ("Error reading file: " ++ show err)
+--         Right simRess -> putStrLn $ columns2 " " $ L.fold nSimusVsAlpha simRess
+-- 
+--     ["lenormand2012", n, nAlpha, pAccMin, prior, model] -> do
+--       let eRes = do
+--                   sam <- readSamplingDouble prior
+--                   den <- readDensity prior
+--                   p <- return $ Lenormand2012.P {
+--                                     Lenormand2012.n = read n,
+--                                     Lenormand2012.nAlpha = read nAlpha,
+--                                     Lenormand2012.pAccMin = read pAccMin,
+--                                     Lenormand2012.priorSample = fmap V.singleton sam,
+--                                     Lenormand2012.priorDensity = den . V.head,
+--                                     Lenormand2012.distanceToData = \x -> sqrt (V.head x ** 2)}
+--                   mod <- readModel model
+--                   return $ (p, Lenormand2012.lenormand2012 p mod)
+--       steps <- case eRes of
+--         Left err -> die $ show err
+--         Right (p, res) -> return $ take 50 $ fmap (show . Lenormand2012.thetas) $ evalRand res (mkStdGen 1)
+--       let writeToFile f xs = writeFile f $ unlines $ V.toList $ fmap V.head xs undefined
+--       --traverse (\(i, xs) -> writeToFile ("output/formulas/5steps/lenormand2012_" ++ n p ++ "_" ))
+--       undefined
+--       
+--    _ -> putStrLn $ "Unknown command " ++ show args

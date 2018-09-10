@@ -62,6 +62,17 @@ data Accepted = Accepted
 
 type Seed = Int
 
+scan :: (MonadRandom m, MonadIO m) => P m -> ((Seed, V.Vector Double) -> IO (V.Vector Double)) -> m [S]
+scan p f = start >>= go
+  where go (s,r) = do
+          (s', r') <- step (s, r)
+          if stop s'
+            then return [s', s]
+            else fmap (s':) (go (s',r'))
+        stop s = pAcc s < pAccMin p
+        SteadyStateRunner {start = start, step = step} = runner p f
+          
+
 runner :: (MonadRandom m, MonadIO m) => P m -> ((Seed, V.Vector Double) -> IO (V.Vector Double)) -> SteadyStateRunner m S Simulation
 runner p f =
   let init = initialS p >>= \s -> initialThetas p s >>= \thetas -> return (s, thetas)

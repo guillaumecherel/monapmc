@@ -1,5 +1,6 @@
 .#*
 **/.ensime*
+*.html
 .RData
 .Rhistory
 .projectile
@@ -10,6 +11,7 @@ blocks-simulations/target/
 blocks-simulations/project/target/
 formulas/.stack-work/
 formulas/.shake/
+formulas/test-output/
 output/*/simulationResult/
 output/*/scaledHistogram/
 output/easyABC/model_*

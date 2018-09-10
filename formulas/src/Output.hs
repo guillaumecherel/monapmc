@@ -1,6 +1,9 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Output where
+
+import Protolude
   
 import Prelude (undefined, ($))
 
@@ -47,12 +50,12 @@ pprint s = pprintAlgorithm (getAlgorithm s)
         <> " sample=" <> (showt $ take 3 $ V.toList $ fmap V.head $ getSample s)
         <> if (length (getSample s) > 3) then "..." else ""
 
-column :: TextShow a => [a] -> Text
-column xs = unlines $ fmap showt xs
+column :: Show a => [a] -> Text
+column xs = unlines $ fmap show xs
 
-columns2 :: (TextShow a, TextShow b) => Text -> [(a, b)] -> Text
+columns2 :: (Show a, Show b) => Text -> [(a, b)] -> Text
 columns2 _ [] = ""
-columns2 sep ((a,b):xs) = showt a <> sep <> showt b <> "\n" <> columns2 sep xs
+columns2 sep ((a,b):xs) = show a <> sep <> show b <> "\n" <> columns2 sep xs
 
 simulationResultFileName :: SimulationResult -> FilePath
 simulationResultFileName s = unpack $

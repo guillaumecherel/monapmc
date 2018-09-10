@@ -38,16 +38,19 @@ data S = S
 pprintS :: S -> T.Text
 pprintS s = T.pack $ show $ thetas s
 
--- The monad in which the algorithm runs.
--- type M g a = RandT g (State S) a
+-- run :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
+-- run p f = 
 
--- Returns a scan over the algorithm steps, i.e.
---
--- > [stepOne, stepOne >>= step, stepOne >>= step >>= step, ...]
---
--- Uses scanl' to avoid memory leaks
-lenormand2012 :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m [S]
-lenormand2012 p f = sequence $ scanl' (>>=) (stepOne p f) (repeat (step p f))
+scan :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m [S]
+scan p f =
+  -- sequence $ scanl' (>>=) (stepOne p f) (repeat (step p f))
+  stepOne p f >>= go
+  where go s = do
+          s' <- step p f s
+          if stop s'
+            then return [s', s]
+            else fmap (s':) (go s')
+        stop s = pAcc s < pAccMin p
 
 stepOne :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
 stepOne p f = do

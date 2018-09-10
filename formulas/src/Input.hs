@@ -34,11 +34,17 @@ read1DSample :: FilePath -> T.Text -> Either P.ParseError (V.Vector (V.Vector Do
 read1DSample = --mapM ((fmap fst) . TR.double) (T.lines text)
   P.parse parser1DSample
 
-loadSimulation :: FilePath -> IO (Either P.ParseError SimulationResult)
-loadSimulation f = do
-  simuOutput <- fmap (read1DSample f) (TIO.readFile f)
-  return (P.parse parseSimulationFileName ("filename " ++ f) f <*> simuOutput)
+readSimulationResult :: FilePath -> T.Text -> Either P.ParseError SimulationResult
+readSimulationResult filename column =
+  P.parse parseSimulationFileName ("filename " ++ filename) filename
+  <*> read1DSample filename column
   where parseSimulationFileName = P.try parseLenormand2012 <|> P.try parseBeaumont2009 <|> parseSteadyState
+
+readHistogram :: FilePath -> T.Text -> Either P.ParseError [(Double, Double)]
+readHistogram = P.parse parserHistogram
+
+loadSimulation :: FilePath -> IO (Either P.ParseError SimulationResult)
+loadSimulation f = (TIO.readFile f) >>= return . readSimulationResult f
 
 loadAllSimulations :: FilePath -> IO [SimulationResult]
 loadAllSimulations dir = do
@@ -55,6 +61,13 @@ parserDouble = read <$> (P.option "" (P.string "-") <> P.many1 P.digit <> P.opti
 parser1DSample :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double))
 parser1DSample = fmap (V.fromList . fmap V.singleton) (P.many $ P.try parserDouble <* P.optional P.endOfLine)
   --P.sepBy parserDouble P.endOfLine << P.endOfLine
+
+parserHistogram :: (P.Stream s m Char) => P.ParsecT s u m [(Double, Double)]
+parserHistogram = P.many $ P.try line
+  where line = (,) <$> parserDouble
+                   <*  P.many P.space
+                   <*> parserDouble
+                   <* P.optional P.endOfLine
 
 parseLenormand2012 :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> SimulationResult)
 parseLenormand2012 = do
@@ -120,3 +133,4 @@ parserNormal = do
 
 parserModel :: (P.Stream s m Char) => P.ParsecT s u m Model
 parserModel = P.string "toyModel" *> pure Toy
+

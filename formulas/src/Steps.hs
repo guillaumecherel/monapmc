@@ -123,108 +123,60 @@ histogramsSteadyState =
   (fmap . fmap) (cachedHistogram "output/formulas/scaledHistogram/toy/") 
                 steadyStateSteps
 
-plot5Steps :: IO ()
-plot5Steps = callProcess ("gnuplot" :: String) $
-  [ ("-e" :: String), "outputPath='report/5steps.png'"
-  , "-e", "formulas_lenormand2012_1=" 
-          <> "'output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_1_1.csv'"
-  , "-e", "formulas_lenormand2012_2=" 
-          <> "'output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_2_1.csv'"
-  , "-e", "formulas_lenormand2012_3=" 
-          <> "'output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_3_1.csv'"
-  , "-e", "formulas_lenormand2012_4=" 
-          <> "'output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_4_1.csv'"
-  , "-e", "formulas_lenormand2012_5=" 
-          <> "'output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_5_1.csv'"
-  , "-e", "formulas_steadyState_1="
-          <> "'output/formulas/scaledHistogram/toy/steadyState_5000_0.10_0.01_1_5000_1.csv'"
-  , "-e", "formulas_steadyState_2=" 
-          <> "'output/formulas/scaledHistogram/toy/steadyState_5000_0.10_0.01_1_10000_1.csv'"
-  , "-e", "formulas_steadyState_3=" 
-          <> "'output/formulas/scaledHistogram/toy/steadyState_5000_0.10_0.01_1_15000_1.csv'"
-  , "-e", "formulas_steadyState_4=" 
-          <> "'output/formulas/scaledHistogram/toy/steadyState_5000_0.10_0.01_1_20000_1.csv'"
-  , "-e", "formulas_steadyState_5=" 
-          <> "'output/formulas/scaledHistogram/toy/steadyState_5000_0.10_0.01_1_25000_1.csv'"
-  , "-e", "easyABC_lenormand2012_1="
-          <> "'output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_0_1.csv'"
-  , "-e", "easyABC_lenormand2012_2=" 
-          <> "'output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_1_1.csv'"
-  , "-e", "easyABC_lenormand2012_3=" 
-          <> "'output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_2_1.csv'"
-  , "-e", "easyABC_lenormand2012_4=" 
-          <> "'output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_3_1.csv'"
-  , "-e", "easyABC_lenormand2012_5=" 
-          <> "'output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_4_1.csv'"
-  , "-e", "easyABC_beaumont2009_1=" 
-          <> "'output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_0_1.csv'"
-  , "-e", "easyABC_beaumont2009_2=" 
-          <> "'output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_1_1.csv'"
-  , "-e", "easyABC_beaumont2009_3=" 
-          <> "'output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_2_1.csv'"
-  , "-e", "easyABC_beaumont2009_4=" 
-          <> "'output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_3_1.csv'"
-  , "-e", "easyABC_beaumont2009_5=" 
-          <> "'output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_4_1.csv'"
-  , "-c", "report/5steps.gnuplot" 
-  ]
-
+gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Sink
+gnuplot path script args = Sink path command (script : fmap snd args)
+  where command = callProcess ("gnuplot" :: String) gpArgs
+        gpArgs = [ ("-e" :: String), "outputPath='" <> path <> "'" ]
+              <> join ( fmap (\(arg,val) -> ["-e", arg <> "='" <> val <> "'"]) 
+                             args )
+              <> ["-c", script] 
+                                
 figurePosteriorSteps :: Sink 
-figurePosteriorSteps = 
-  Sink { sinkPath = "report/5steps.png"
-       , sinkWrite = plot5Steps
-       , sinkNeeds = 
-         [ "report/5steps.gnuplot"
-         , "output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_1_1.csv"
-         , "output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_2_1.csv"
-         , "output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_3_1.csv"
-         , "output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_4_1.csv"
-         , "output/formulas/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_5_1.csv"
-         , "output/formulas/scaledHistogram/toy/steadyState_5000_0.10_0.01_1_5000_1.csv"
-         , "output/formulas/scaledHistogram/toy/steadyState_5000_0.10_0.01_1_10000_1.csv"
-         , "output/formulas/scaledHistogram/toy/steadyState_5000_0.10_0.01_1_15000_1.csv"
-         , "output/formulas/scaledHistogram/toy/steadyState_5000_0.10_0.01_1_20000_1.csv"
-         , "output/formulas/scaledHistogram/toy/steadyState_5000_0.10_0.01_1_25000_1.csv"
-         , "output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_0_1.csv"
-         , "output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_1_1.csv"
-         , "output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_2_1.csv"
-         , "output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_3_1.csv"
-         , "output/easyABC/scaledHistogram/toy/lenormand2012_5000_0.10_0.01_4_1.csv"
-         , "output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_0_1.csv"
-         , "output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_1_1.csv"
-         , "output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_2_1.csv"
-         , "output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_3_1.csv"
-         , "output/easyABC/scaledHistogram/toy/beaumont2009_5000_2.00_0.01_4_1.csv"
-         ]
-       }
+figurePosteriorSteps =
+  gnuplot "report/5steps.png" "report/5steps.gnuplot"
+    [ ("formulas_lenormand2012_1", "output/formulas/scaledHistogram/toy/"
+                               <>  "lenormand2012_5000_0.10_0.01_1_1.csv")
+    , ( "formulas_lenormand2012_2", "output/formulas/scaledHistogram/toy/"
+                                 <> "lenormand2012_5000_0.10_0.01_2_1.csv")
+    , ( "formulas_lenormand2012_3", "output/formulas/scaledHistogram/toy/"
+                                 <> "lenormand2012_5000_0.10_0.01_3_1.csv")
+    , ( "formulas_lenormand2012_4", "output/formulas/scaledHistogram/toy/"
+                                 <> "lenormand2012_5000_0.10_0.01_4_1.csv")
+    , ( "formulas_lenormand2012_5", "output/formulas/scaledHistogram/toy/"
+                                 <> "lenormand2012_5000_0.10_0.01_5_1.csv")
+    , ( "formulas_steadyState_1", "output/formulas/scaledHistogram/toy/"
+                               <> "steadyState_5000_0.10_0.01_1_5000_1.csv")
+    , ( "formulas_steadyState_2", "output/formulas/scaledHistogram/toy/"
+                               <> "steadyState_5000_0.10_0.01_1_10000_1.csv")
+    , ( "formulas_steadyState_3", "output/formulas/scaledHistogram/toy/"
+                               <> "steadyState_5000_0.10_0.01_1_15000_1.csv")
+    , ( "formulas_steadyState_4", "output/formulas/scaledHistogram/toy/"
+                               <> "steadyState_5000_0.10_0.01_1_20000_1.csv")
+    , ( "formulas_steadyState_5", "output/formulas/scaledHistogram/toy/"
+                               <> "steadyState_5000_0.10_0.01_1_25000_1.csv")
+    , ( "easyABC_lenormand2012_1", "output/easyABC/scaledHistogram/toy/"
+                               <> "lenormand2012_5000_0.10_0.01_0_1.csv")
+    , ( "easyABC_lenormand2012_2", "output/easyABC/scaledHistogram/toy/"
+                                <> "lenormand2012_5000_0.10_0.01_1_1.csv")
+    , ( "easyABC_lenormand2012_3", "output/easyABC/scaledHistogram/toy/"
+                                <> "lenormand2012_5000_0.10_0.01_2_1.csv")
+    , ( "easyABC_lenormand2012_4", "output/easyABC/scaledHistogram/toy/"
+                                <> "lenormand2012_5000_0.10_0.01_3_1.csv")
+    , ( "easyABC_lenormand2012_5", "output/easyABC/scaledHistogram/toy/"
+                                <> "lenormand2012_5000_0.10_0.01_4_1.csv")
+    , ( "easyABC_beaumont2009_1", "output/easyABC/scaledHistogram/toy/"
+                               <> "beaumont2009_5000_2.00_0.01_0_1.csv")
+    , ( "easyABC_beaumont2009_2", "output/easyABC/scaledHistogram/toy/"
+                               <> "beaumont2009_5000_2.00_0.01_1_1.csv")
+    , ( "easyABC_beaumont2009_3", "output/easyABC/scaledHistogram/toy/"
+                               <> "beaumont2009_5000_2.00_0.01_2_1.csv")
+    , ( "easyABC_beaumont2009_4", "output/easyABC/scaledHistogram/toy/"
+                               <> "beaumont2009_5000_2.00_0.01_3_1.csv")
+    , ( "easyABC_beaumont2009_5", "output/easyABC/scaledHistogram/toy/"
+                               <> "beaumont2009_5000_2.00_0.01_4_1.csv")
+    ]
 
--- figurePosteriorSteps :: [Histogram] 
---                      -> [Histogram]
---                      -> [Histogram]
---                      -> [Histogram]
---                      -> Figure
--- figurePosteriorSteps formulasLenormand2012 formulasSteadyState 
---   easyABCLenormand2012 easyABCSteadyState = 
---   figure { name = "5steps"
---          , makePNG = GnuplotCmd (fmap (\(i, h) -> "formulas_lenormand2012_" 
---                                                <> show i 
---                                                <> "=" <> getFilePath h) 
---                                       (zip [1..] formulasLenormand2012)
---                               <> fmap (\(i, h) -> "formulas_steadyState_" 
---                                                <> show i 
---                                                <> "=" <> getFilePath h) 
---                                       (zip [1..] formulasLenormand2012]
---                               <> fmap (\(i, h) -> "easyABC_lenormand2012_" 
---                                                <> show i 
---                                                <> "=" <> getFilePath h) 
---                                       (zip [1..] formulasLenormand2012)
---                               <> fmap (\(i, h) -> "easyABC_beaumont2009_" 
---                                                <> show i 
---                                                <> "=" <> getFilePath h) 
---                                       (zip [1..] formulasLenormand2012)
---                               <> ["-c", "5steps.gnuplot"] 
---                             )
---          }
+
 
 buildSteps :: Rules ()
 buildSteps = foldMap buildCache histogramsLenormand2012

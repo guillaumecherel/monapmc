@@ -139,13 +139,13 @@ Generate the figure.
 
 ~~~~ {.haskell file="formulas/src/Steps.hs"}
 gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Sink
-gnuplot path script args = Sink path command (script : fmap snd args)
+gnuplot output script args = Sink output command (script : fmap snd args)
   where command = callProcess ("gnuplot" :: String) gpArgs
-        gpArgs = [ ("-e" :: String), "outputPath='" <> path <> "'" ]
+        gpArgs = [ ("-e" :: String), "outputPath='" <> output <> "'" ]
               <> join ( fmap (\(arg,val) -> ["-e", arg <> "='" <> val <> "'"]) 
                              args )
               <> ["-c", script] 
-                                
+
 figurePosteriorSteps :: Sink 
 figurePosteriorSteps =
   gnuplot "report/5steps.png" "report/5steps.gnuplot"

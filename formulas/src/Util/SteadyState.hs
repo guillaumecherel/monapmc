@@ -7,7 +7,6 @@ import Protolude
 import Control.Monad.Random (MonadRandom)
 import qualified Data.Set as Set
 import qualified Data.Vector as V
-import TextShow (TextShow)
 import qualified Numeric.LinearAlgebra as LA
 import qualified Statistics.Quantile as SQ
 

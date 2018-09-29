@@ -25,9 +25,11 @@ import Development.Shake.Command
 import Development.Shake.FilePath
 import Development.Shake.Util
 
-import Formulas
-import Input
-import Output 
+import Algorithm
+import CSV
+import Model
+import Simulation
+import Statistics
 import qualified ABC.Lenormand2012 as Lenormand2012
 import qualified ABC.SteadyState as SteadyState
 import qualified Util.SteadyState as SteadyState (start, step, scanIndices) 

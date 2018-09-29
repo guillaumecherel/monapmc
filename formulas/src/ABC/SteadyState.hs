@@ -14,7 +14,6 @@ import Data.Monoid (Last(..), (<>))
 import qualified Data.IntMap as Map
 import qualified Data.Set as Set
 import qualified Data.Vector as V
-import TextShow (TextShow)
 import qualified Numeric.LinearAlgebra as LA
 import qualified Statistics.Quantile as SQ
 import Util.SteadyState

@@ -28,9 +28,12 @@ import Development.Shake.Command
 import Development.Shake.FilePath
 import Development.Shake.Util
 
-import Formulas
-import Input
-import Output 
+import Algorithm
+import CSV
+import Figure
+import Model
+import Simulation
+import Statistics
 import qualified ABC.Lenormand2012 as Lenormand2012
 import qualified ABC.SteadyState as SteadyState
 import Util.Cache
@@ -138,14 +141,6 @@ histogramsSteadyState =
 Generate the figure.
 
 ~~~~ {.haskell file="formulas/src/Steps.hs"}
-gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Sink
-gnuplot output script args = Sink output command (script : fmap snd args)
-  where command = callProcess ("gnuplot" :: String) gpArgs
-        gpArgs = [ ("-e" :: String), "outputPath='" <> output <> "'" ]
-              <> join ( fmap (\(arg,val) -> ["-e", arg <> "='" <> val <> "'"]) 
-                             args )
-              <> ["-c", script] 
-
 figurePosteriorSteps :: Sink 
 figurePosteriorSteps =
   gnuplot "report/5steps.png" "report/5steps.gnuplot"

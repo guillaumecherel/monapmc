@@ -1,12 +1,16 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Distribution where
 
+import Protolude
 import Control.Monad.Random
 import qualified Data.Random as R
 import Data.Word (Word64)
+import qualified Text.Parsec as P
+import Util.Parser
 
 data Uniform = Uniform {lowerBound :: Double, upperBound :: Double} deriving (Eq, Show)
 data Normal = Normal {mean :: Double, var :: Double} deriving (Eq, Show)
@@ -47,4 +51,40 @@ normalDensity mean var x =
 normalRandomSample :: forall m . (MonadRandom m) => Double -> Double -> m Double
 normalRandomSample mean var =
   R.runRVar (R.normal mean (sqrt var)) (getRandom :: m Word64)
+
+
+--------
+-- Parsing
+--------
+
+readDensity :: String -> Either P.ParseError (Double -> Double)
+-- readDensity "toyPosterior" = Right $ toyPosterior 0
+readDensity x = P.parse parserDensity "" x
+
+readSamplingDouble :: (MonadRandom m) => String -> Either P.ParseError (m Double)
+readSamplingDouble x = P.parse parserSamplingFunction "" x
+
+parserDensity :: (P.Stream s m Char) => P.ParsecT s u m (Double -> Double)
+parserDensity =
+      P.try (parserUniform >>= \(Uniform u l) -> return (uniformDensity (u, l)))
+  <|> (parserNormal >>= \(Normal m v) -> return (normalDensity m v))
+
+parserSamplingFunction :: (P.Stream s m Char, MonadRandom n) => P.ParsecT s u m (n Double)
+parserSamplingFunction =
+      P.try (parserUniform >>= \(Uniform u l) -> return (uniformRandomSample (u, l)))
+   <|> (parserNormal >>= \(Normal m v) -> return (normalRandomSample m v))
+
+parserUniform :: (P.Stream s m Char) => P.ParsecT s u m Uniform
+parserUniform = do
+  P.string "uniform" *> P.spaces
+  lowerBound <- parserDouble <* P.spaces
+  upperBound <- parserDouble <* P.spaces
+  return $ Uniform lowerBound upperBound
+
+parserNormal :: (P.Stream s m Char) => P.ParsecT s u m Normal
+parserNormal = do
+  P.string "normal" *> P.spaces
+  mean <- parserDouble <* P.spaces
+  var <- parserDouble <* P.spaces
+  return $ Normal mean var
 

@@ -15,14 +15,18 @@ extra-source-files:  README.md
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Formulas,
-                       Input,
-                       Output,
+  exposed-modules:     Algorithm,
+                       CSV,
+                       Figure,
+                       Model,
+                       Simulation,
+                       Statistics,
                        ABC.Lenormand2012,
                        ABC.SteadyState,
                        Distribution,
                        Util.SteadyState,
                        Util.Cache,
+                       Util.Parser,
                        Steps,
                        L2VSNSimus
   default-language:    Haskell2010
@@ -38,7 +42,7 @@ library
                        random >= 1.1,
                        MonadRandom >= 0.5,
                        mtl >= 2.2.2,
-                       text-show >= 3.7.2,
+                       formatting >= 6.3,
                        hmatrix >= 0.18,
                        random-fu >= 0.2.7,
                        filepath >= 1.4.1,

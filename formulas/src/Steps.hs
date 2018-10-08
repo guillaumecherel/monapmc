@@ -26,7 +26,6 @@ import Development.Shake.FilePath
 import Development.Shake.Util
 
 import Algorithm
-import CSV
 import Figure
 import Model
 import Simulation
@@ -34,6 +33,7 @@ import Statistics
 import qualified ABC.Lenormand2012 as Lenormand2012
 import qualified ABC.SteadyState as SteadyState
 import Util.Cache
+import Util.CSV
 import qualified Util.SteadyState as SteadyState (start, step, scanIndices) 
 
 algoLenormand2012 :: Algorithm
@@ -66,19 +66,11 @@ lenormand2012Steps =
         , getStep = i
         , getReplication = 1
         , getSample = Lenormand2012.thetas s }
-  in fmap (cacheSimulationResult . getSimulationResult) steps
-  
-cacheSimulationResult :: SimulationResult -> Cache SimulationResult
-cacheSimulationResult s = 
-  let filename = ( "output/formulas/simulationResult/steadyState" </> simulationResultFileName s )
-  in cacheAsTxt filename
-             (column . V.toList . V.concat . V.toList . getSample)
-             (bimap show identity . readSimulationResult filename )
-             (cPure $ s)
-
+  in fmap (cacheSimulationResult "5steps" . getSimulationResult) steps
+ 
 steadyStateSteps :: IO [Cache SimulationResult]
 steadyStateSteps = 
-  (fmap . fmap) (cacheSimulationResult . getSimulationResult) enumSteps
+  (fmap . fmap) (cacheSimulationResult "5steps" . getSimulationResult) enumSteps
   where enumSteps = zip needSteps <$> steps
         needSteps = [5000, 10000 .. 100000]
         steps = flip evalRandT (mkStdGen startSeed) scan

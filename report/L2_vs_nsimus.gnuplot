@@ -1,7 +1,13 @@
-cmToPix(cm, dpi) = dpi * cm / 2.54
-set terminal png truecolor size cmToPix(7, 300),cmToPix(5, 300) font ",12"
-set output "L2_vs_nsimus.png"
+# To use this script, set the variables 
+#
+# - outputPath
+# - lenormand2012
+# - steadyState
+ 
+cmToPix(cm, dpi) = dpi * cm * 2.54
+set terminal png truecolor size cmToPix(7, 72),cmToPix(5, 72) font ",12"
+set output outputPath
 
-plot "../output/formulas/l2_vs_nsimus/toy/lenormand2012.csv" w p lc 1, \
-     "../output/formulas/l2_vs_nsimus/toy/steadyState.csv" w p lc 2
+plot lenormand2012 w p lc 1, \
+     steadyState w p lc 2
 

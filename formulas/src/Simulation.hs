@@ -13,8 +13,11 @@ import qualified Data.Text.IO as TIO
 import qualified Data.Vector as V
 import Formatting
 import qualified Text.Parsec as P
+import Util.Cache
+import Util.CSV
 import Util.Parser
 import System.Directory
+import System.FilePath
 
 import Algorithm
 import Statistics
@@ -122,26 +125,35 @@ groupReplications = L.groupBy getAlgorithm
 
 pprint :: SimulationResult -> Text
 pprint s = pprintAlgorithm (getAlgorithm s)
-        <> " step=" <> (show $ getStep s)
-        <> " replication=" <> (show $ getReplication s)
-        <> " sample=" <> (show $ take 3 $ V.toList $ fmap V.head $ getSample s)
-        <> if (length (getSample s) > 3) then "..." else ""
+        <> " step=" <> show (getStep s)
+        <> " replication=" <> show (getReplication s)
+        <> " sample=" <> show (take 3 $ V.toList $ V.head <$> getSample s)
+        <> if length (getSample s) > 3 then "..." else ""
 
 simulationResultFileName :: SimulationResult -> FilePath
 simulationResultFileName s = unpack $
      algorithmPart (getAlgorithm s) <> "_"
   <> show (getStep s) <> "_"
   <> show (getReplication s) <> ".csv"
-  where algorithmPart (Lenormand2012 {getN=n, getAlpha=alpha, getPAccMin=pAccMin}) =
+  where algorithmPart Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
           "lenormand2012_" <> show n <> "_" <> show2dec alpha <> "_" <> show2dec pAccMin
-        algorithmPart (Beaumont2009 {getN=n, getEpsilonFrom=eFrom, getEpsilonTo=eTo}) =
+        algorithmPart Beaumont2009{getN=n, getEpsilonFrom=eFrom, getEpsilonTo=eTo} =
           "beaumont2009_" <> show n <> "_" <> show2dec eFrom <> "_" <> show2dec eTo
-        algorithmPart (SteadyState {getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par}) =
+        algorithmPart SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
           "steadyState_" <> show n <> "_" <> show2dec alpha <> "_" <> show2dec pAccMin <> "_" <> show par
 
 show2dec :: Double -> Text
-show2dec x = sformat (fixed 2) x
+show2dec = sformat (fixed 2)
 
+cacheSimulationResult :: Text -> SimulationResult -> Cache SimulationResult
+cacheSimulationResult expName s =
+  let filename = "output/formulas/simulationResult"
+             </> unpack expName
+             </> simulationResultFileName s
+  in cacheAsTxt filename
+             (column . V.toList . V.concat . V.toList . getSample)
+             (bimap show identity . readSimulationResult filename )
+             (cPure s)
 
 --------
 -- Parsing

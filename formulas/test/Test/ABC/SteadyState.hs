@@ -9,11 +9,9 @@ import Protolude
 import Test.QuickCheck
 import Test.QuickCheck.Assertions
 
-import Distribution
-import Formulas
 import Test.Util
 
 import ABC.SteadyState
 
 runTests = do
-  quickCheck True
+  checkOrExit True

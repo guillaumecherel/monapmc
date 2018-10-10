@@ -28,7 +28,7 @@ import Development.Shake.Util
 import Algorithm
 import Figure
 import Model
-import Simulation
+import Run
 import Statistics
 import qualified ABC.Lenormand2012 as Lenormand2012
 import qualified ABC.SteadyState as SteadyState
@@ -48,7 +48,7 @@ algoSteadyState = SteadyState { getN = 5000
                               , getParallel = 1
                               }
 
-lenormand2012Steps :: [Cache SimulationResult]
+lenormand2012Steps :: [Cache Run]
 lenormand2012Steps = 
   let steps = zip [1..] $ take 20 $ evalRand (Lenormand2012.scan p toyModel :: Rand StdGen [Lenormand2012.S]) (mkStdGen seed)
       seed = 41
@@ -61,16 +61,16 @@ lenormand2012Steps =
         , Lenormand2012.priorDensity = toyPrior
         , Lenormand2012.distanceToData = rootSquaredError 0 . V.head
         }
-      getSimulationResult (i, s) = SimulationResult 
+      getRun (i, s) = Run 
         { getAlgorithm = algo
         , getStep = i
         , getReplication = 1
         , getSample = Lenormand2012.thetas s }
-  in fmap (cacheSimulationResult "5steps" . getSimulationResult) steps
+  in fmap (cacheRun "5steps" . getRun) steps
  
-steadyStateSteps :: IO [Cache SimulationResult]
+steadyStateSteps :: IO [Cache Run]
 steadyStateSteps = 
-  (fmap . fmap) (cacheSimulationResult "5steps" . getSimulationResult) enumSteps
+  (fmap . fmap) (cacheRun "5steps" . getRun) enumSteps
   where enumSteps = zip needSteps <$> steps
         needSteps = [5000, 10000 .. 100000]
         steps = flip evalRandT (mkStdGen startSeed) scan
@@ -88,7 +88,7 @@ steadyStateSteps =
           , SteadyState.priorDensity = toyPrior
           , SteadyState.distanceToData = rootSquaredError 0 . V.head
           }
-        getSimulationResult (i, s) = SimulationResult 
+        getRun (i, s) = Run 
           { getAlgorithm = algo
           , getStep = i
           , getReplication = 1
@@ -97,10 +97,10 @@ steadyStateSteps =
 
 rootSquaredError expected x = sqrt ((x - expected) ** 2)
 
-histogramStep :: SimulationResult -> [(Double, Double)]
+histogramStep :: Run -> [(Double, Double)]
 histogramStep s = scaledHistogram (-10) 10 300 . V.toList . fmap V.head . getSample $ s
 
-cachedHistogram :: FilePath -> Cache SimulationResult -> Cache [(Double, Double)]
+cachedHistogram :: FilePath -> Cache Run -> Cache [(Double, Double)]
 cachedHistogram dir s = 
   cPure histogramStep `cAp` s
   & cacheAsTxt filename

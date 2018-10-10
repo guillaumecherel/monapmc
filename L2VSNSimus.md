@@ -8,7 +8,8 @@ import Protolude
 
 import qualified Control.Foldl as L
 import Control.Monad.Fail (fail)
-import Control.Monad.Random (Rand, RandT, MonadRandom, evalRand, evalRandT)
+import Control.Monad.Random ( Rand, RandT, MonadRandom, evalRand, evalRandT
+                            , liftRandT, runRand, runRandT)
 import qualified Data.Map as Map
 import Data.List (last)
 import Data.String (String)
@@ -26,9 +27,9 @@ import Development.Shake.Command
 import Development.Shake.FilePath
 import Development.Shake.Util
 
-import Algorithm
+import qualified Algorithm
 import Model
-import Simulation
+import Run
 import Statistics
 import qualified ABC.Lenormand2012 as Lenormand2012
 import qualified ABC.SteadyState as SteadyState
@@ -39,191 +40,249 @@ import qualified Util.SteadyState as SteadyState (start, step, scanIndices)
 
 ![](report/L2_vs_nsimus.png)
 
-Simulations need to be run for different values of pAccMin and alpha. We will keep only the final step of each simulation
+Algorithms need to be run for different values of pAccMin and alpha. We will keep only the final step of each simulation
 
 ~~~~ {.haskell file="formulas/src/L2VSNSimus.hs"}
-lenormand2012 :: Double -> Double -> Int -> Rand (Cache SimulationResult)
+data Algo = Lenormand2012 {getAlpha :: Double, getPAccMin :: Double}
+          | SteadyState {getAlpha :: Double, getPAccMin :: Double}
+  deriving (Ord, Eq, Show)
+
+data RunA = RunA {unRunA :: RandT StdGen IO (Cache Run)}
+   
+run :: Algo -> Int -> RunA
+run Lenormand2012{getAlpha=alpha, getPAccMin=pAccMin} replication = 
+  RunA $ liftRandT $ fmap return (runRand (lenormand2012 alpha pAccMin replication))
+run SteadyState{getAlpha=alpha, getPAccMin=pAccMin} replication = 
+  RunA $ steadyState alpha pAccMin replication
+
+lenormand2012 :: Double -> Double -> Int -> Rand StdGen (Cache Run)
 lenormand2012 alpha pAccMin replication =
-  let steps = zip [1..] 
-            $ evalRand (Lenormand2012.scan p toyModel 
-                        :: Rand StdGen [Lenormand2012.S]) 
-                       (mkStdGen seed)
-      algo = Lenormand2012 5000 alpha pAccMin
+  let steps :: Rand StdGen [(Int, Lenormand2012.S)]
+      steps = zip [1..]
+          <$> Lenormand2012.scan p toyModel 
+      algo = Algorithm.Lenormand2012 5000 alpha pAccMin
       p = Lenormand2012.P
-        { Lenormand2012.n = getN algo
-        , Lenormand2012.nAlpha = floor $ (getAlpha algo) * (fromIntegral $ getN algo)
-        , Lenormand2012.pAccMin = getPAccMin algo
+        { Lenormand2012.n = Algorithm.getN algo
+        , Lenormand2012.nAlpha = floor $ (Algorithm.getAlpha algo) * (fromIntegral $ Algorithm.getN algo)
+        , Lenormand2012.pAccMin = Algorithm.getPAccMin algo
         , Lenormand2012.priorSample = toyPriorRandomSample
         , Lenormand2012.priorDensity = toyPrior
         , Lenormand2012.distanceToData = rootSquaredError 0 . V.head
         }
-      getSimulationResult (i, s) = SimulationResult 
+      getRun (i, s) = Run 
         { getAlgorithm = algo
         , getStep = i
         , getReplication = replication
         , getSample = Lenormand2012.thetas s }
-  in cacheSimulationResult "param_sampling" $ getSimulationResult $ last steps
+  in fmap ( cacheRun "param_sampling"
+            . getRun 
+            . last ) 
+          steps
 
-steadyState :: Double -> Double -> Int -> IO (Cache SimulationResult)
+steadyState :: Double -> Double -> Int -> RandT StdGen IO (Cache Run)
 steadyState alpha pAccMin replication = 
-  let steps = flip evalRandT (mkStdGen startSeed) scan
+  let steps :: RandT StdGen IO [SteadyState.S]
+      steps = SteadyState.scanIndices needSteps ssr
       needSteps = [5000, 10000 .. 100000]
+      enumSteps :: RandT StdGen IO [(Int, SteadyState.S)]
       enumSteps = zip needSteps <$> steps
-      scan = SteadyState.scanIndices needSteps ssr
       ssr = SteadyState.runner p model
       model (seed, xs) = return $ evalRand (toyModel xs) (mkStdGen seed)
-      startSeed = 41
-      algo = SteadyState 5000 alpha pAccMin 1
+      algo = Algorithm.SteadyState 5000 alpha pAccMin 1
+      p :: SteadyState.P (RandT StdGen IO)
       p = SteadyState.P
-        { SteadyState.n = getN algo
-        , SteadyState.nAlpha = floor $ (getAlpha algo) * (fromIntegral $ getN algo)
-        , SteadyState.pAccMin = getPAccMin algo
-        , SteadyState.parallel = getParallel algo
+        { SteadyState.n = Algorithm.getN algo
+        , SteadyState.nAlpha = floor $ (Algorithm.getAlpha algo) * (fromIntegral $ Algorithm.getN algo)
+        , SteadyState.pAccMin = Algorithm.getPAccMin algo
+        , SteadyState.parallel = Algorithm.getParallel algo
         , SteadyState.priorSample = toyPriorRandomSample
         , SteadyState.priorDensity = toyPrior
         , SteadyState.distanceToData = rootSquaredError 0 . V.head
         }
-      getSimulationResult (i, s) = SimulationResult 
+      getRun (i, s) = Run 
         { getAlgorithm = algo
         , getStep = i
         , getReplication = replication
         , getSample = fmap (SteadyState.getTheta . SteadyState.getSimulation . SteadyState.getReady) (SteadyState.accepteds s) }
-  in fmap (cacheSimulationResult "param_sampling" . getSimulationResult . last) enumSteps
+  in fmap ( cacheRun "param_sampling" 
+            . getRun 
+            . last ) 
+          enumSteps
 
 rootSquaredError expected x = sqrt ((x - expected) ** 2)
 ~~~~~~~~
 
-Simulations are run for the following values of alpha and pAccMin.
+Simulations are run for each algorithm and the following values of alpha and pAccMin.
 
 ~~~~ {.haskell file="formulas/src/L2VSNSimus.hs"}
 samplePAccMin = [0.01, 0.05, 0.1, 0.2]
 sampleAlpha = [0.1,0.2..0.9]
 
-replications = 2
-
-simLenormand2012 :: [[Cache SimulationResult]]
-simLenormand2012 = 
-  do
-     pAccMin <- samplePAccMin
-     do
-       alpha <- sampleAlpha
-       lenormand2012 alpha pAccMin
-
+algos = ( Lenormand2012 <$> sampleAlpha <*> samplePAccMin )
+     ++ ( SteadyState <$> sampleAlpha <*> samplePAccMin )
 ~~~~~~~~
+
+For each combination of algorithm and parameter values, replicate simulations.
+
+~~~~ {.haskell file="formulas/src/L2VSNSimus.hs"}
+rep :: Int -> Algo -> [RunA]
+rep n algo = map (run algo) [1..n]
+
+replications :: Map Algo [RunA]
+replications = Map.fromList $ zip algos $ map (rep 2) algos
+~~~~~~~~
+
+Compute L2 and the number of simulation for a run.
+
+~~~~ {.haskell file="formulas/src/L2VSNSimus.hs"}
+newtype RunDescriptor a = RunDescriptor (RandT StdGen IO (Uncached a))
+ 
+l2 :: RunA -> RunDescriptor Double
+l2 (RunA s) = RunDescriptor (cAp (cPure l2') <$> s)
+  where l2' :: Run -> Double
+        l2' sr = posteriorL2 (-10) 10 300 (toyPosterior 0) (sample sr)
+        sample sr = join $ V.toList $ V.toList <$> getSample sr
+
+nsim :: RunA -> RunDescriptor Int
+nsim (RunA s) = RunDescriptor (cAp (cPure nSimus) <$> s)
+~~~~~~~~
+
+Compute average L2 and number of simulation for each algorithm and parameter values (alpha and pAccMin), i.e. over all replications for a given algorithm and parameter.
+
+
+~~~~ {.haskell file="formulas/src/L2VSNSimus.hs"}
+-- newtype AlgoDescriptor a = AlgoDescriptor (RandT StdGen IO (Uncached a))
+-- 
+-- l2mean :: Algo -> Maybe (AlgoDescriptor Double)
+-- l2mean algo = fmap l2 <$> (Map.lookup replications algo)
+~~~~~~~~
+
+
+Build everything we want.
+
+~~~~ {.haskell file="formulas/src/L2VSNSimus.hs"}
+-- buildSteps :: Rules ()
+-- buildSteps = foldMap buildCache (Map.values replications)
+--           <> foldMap buildCache lenormand2012Steps
+--           <> join (liftIO $ (fmap . foldMap) buildCache steadyStateSteps)
+--           <> join (liftIO $ (fmap . foldMap) buildCache histogramsSteadyState)
+--           <> buildSink figurePosteriorSteps
+~~~~~~~~
+
 
 Generate the data files for the figure.
 
 ~~~~ {.haskell file="formulas/src/L2VSNSimus.hs"}
-l2VSNSimus :: SimulationResult -> (Double, Double)
-l2VSNSimus sr = (l2, nsim)
-  where l2 = posteriorL2 (-10) 10 300 (toyPosterior 0) sample
-        sample = join $ V.toList $ V.toList <$> getSample sr
-        nsim = nSimus sr
-
-
-sr
-              & L.fold (groupReplications 
-                        $ (,,,) 
-                        <$> pAccMinMean
-                        <*> alphaMean
-                        <*> posteriorL2Mean (-10) 10 300 (toyPosterior 0)
-                        <*> nSimusMean)
-              & Map.elems
-              & L.fold ( L.groupBy (\(pAccMin, _, _, _) -> pAccMin)
-                                   L.list )
-              & fmap (sortBy (comparing (\(_, alpha, _,_) -> alpha)))
-              & (fmap . fmap) (\(pAccMin, alpha, l2, nsimus) -> 
-                                         show2dec pAccMin
-                               <> " " <> show2dec alpha
-                               <> " " <> show2dec l2
-                               <> " " <> show2dec nsimus)
-              & fmap mconcat
-              & Map.elems
-              & intersperse "\n\n"
-              & mconcat
-              
-buildL2VSNSimu = do
-  "output/formulas/l2_vs_nsimus/toy/lenormand2012.csv" %> \target -> do
-     allSimulationResults <- liftIO $ loadAllSimulations 
-       "output/formulas/simulationResult/paramSampling/"
-     let simRes = filterLastStep 
-                $ filterLenormand2012
-                $ allSimulationResults
-     let sources = 
-           fmap (   ("output/formulas/simulationResult/paramSampling/" <>) 
-                  . simulationResultFileName ) 
-                simRes
-     need sources
-     let txt = simRes
-              & L.fold (groupReplications 
-                        $ (,,,) 
-                        <$> pAccMinMean
-                        <*> alphaMean
-                        <*> posteriorL2Mean (-10) 10 300 (toyPosterior 0)
-                        <*> nSimusMean)
-              & Map.elems
-              & L.fold ( L.groupBy (\(pAccMin, _, _, _) -> pAccMin)
-                                   L.list )
-              & fmap (sortBy (comparing (\(_, alpha, _,_) -> alpha)))
-              & (fmap . fmap) (\(pAccMin, alpha, l2, nsimus) -> 
-                                         show2dec pAccMin
-                               <> " " <> show2dec alpha
-                               <> " " <> show2dec l2
-                               <> " " <> show2dec nsimus)
-              & fmap mconcat
-              & Map.elems
-              & intersperse "\n\n"
-              & mconcat
-     traced "buildL2VSNSimu" $ writeFile target $ "pAccMin getAlpha l2Mean nSimusMean\n" 
-                                 <> txt
-    
-  "output/formulas/l2_vs_nsimus/toy/steadyState.csv" %> \target -> do
-     allSimulationResults <- liftIO $ loadAllSimulations 
-       "output/formulas/simulationResult/paramSampling/"
-     let simRes = filterLastStep 
-                $ filterSteadyState
-                $ allSimulationResults
-     let sources = 
-           fmap (   ("output/formulas/simulationResult/paramSampling/" <>) 
-                  . simulationResultFileName ) 
-                simRes
-     need sources
-     let txt = simRes
-              & L.fold (groupReplications 
-                        $ (,,,) 
-                        <$> pAccMinMean
-                        <*> alphaMean
-                        <*> posteriorL2Mean (-10) 10 300 (toyPosterior 0)
-                        <*> nSimusMean)
-              & Map.elems
-              & L.fold ( L.groupBy (\(pAccMin, _, _, _) -> pAccMin)
-                                   L.list )
-              & fmap (sortBy (comparing (\(_, alpha, _,_) -> alpha)))
-              & (fmap . fmap) (\(pAccMin, alpha, l2, nsimus) -> 
-                                         show2dec pAccMin
-                               <> " " <> show2dec alpha
-                               <> " " <> show2dec l2
-                               <> " " <> show2dec nsimus)
-              & fmap mconcat
-              & Map.elems
-              & intersperse "\n\n"
-              & mconcat
-     traced "buildL2VSNSimu" $ writeFile target $ "pAccMin getAlpha l2Mean nSimusMean\n" 
-                                 <> txt
-    
+-- l2VSNSimus :: Run -> (Double, Double)
+-- l2VSNSimus sr = (l2, nsim)
+--   where l2 = posteriorL2 (-10) 10 300 (toyPosterior 0) sample
+--         sample = join $ V.toList $ V.toList <$> getSample sr
+--         nsim = nSimus sr
+-- 
+-- 
+-- sr
+--               & L.fold (groupReplications 
+--                         $ (,,,) 
+--                         <$> pAccMinMean
+--                         <*> alphaMean
+--                         <*> posteriorL2Mean (-10) 10 300 (toyPosterior 0)
+--                         <*> nSimusMean)
+--               & Map.elems
+--               & L.fold ( L.groupBy (\(pAccMin, _, _, _) -> pAccMin)
+--                                    L.list )
+--               & fmap (sortBy (comparing (\(_, alpha, _,_) -> alpha)))
+--               & (fmap . fmap) (\(pAccMin, alpha, l2, nsimus) -> 
+--                                          show2dec pAccMin
+--                                <> " " <> show2dec alpha
+--                                <> " " <> show2dec l2
+--                                <> " " <> show2dec nsimus)
+--               & fmap mconcat
+--               & Map.elems
+--               & intersperse "\n\n"
+--               & mconcat
+--               
+-- buildL2VSNSimu = do
+--   "output/formulas/l2_vs_nsimus/toy/lenormand2012.csv" %> \target -> do
+--      allRuns <- liftIO $ loadAllSimulations 
+--        "output/formulas/simulationResult/paramSampling/"
+--      let simRes = filterLastStep 
+--                 $ filterLenormand2012
+--                 $ allRuns
+--      let sources = 
+--            fmap (   ("output/formulas/simulationResult/paramSampling/" <>) 
+--                   . simulationResultFileName ) 
+--                 simRes
+--      need sources
+--      let txt = simRes
+--               & L.fold (groupReplications 
+--                         $ (,,,) 
+--                         <$> pAccMinMean
+--                         <*> alphaMean
+--                         <*> posteriorL2Mean (-10) 10 300 (toyPosterior 0)
+--                         <*> nSimusMean)
+--               & Map.elems
+--               & L.fold ( L.groupBy (\(pAccMin, _, _, _) -> pAccMin)
+--                                    L.list )
+--               & fmap (sortBy (comparing (\(_, alpha, _,_) -> alpha)))
+--               & (fmap . fmap) (\(pAccMin, alpha, l2, nsimus) -> 
+--                                          show2dec pAccMin
+--                                <> " " <> show2dec alpha
+--                                <> " " <> show2dec l2
+--                                <> " " <> show2dec nsimus)
+--               & fmap mconcat
+--               & Map.elems
+--               & intersperse "\n\n"
+--               & mconcat
+--      traced "buildL2VSNSimu" $ writeFile target $ "pAccMin getAlpha l2Mean nSimusMean\n" 
+--                                  <> txt
+--     
+--   "output/formulas/l2_vs_nsimus/toy/steadyState.csv" %> \target -> do
+--      allRuns <- liftIO $ loadAllSimulations 
+--        "output/formulas/simulationResult/paramSampling/"
+--      let simRes = filterLastStep 
+--                 $ filterSteadyState
+--                 $ allRuns
+--      let sources = 
+--            fmap (   ("output/formulas/simulationResult/paramSampling/" <>) 
+--                   . simulationResultFileName ) 
+--                 simRes
+--      need sources
+--      let txt = simRes
+--               & L.fold (groupReplications 
+--                         $ (,,,) 
+--                         <$> pAccMinMean
+--                         <*> alphaMean
+--                         <*> posteriorL2Mean (-10) 10 300 (toyPosterior 0)
+--                         <*> nSimusMean)
+--               & Map.elems
+--               & L.fold ( L.groupBy (\(pAccMin, _, _, _) -> pAccMin)
+--                                    L.list )
+--               & fmap (sortBy (comparing (\(_, alpha, _,_) -> alpha)))
+--               & (fmap . fmap) (\(pAccMin, alpha, l2, nsimus) -> 
+--                                          show2dec pAccMin
+--                                <> " " <> show2dec alpha
+--                                <> " " <> show2dec l2
+--                                <> " " <> show2dec nsimus)
+--               & fmap mconcat
+--               & Map.elems
+--               & intersperse "\n\n"
+--               & mconcat
+--      traced "buildL2VSNSimu" $ writeFile target $ "pAccMin getAlpha l2Mean nSimusMean\n" 
+--                                  <> txt
+--     
 --             putStrLn $ columns2 " " $ L.fold (l2VsNSimus (read lowerBound) (read upperBound) (read bins) density) simRess 
 ~~~~~~~~
 
 Generate the figure of L2 vs number of simulations.
 
 ~~~~ {.haskell file="formulas/src/L2VSNSimus.hs"}
-buildFigureL2VSNSimu :: Rules ()
-buildFigureL2VSNSimu = 
-  "report/L2_vs_nsimus.png" %> \target -> do
-    need $ ["report/L2_vs_nsimus.gnuplot"
-           ,"output/formulas/l2_vs_nsimus/toy/lenormand2012.csv"
-           ,"output/formulas/l2_vs_nsimus/toy/steadyState.csv"
-           ]
-    cmd_ (Cwd "report/") (unpack "gnuplot")
-         ([unpack "-c", "L2_vs_nsimus.gnuplot"])
+-- buildFigureL2VSNSimu :: Rules ()
+-- buildFigureL2VSNSimu = 
+--   "report/L2_vs_nsimus.png" %> \target -> do
+--     need $ ["report/L2_vs_nsimus.gnuplot"
+--            ,"output/formulas/l2_vs_nsimus/toy/lenormand2012.csv"
+--            ,"output/formulas/l2_vs_nsimus/toy/steadyState.csv"
+--            ]
+--     cmd_ (Cwd "report/") (unpack "gnuplot")
+--          ([unpack "-c", "L2_vs_nsimus.gnuplot"])
 ~~~~~~~~

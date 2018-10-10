@@ -9,7 +9,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Assertions
 import System.Random (mkStdGen)
 
-import Formulas
+import Model
 import Test.Util
 
 -- Check toy model has mean theta and variance 0.5 * 1 + 0.5 * 0.01

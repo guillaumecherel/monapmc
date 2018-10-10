@@ -30,7 +30,7 @@ val :: Int -> FilePath -> Cache Int
 val x p = cPure x
           & cacheAsTxt p show readInt
 
-addOne :: FilePath -> Builder (Int -> Int)
+addOne :: FilePath -> Uncached (Int -> Int)
 addOne p = cPure (+ 1)
 
 shakeGo testDir = shakeArgs shakeOptions
@@ -278,16 +278,17 @@ prop_FunApCompAllFunctor = once $ ioProperty $ do
 
 
 runTests = do
-  quickCheck prop_SinValCreaCache
-  quickCheck prop_SinValNoRecomp
-  quickCheck prop_SinValRecomp
-  quickCheck prop_FunApAAbsentFAAbsent
-  quickCheck prop_FunApAAbsentFAUnchanged
-  quickCheck prop_FunApAAbsentFAModified
-  quickCheck prop_FunApAUnchangedFAAbsent
-  quickCheck prop_FunApAUnchangedFAUnchanged
-  quickCheck prop_FunApAUnchangedFAModified
-  quickCheck prop_FunApAModifiedFAAbsent
-  quickCheck prop_FunApAModifiedFAUnchanged
-  quickCheck prop_FunApAModifiedFAModified
-  quickCheck prop_FunApCompAllFunctor
+  checkOrExit prop_SinValCreaCache
+  checkOrExit prop_SinValNoRecomp
+  checkOrExit prop_SinValRecomp
+  checkOrExit prop_FunApAAbsentFAAbsent
+  checkOrExit prop_FunApAAbsentFAUnchanged
+  checkOrExit prop_FunApAAbsentFAModified
+  checkOrExit prop_FunApAUnchangedFAAbsent
+  checkOrExit prop_FunApAUnchangedFAUnchanged
+  checkOrExit prop_FunApAUnchangedFAModified
+  checkOrExit prop_FunApAModifiedFAAbsent
+  checkOrExit prop_FunApAModifiedFAUnchanged
+  checkOrExit prop_FunApAModifiedFAModified
+  checkOrExit prop_FunApCompAllFunctor
+

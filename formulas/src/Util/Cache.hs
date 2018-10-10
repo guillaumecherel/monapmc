@@ -14,55 +14,59 @@ import Development.Shake.FilePath
 import Development.Shake.Util
 
 
+------
 
----- 2e Nouvel essai
+
+data Uncached a = Uncached { uncachedRead :: ExceptT Text IO a
+                           , uncachedNeeds :: [FilePath] }
+
+instance Functor Uncached where
+  fmap f x = x { uncachedRead = fmap f (uncachedRead x) }
+
+instance Applicative Uncached where
+  pure a = Uncached (return a) []
+  f <*> a = Uncached ( uncachedRead f <*> uncachedRead a )
+                     ( uncachedNeeds a <> uncachedNeeds f )
 
 data Cache a = Cache { cachePath :: FilePath
-                       , cacheWrite :: IO ()
-                       , cacheRead :: IO (Either Text a)
-                       , cacheNeeds :: [FilePath]
-                       }
+                       , cacheWrite :: ExceptT Text IO ()
+                       , cacheRead :: ExceptT Text IO a
+                       , cacheNeeds :: [FilePath] }
 
 data Sink = Sink { sinkPath :: FilePath
-                   , sinkWrite :: IO ()
+                   , sinkWrite :: ExceptT Text IO ()
                    , sinkNeeds :: [FilePath]
                    }
                  
-data Builder a = Builder { builderRead :: IO (Either Text a)
-                         , builderNeeds :: [FilePath]
-                         }
+uncached :: Cache a -> Uncached a
+uncached c = Uncached { uncachedRead = cacheRead c
+                     , uncachedNeeds = cachePath c:cacheNeeds c }
 
-cPure :: a -> Builder a
-cPure x = Builder (pure $ pure x) []
+cPure :: a -> Uncached a
+cPure x = pure x 
 
-cAp :: Builder (a -> b) -> Cache a -> Builder b
-cAp f x = Builder ( do
-                      ef <- builderRead f
-                      ea <- cacheRead x
-                      return $ ef <*> ea)
-                  (cachePath x : cacheNeeds x ++ builderNeeds f)
+cAp :: Uncached (a -> b) -> Cache a -> Uncached b
+cAp f x = f <*> uncached x
 
-cacheAsTxt :: FilePath -> (a -> Text) -> (Text -> Either Text a) -> Builder a -> Cache a
+cacheAsTxt :: FilePath -> (a -> Text) -> (Text -> Either Text a) -> Uncached a -> Cache a
 cacheAsTxt path toText fromText b =
   Cache { cachePath = path
          , cacheWrite = do
-             eVal <- builderRead b
-             case eVal of
-               Left err -> fail $ unpack err
-               Right val -> writeFile path (toText val)
-         , cacheRead = fmap fromText $ readFile path
-         , cacheNeeds = builderNeeds b
+             val <- uncachedRead b
+             lift $ writeFile path (toText val)
+             return ()
+         , cacheRead = ExceptT $ fromText <$> readFile path
+         , cacheNeeds = uncachedNeeds b
          }
 
-sinkAs :: FilePath -> (a -> IO ()) -> Builder a -> Sink
+sinkAs :: FilePath -> (a -> IO ()) -> Uncached a -> Sink
 sinkAs path write b =
   Sink { sinkPath = path
        , sinkWrite = do
-         eVal <- builderRead b
-         case eVal of
-           Left err -> fail $ unpack err
-           Right val -> write val
-       , sinkNeeds = builderNeeds b
+           val <- uncachedRead b
+           lift $ write val
+           return ()
+       , sinkNeeds = uncachedNeeds b
        }
 
 -- cPure f `cAp` x `cAp` y & cacheAs "z" show read
@@ -72,33 +76,22 @@ buildCache x = do
   want [cachePath x]
   cachePath x %> \out -> do
     need $ cacheNeeds x
-    traced "Writing cache" $ cacheWrite x
+    e <- traced "Writing cache" $ runExceptT $ cacheWrite x
+    case e of
+      Right () -> return ()
+      Left err -> fail $ unpack err
 
 buildSink :: Sink -> Rules ()
 buildSink x = do
   want [sinkPath x]
   sinkPath x %> \out -> do
     need $ sinkNeeds x
-    traced "Writing sink" $ sinkWrite x
+    e <- traced "Writing sink" $ runExceptT $ sinkWrite x
+    case e of
+      Right () -> return ()
+      Left err -> fail $ unpack err
 
 pretty :: Cache a -> Text
 pretty a = "Cache path: " <> pack (cachePath a) <> "\n"
         <> "Needs: " <> show (cacheNeeds a)
-
--- Continuation-passing style
--- cAp :: (a -> b) -> Cache a -> (Builder b -> r) -> r
--- cAp f x k = k $ Builder (f (cacheVal x))
---                         (cachePath x : cacheNeeds x)
--- 
--- cAp' :: Cache a -> Builder (a -> b) -> (Builder b -> r) -> r
--- cAp' x k =
--- 
--- cacheAs :: FilePath -> (a -> Text) -> Builder a -> Cache a
--- cacheAs path toText fromText b = Cache { cacheVal = builderVal b
---                                , cachePath = path
---                                , cacheWrite = toText
---                                , cacheRead = fromText
---                                , cacheNeeds = builderNeeds b }
--- 
--- -- cAp f x $ cAp' y $ cacheAs "z" show
 

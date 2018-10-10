@@ -18,7 +18,7 @@ import System.Random
 
 import ABC.Lenormand2012
 import Distribution
-import Formulas
+import Model
 import Test.Util
 
 newtype Weight = Weight Double
@@ -176,6 +176,6 @@ prop_weights1D (PS1D p d s) (Theta1D theta) =
 --               , distanceToData = \x -> abs (V.head x)}
 
 runTests = do
-  quickCheckResult prop_weights1D
+  checkOrExit prop_weights1D
   -- quickCheck prop_toyModel
 

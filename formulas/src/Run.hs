@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 
-module Simulation where
+module Run where
 
 import Protolude
 import qualified Control.Foldl as L
@@ -22,7 +22,7 @@ import System.FilePath
 import Algorithm
 import Statistics
 
-data SimulationResult = SimulationResult
+data Run = Run
   { getAlgorithm :: Algorithm
   , getStep :: Int
   , getReplication:: Int
@@ -35,9 +35,9 @@ data SimulationResult = SimulationResult
 -- Descriptive statistics and quantities over a single simulation result
 --------
  
-nSimus :: SimulationResult -> Int
-nSimus SimulationResult {getAlgorithm=Lenormand2012 {getN=n, getAlpha=alpha}, getStep=step} = numberSimusLenormand2012 n (floor $ fromIntegral n * alpha) step
-nSimus SimulationResult {getStep=step} = numberSimusSteadyState step
+nSimus :: Run -> Int
+nSimus Run {getAlgorithm=Lenormand2012 {getN=n, getAlpha=alpha}, getStep=step} = numberSimusLenormand2012 n (floor $ fromIntegral n * alpha) step
+nSimus Run {getStep=step} = numberSimusSteadyState step
 
 numberSimusLenormand2012 :: Int -> Int -> Int -> Int
 numberSimusLenormand2012 n nAlpha step = n + (n - nAlpha) * step
@@ -52,31 +52,31 @@ numberSimusSteadyState step = step
 -- Descriptive statistics and quantities over sets of simulations (Folds)
 -------
 
-posteriorL2Mean :: Double -> Double -> Int -> (Double -> Double) -> L.Fold SimulationResult Double
+posteriorL2Mean :: Double -> Double -> Int -> (Double -> Double) -> L.Fold Run Double
 posteriorL2Mean lowerBound upperBound bins density = L.premap (posteriorL2 lowerBound upperBound bins density . V.toList . fmap V.head getSample) L.mean
 
-nSimusMean :: L.Fold SimulationResult Double
+nSimusMean :: L.Fold Run Double
 nSimusMean = L.premap (fromIntegral . nSimus) L.mean
 
-alphaMean :: L.Fold SimulationResult Double
+alphaMean :: L.Fold Run Double
 alphaMean = L.premap (getAlpha . getAlgorithm) L.mean
 
-alphaFirst :: L.Fold SimulationResult (Maybe Double)
+alphaFirst :: L.Fold Run (Maybe Double)
 alphaFirst = (fmap . fmap) (getAlpha . getAlgorithm) L.head
 
-pAccMinMean :: L.Fold SimulationResult Double
+pAccMinMean :: L.Fold Run Double
 pAccMinMean = L.premap (getPAccMin . getAlgorithm) L.mean
 
-pAccMinFirst :: L.Fold SimulationResult (Maybe Double)
+pAccMinFirst :: L.Fold Run (Maybe Double)
 pAccMinFirst = (fmap . fmap) (getPAccMin . getAlgorithm) L.head
 
--- l2VsNSimus :: Double -> Double -> Int -> (Double -> Double) -> L.Fold SimulationResult [(Double, Double)]
+-- l2VsNSimus :: Double -> Double -> Int -> (Double -> Double) -> L.Fold Run [(Double, Double)]
 -- l2VsNSimus lowerBound upperBound bins density = Map.elems <$> groupReplications ((,) <$> numberSimusMean <*> posteriorL2Mean lowerBound upperBound bins density )
 --   
--- l2VsAlpha :: Double -> Double -> Int -> (Double -> Double) -> L.Fold SimulationResult [(Double, Double)]
+-- l2VsAlpha :: Double -> Double -> Int -> (Double -> Double) -> L.Fold Run [(Double, Double)]
 -- l2VsAlpha lowerBound upperBound bins density = Map.elems <$> groupReplications ((,) <$> alphaMean <*> posteriorL2Mean lowerBound upperBound bins density )
 -- 
--- nSimusVsAlpha :: L.Fold SimulationResult [(Double, Double)]
+-- nSimusVsAlpha :: L.Fold Run [(Double, Double)]
 -- nSimusVsAlpha = (Map.elems <$> groupReplications ((,) <$> numberSimusMean <*> alphaMean))
 -- 
 
@@ -86,7 +86,7 @@ pAccMinFirst = (fmap . fmap) (getPAccMin . getAlgorithm) L.head
 -- Filter simulation results 
 --------
 
-filterLastStep :: [SimulationResult] -> [SimulationResult]
+filterLastStep :: [Run] -> [Run]
 filterLastStep = L.fold $ L.Fold step Map.empty Map.elems
   where step acc x = let k = forgetStep x
                      in Map.alter (alterVal x) k acc
@@ -96,13 +96,13 @@ filterLastStep = L.fold $ L.Fold step Map.empty Map.elems
                                    then Just x2
                                    else Just x1
 
-filterLenormand2012 :: [SimulationResult] -> [SimulationResult]
+filterLenormand2012 :: [Run] -> [Run]
 filterLenormand2012 = L.fold $ L.Fold step [] identity
   where step acc x = case getAlgorithm x of
                        Lenormand2012{} -> x:acc
                        _ -> acc
 
-filterSteadyState :: [SimulationResult] -> [SimulationResult]
+filterSteadyState :: [Run] -> [Run]
 filterSteadyState = L.fold $ L.Fold step [] identity
   where step acc x = case getAlgorithm x of
                        SteadyState{} -> x:acc
@@ -114,7 +114,7 @@ filterSteadyState = L.fold $ L.Fold step [] identity
 -- Group
 --------
 
-groupReplications :: L.Fold SimulationResult r -> L.Fold SimulationResult (Map.Map Algorithm r)
+groupReplications :: L.Fold Run r -> L.Fold Run (Map.Map Algorithm r)
 groupReplications = L.groupBy getAlgorithm
 
 
@@ -123,14 +123,14 @@ groupReplications = L.groupBy getAlgorithm
 -- Cache
 --------
 
-pprint :: SimulationResult -> Text
+pprint :: Run -> Text
 pprint s = pprintAlgorithm (getAlgorithm s)
         <> " step=" <> show (getStep s)
         <> " replication=" <> show (getReplication s)
         <> " sample=" <> show (take 3 $ V.toList $ V.head <$> getSample s)
         <> if length (getSample s) > 3 then "..." else ""
 
-simulationResultFileName :: SimulationResult -> FilePath
+simulationResultFileName :: Run -> FilePath
 simulationResultFileName s = unpack $
      algorithmPart (getAlgorithm s) <> "_"
   <> show (getStep s) <> "_"
@@ -145,14 +145,14 @@ simulationResultFileName s = unpack $
 show2dec :: Double -> Text
 show2dec = sformat (fixed 2)
 
-cacheSimulationResult :: Text -> SimulationResult -> Cache SimulationResult
-cacheSimulationResult expName s =
+cacheRun :: Text -> Run -> Cache Run
+cacheRun expName s =
   let filename = "output/formulas/simulationResult"
              </> unpack expName
              </> simulationResultFileName s
   in cacheAsTxt filename
              (column . V.toList . V.concat . V.toList . getSample)
-             (bimap show identity . readSimulationResult filename )
+             (bimap show identity . readRun filename )
              (cPure s)
 
 --------
@@ -167,22 +167,22 @@ parser1DSample :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Dou
 parser1DSample = fmap (V.fromList . fmap V.singleton) (P.many $ P.try parserDouble <* P.optional P.endOfLine)
   --P.sepBy parserDouble P.endOfLine << P.endOfLine
 
-loadSimulation :: FilePath -> IO (Either P.ParseError SimulationResult)
-loadSimulation f = (TIO.readFile f) >>= return . readSimulationResult f
+loadSimulation :: FilePath -> IO (Either P.ParseError Run)
+loadSimulation f = (TIO.readFile f) >>= return . readRun f
 
-loadAllSimulations :: FilePath -> IO [SimulationResult]
+loadAllSimulations :: FilePath -> IO [Run]
 loadAllSimulations dir = do
   fs <- listDirectory dir
   ess <- traverse loadSimulation $ map (dir ++ ) fs
   return $ foldMap toList ess
 
-readSimulationResult :: FilePath -> Text -> Either P.ParseError SimulationResult
-readSimulationResult filename column =
+readRun :: FilePath -> Text -> Either P.ParseError Run
+readRun filename column =
   P.parse parseSimulationFileName ("filename " ++ filename) filename
   <*> read1DSample filename column
   where parseSimulationFileName = P.try parseLenormand2012 <|> P.try parseBeaumont2009 <|> parseSteadyState
 
-parseLenormand2012 :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> SimulationResult)
+parseLenormand2012 :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> Run)
 parseLenormand2012 = do
   parserSkipDirname
   P.string "lenormand2012"
@@ -192,9 +192,9 @@ parseLenormand2012 = do
   step <- P.char '_' *> parserInt
   replication <- P.char '_' *> parserInt
   ext <- P.string ".csv"
-  return $ SimulationResult (Lenormand2012 n alpha pAccMin) step replication
+  return $ Run (Lenormand2012 n alpha pAccMin) step replication
 
-parseBeaumont2009 :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> SimulationResult)
+parseBeaumont2009 :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> Run)
 parseBeaumont2009 = do
   parserSkipDirname *> P.string "beaumont2009"
   n <- P.char '_' *> parserInt
@@ -203,9 +203,9 @@ parseBeaumont2009 = do
   step <- P.char '_' *> parserInt
   replication <- P.char '_' *> parserInt
   P.string ".csv"
-  return $ SimulationResult (Beaumont2009 n epsilonFrom epsilonTo) step replication
+  return $ Run (Beaumont2009 n epsilonFrom epsilonTo) step replication
 
-parseSteadyState :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> SimulationResult)
+parseSteadyState :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> Run)
 parseSteadyState = do
   parserSkipDirname *> P.string "steadyState"
   n <- P.char '_' *> parserInt
@@ -215,7 +215,7 @@ parseSteadyState = do
   step <- P.char '_' *> parserInt
   replication <- P.char '_' *> parserInt
   P.string ".csv"
-  return $ SimulationResult (SteadyState n alpha pAccMin parallel) step replication
+  return $ Run (SteadyState n alpha pAccMin parallel) step replication
 
 parserSkipDirname :: (P.Stream s m Char) => P.ParsecT s u m ()
 parserSkipDirname = P.optional $ P.many (P.try $ P.many (P.noneOf "/") <> P.string "/")

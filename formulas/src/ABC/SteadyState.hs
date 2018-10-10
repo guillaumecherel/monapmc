@@ -93,7 +93,7 @@ initialS p = do
     , curIndexPending = parallel p - 1
     , firstSeed = firstSeed
     }
-  
+
 initialThetas :: (Monad m) => P m -> S -> m [(Int, Seed, V.Vector Double)]
 initialThetas p s = do
   let ids = [0 .. curIndexPending s]

@@ -10,8 +10,8 @@ import System.Process
 
 import Util.Cache
 
-gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Sink
-gnuplot output script args = Sink output command (script : fmap snd args)
+gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Cache ()
+gnuplot output script args = sink output command (script : fmap snd args)
   where command = do
           (status, out, err) <- lift
             $ readProcessWithExitCode ("gnuplot" :: String) gpArgs []

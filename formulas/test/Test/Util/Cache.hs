@@ -27,11 +27,11 @@ readInt :: Text -> Either Text Int
 readInt = bimap pack fst . signed decimal
 
 val :: Int -> FilePath -> Cache Int
-val x p = cPure x
-          & cacheAsTxt p show readInt
+val x p = pure x
+          & cache p show readInt
 
-addOne :: FilePath -> Uncached (Int -> Int)
-addOne p = cPure (+ 1)
+addOne :: FilePath -> Cache (Int -> Int)
+addOne p = pure (+ 1)
 
 shakeGo testDir = shakeArgs shakeOptions
   { shakeReport = [testDir </> "shakeReport.html"]
@@ -124,24 +124,22 @@ prop_SinValRecomp = ioProperty $ do
 
 funApTest :: FilePath -> IO () -> (Text, Text) ->  Property
 funApTest dir touch (expectedA, expectedFA) = once $ ioProperty $ do
-  let a x = cPure x
-          & cacheAsTxt (dir </> "a") show readInt
-  let f i a = cPure (+ (10 * i)) `cAp` a
-           & cacheAsTxt (dir </> "fa") show readInt
+  let a x = pure x
+          & cache (dir </> "a") show readInt
+  let f i a = pure (+ (10 * i)) <*> a
+           & cache (dir </> "fa") show readInt
 
   -- Delete shake cache files
   rmRec dir
 
   -- Build "a" once
   shakeGo dir $ do
-    buildCache (a 1)
     buildCache $ f 1 (a 1)
 
   touch
 
   -- Build cache
   shakeGo dir $ do
-    buildCache (a 2)
     buildCache $ f 2 (a 2)
 
   -- Test the cache files
@@ -256,17 +254,16 @@ prop_FunApAModifiedFAModified =
 -- Check with the Functor operator "f <$> a"
 prop_FunApCompAllFunctor :: Property
 prop_FunApCompAllFunctor = once $ ioProperty $ do
-  let a = cPure 1
-          & cacheAsTxt "test-output/formulas/Util/Cache/FunApCompAllFunctor/a" show readInt
-  let fa = cPure (+ 1) `cAp` a
-           & cacheAsTxt "test-output/formulas/Util/Cache/FunApCompAllFunctor/fa" show readInt
+  let a = pure 1
+          & cache "test-output/formulas/Util/Cache/FunApCompAllFunctor/a" show readInt
+  let fa = pure (+ 1) <*> a
+           & cache "test-output/formulas/Util/Cache/FunApCompAllFunctor/fa" show readInt
 
   -- Delete shake cache files
   rmRec "test-output/formulas/Util/Cache/FunApCompAllFunctor"
 
   -- Build cache
   shakeGo "test-output/formulas/Util/Cache/FunApCompAllFunctor/" $ do
-    buildCache a
     buildCache fa
 
   -- Test the cache files

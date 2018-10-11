@@ -48,7 +48,7 @@ algoSteadyState = SteadyState { getN = 5000
                               , getParallel = 1
                               }
 
-lenormand2012Steps :: [Cache Run]
+lenormand2012Steps :: [(FilePath, Cache Run)]
 lenormand2012Steps = 
   let steps = zip [1..] $ take 20 $ evalRand (Lenormand2012.scan p toyModel :: Rand StdGen [Lenormand2012.S]) (mkStdGen seed)
       seed = 41
@@ -66,11 +66,13 @@ lenormand2012Steps =
         , getStep = i
         , getReplication = 1
         , getSample = Lenormand2012.thetas s }
-  in fmap (cacheRun "5steps" . getRun) steps
+  in fmap (\s -> let r = getRun s in (runFileName r, cacheRun "5steps" r)) 
+          steps
  
-steadyStateSteps :: IO [Cache Run]
+steadyStateSteps :: IO [(FilePath, Cache Run)]
 steadyStateSteps = 
-  (fmap . fmap) (cacheRun "5steps" . getRun) enumSteps
+  (fmap . fmap) (\s -> let r = getRun s in (runFileName r, cacheRun "5steps" r)) 
+                enumSteps
   where enumSteps = zip needSteps <$> steps
         needSteps = [5000, 10000 .. 100000]
         steps = flip evalRandT (mkStdGen startSeed) scan
@@ -101,24 +103,27 @@ histogramStep :: Run -> [(Double, Double)]
 histogramStep s = scaledHistogram (-10) 10 300 . V.toList . fmap V.head . getSample $ s
 
 cachedHistogram :: FilePath -> Cache Run -> Cache [(Double, Double)]
-cachedHistogram dir s = 
-  cPure histogramStep `cAp` s
-  & cacheAsTxt filename
-            (columns2 " ")
-            (bimap show identity . readHistogram filename)
-  where filename = dir </> takeFileName (cachePath s)
+cachedHistogram path r = 
+  histogramStep <$> r
+  & cache path
+          (columns2 " ")
+          (bimap show identity . readHistogram path)
 
 histogramsLenormand2012 :: [Cache [(Double, Double)]]
 histogramsLenormand2012 = 
-  fmap (cachedHistogram "output/formulas/scaledHistogram/toy/")
+  fmap ( \(filename, run) -> 
+         cachedHistogram ("output/formulas/scaledHistogram/toy/" </> filename)
+                         run )
        lenormand2012Steps
 
 histogramsSteadyState :: IO [Cache [(Double, Double)]]
 histogramsSteadyState = 
-  (fmap . fmap) (cachedHistogram "output/formulas/scaledHistogram/toy/") 
+  (fmap . fmap) (\(f,r) -> cachedHistogram  
+                             ("output/formulas/scaledHistogram/toy/" </> f)
+                             r)
                 steadyStateSteps
 
-figurePosteriorSteps :: Sink 
+figurePosteriorSteps :: Cache () 
 figurePosteriorSteps =
   gnuplot "report/5steps.png" "report/5steps.gnuplot"
     [ ("formulas_lenormand2012_1", "output/formulas/scaledHistogram/toy/"
@@ -167,8 +172,11 @@ figurePosteriorSteps =
 
 buildSteps :: Rules ()
 buildSteps = foldMap buildCache histogramsLenormand2012
-          <> foldMap buildCache lenormand2012Steps
-          <> join (liftIO $ (fmap . foldMap) buildCache steadyStateSteps)
           <> join (liftIO $ (fmap . foldMap) buildCache histogramsSteadyState)
-          <> buildSink figurePosteriorSteps
+          <> buildCache figurePosteriorSteps
+-- buildSteps = foldMap buildCache histogramsLenormand2012
+--           <> foldMap (buildCache . snd) lenormand2012Steps
+--           <> join (liftIO $ (fmap . foldMap) buildCache steadyStateSteps)
+--           <> join (liftIO $ (fmap . foldMap) buildCache histogramsSteadyState)
+--           <> buildCache figurePosteriorSteps
 

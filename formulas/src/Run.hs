@@ -130,8 +130,8 @@ pprint s = pprintAlgorithm (getAlgorithm s)
         <> " sample=" <> show (take 3 $ V.toList $ V.head <$> getSample s)
         <> if length (getSample s) > 3 then "..." else ""
 
-simulationResultFileName :: Run -> FilePath
-simulationResultFileName s = unpack $
+runFileName :: Run -> FilePath
+runFileName s = unpack $
      algorithmPart (getAlgorithm s) <> "_"
   <> show (getStep s) <> "_"
   <> show (getReplication s) <> ".csv"
@@ -147,13 +147,13 @@ show2dec = sformat (fixed 2)
 
 cacheRun :: Text -> Run -> Cache Run
 cacheRun expName s =
-  let filename = "output/formulas/simulationResult"
+  let filename = "output/formulas/run"
              </> unpack expName
-             </> simulationResultFileName s
-  in cacheAsTxt filename
-             (column . V.toList . V.concat . V.toList . getSample)
-             (bimap show identity . readRun filename )
-             (cPure s)
+             </> runFileName s
+  in cache filename
+           (column . V.toList . V.concat . V.toList . getSample)
+           (bimap show identity . readRun filename )
+           (pure s)
 
 --------
 -- Parsing

@@ -6,6 +6,7 @@ module Util.Cache where
 import Protolude
 
 import Control.Monad.Fail
+import qualified Data.Map as Map
 import Data.Text
 import Data.Text.Read
 import Development.Shake
@@ -13,85 +14,73 @@ import Development.Shake.Command
 import Development.Shake.FilePath
 import Development.Shake.Util
 
+data Cache a = Cache { cacheRead :: ExceptT Text IO a
+                     , cacheNeeds :: [FilePath]
+                     , cacheBuild :: Build }
 
-------
+instance Functor Cache where
+  fmap f x = x { cacheRead = fmap f (cacheRead x) }
 
+instance Applicative Cache where
+  pure a = Cache (return a) [] mempty
+  f <*> a = Cache ( cacheRead f <*> cacheRead a )
+                  ( cacheNeeds a <> cacheNeeds f )
+                  ( cacheBuild a <> cacheBuild f )
 
-data Uncached a = Uncached { uncachedRead :: ExceptT Text IO a
-                           , uncachedNeeds :: [FilePath] }
+source :: FilePath -> (Text -> Either Text a) -> Cache a
+source path fromText = Cache
+  { cacheRead = ExceptT $ fromText <$> readFile path
+  , cacheNeeds = [path]
+  , cacheBuild = mempty }
 
-instance Functor Uncached where
-  fmap f x = x { uncachedRead = fmap f (uncachedRead x) }
+cache :: FilePath -> (a -> Text) -> (Text -> Either Text a) -> Cache a
+         -> Cache a
+cache path toText fromText a = Cache
+  { cacheRead = ExceptT $ fromText <$> readFile path
+  , cacheNeeds = path:cacheNeeds a
+  , cacheBuild = buildSingle path
+                        (toText <$> cacheRead a >>= lift . writeFile path)
+                        (cacheNeeds a)
+                <> cacheBuild a }
 
-instance Applicative Uncached where
-  pure a = Uncached (return a) []
-  f <*> a = Uncached ( uncachedRead f <*> uncachedRead a )
-                     ( uncachedNeeds a <> uncachedNeeds f )
-
-data Cache a = Cache { cachePath :: FilePath
-                       , cacheWrite :: ExceptT Text IO ()
-                       , cacheRead :: ExceptT Text IO a
-                       , cacheNeeds :: [FilePath] }
-
-data Sink = Sink { sinkPath :: FilePath
-                   , sinkWrite :: ExceptT Text IO ()
-                   , sinkNeeds :: [FilePath]
-                   }
-                 
-uncached :: Cache a -> Uncached a
-uncached c = Uncached { uncachedRead = cacheRead c
-                     , uncachedNeeds = cachePath c:cacheNeeds c }
-
-cPure :: a -> Uncached a
-cPure x = pure x 
-
-cAp :: Uncached (a -> b) -> Cache a -> Uncached b
-cAp f x = f <*> uncached x
-
-cacheAsTxt :: FilePath -> (a -> Text) -> (Text -> Either Text a) -> Uncached a -> Cache a
-cacheAsTxt path toText fromText b =
-  Cache { cachePath = path
-         , cacheWrite = do
-             val <- uncachedRead b
-             lift $ writeFile path (toText val)
-             return ()
-         , cacheRead = ExceptT $ fromText <$> readFile path
-         , cacheNeeds = uncachedNeeds b
-         }
-
-sinkAs :: FilePath -> (a -> IO ()) -> Uncached a -> Sink
-sinkAs path write b =
-  Sink { sinkPath = path
-       , sinkWrite = do
-           val <- uncachedRead b
-           lift $ write val
-           return ()
-       , sinkNeeds = uncachedNeeds b
-       }
-
--- cPure f `cAp` x `cAp` y & cacheAs "z" show read
-
+sink :: FilePath -> ExceptT Text IO () -> [FilePath] -> Cache ()
+sink path write needs = Cache
+  { cacheRead = return ()
+  , cacheNeeds = []
+  , cacheBuild = buildSingle path write needs }
+ 
 buildCache :: Cache a -> Rules ()
-buildCache x = do
-  want [cachePath x]
-  cachePath x %> \out -> do
-    need $ cacheNeeds x
-    e <- traced "Writing cache" $ runExceptT $ cacheWrite x
-    case e of
-      Right () -> return ()
-      Left err -> fail $ unpack err
+buildCache a = build $ cacheBuild a
 
-buildSink :: Sink -> Rules ()
-buildSink x = do
-  want [sinkPath x]
-  sinkPath x %> \out -> do
-    need $ sinkNeeds x
-    e <- traced "Writing sink" $ runExceptT $ sinkWrite x
-    case e of
-      Right () -> return ()
-      Left err -> fail $ unpack err
+prettyCache :: Cache a -> Text
+prettyCache a = "Cache { cacheRead=?; cacheNeeds=" <> show (cacheNeeds a)
+        <> "; chacheBuild" <> prettyBuild (cacheBuild a) <> " }"
 
-pretty :: Cache a -> Text
-pretty a = "Cache path: " <> pack (cachePath a) <> "\n"
-        <> "Needs: " <> show (cacheNeeds a)
+prettyBuild :: Build -> Text
+prettyBuild (Build a) = show $ Map.map (\(_, b) -> ("?", b)) a
+
+newtype Build = Build (Map FilePath (ExceptT Text IO (), [FilePath]))
+
+instance Monoid Build where
+  mempty = Build Map.empty
+  mappend (Build a) (Build b) = Build $ mappend a b
+
+buildSingle :: FilePath -> ExceptT Text IO () -> [FilePath] -> Build
+buildSingle path write needs = Build $ Map.singleton path (write, needs)
+
+buildList :: Build -> [(FilePath, ExceptT Text IO (), [FilePath])]
+buildList (Build m) = fmap (\(a, (b, c)) -> (a,b,c)) $ Map.toList m
+
+build :: Build -> Rules ()
+build s = foldMap buildOne (buildList s)
+  where buildOne (outPath, write, needs) = do
+          want [outPath]
+          outPath %> \out -> do
+            need needs
+            e <- traced "Writing cache" $ runExceptT $ write
+            case e of
+              Right () -> return ()
+              Left err -> fail $ unpack err
+
+
 

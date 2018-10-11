@@ -12,12 +12,5 @@ blocks-simulations/project/target/
 formulas/.stack-work/
 formulas/.shake/
 formulas/test-output/
-output/*/simulationResult/
-output/*/scaledHistogram/
-output/easyABC/model_*
-output/easyABC/n_simul_tot_*
-output/easyABC/output_*
-output/easyABC/p_acc_*
-output/easyABC/tolerance_*
-output/blocks/param_sampling/
+output/
 report/*.png

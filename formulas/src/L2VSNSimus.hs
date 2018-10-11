@@ -116,18 +116,18 @@ rep n algo = map (run algo) [1..n]
 replications :: Map Algo [RunA]
 replications = Map.fromList $ zip algos $ map (rep 2) algos
 
-newtype RunDescriptor a = RunDescriptor (RandT StdGen IO (Uncached a))
+newtype RunDescriptor a = RunDescriptor (RandT StdGen IO (Cache a))
  
 l2 :: RunA -> RunDescriptor Double
-l2 (RunA s) = RunDescriptor (cAp (cPure l2') <$> s)
+l2 (RunA s) = RunDescriptor ((fmap . fmap) l2' s)
   where l2' :: Run -> Double
         l2' sr = posteriorL2 (-10) 10 300 (toyPosterior 0) (sample sr)
         sample sr = join $ V.toList $ V.toList <$> getSample sr
 
 nsim :: RunA -> RunDescriptor Int
-nsim (RunA s) = RunDescriptor (cAp (cPure nSimus) <$> s)
+nsim (RunA s) = RunDescriptor ((fmap . fmap) nSimus s)
 
--- newtype AlgoDescriptor a = AlgoDescriptor (RandT StdGen IO (Uncached a))
+-- newtype AlgoDescriptor a = AlgoDescriptor (RandT StdGen IO (Cache a))
 -- 
 -- l2mean :: Algo -> Maybe (AlgoDescriptor Double)
 -- l2mean algo = fmap l2 <$> (Map.lookup replications algo)

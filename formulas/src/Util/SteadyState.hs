@@ -4,7 +4,7 @@
 module Util.SteadyState where
 
 import Protolude
-import Control.Monad.Random (MonadRandom)
+import Control.Monad.Random.Lazy (MonadRandom)
 import qualified Data.Set as Set
 import qualified Data.Vector as V
 import qualified Numeric.LinearAlgebra as LA

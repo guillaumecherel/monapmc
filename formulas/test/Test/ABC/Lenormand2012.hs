@@ -1,11 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Test.ABC.Lenormand2012 where
 
 import Control.DeepSeq (NFData)
-import qualified Control.Monad.Random as CMR
-import Control.Monad.Random (MonadRandom, Rand, getRandomR)
+import qualified Control.Monad.Random.Lazy as CMR
+import Control.Monad.Random.Lazy (MonadRandom, Rand, getRandomR)
 import Control.Monad.Zip
 import Data.AEq
 import Data.Monoid
@@ -176,6 +177,6 @@ prop_weights1D (PS1D p d s) (Theta1D theta) =
 --               , distanceToData = \x -> abs (V.head x)}
 
 runTests = do
-  checkOrExit prop_weights1D
+  checkOrExit "prop_weights1D" prop_weights1D
   -- quickCheck prop_toyModel
 

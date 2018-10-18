@@ -1,8 +1,8 @@
 module Test.ToyModel where
 
 import Control.Monad (replicateM)
-import qualified Control.Monad.Random as CMR
-import Control.Monad.Random (MonadRandom, Rand, getRandomR, evalRand)
+import qualified Control.Monad.Random.Lazy as CMR
+import Control.Monad.Random.Lazy (MonadRandom, Rand, getRandomR, evalRand)
 import qualified Data.Vector as V
 import Statistics.Sample as SS (variance, mean)
 import Test.QuickCheck

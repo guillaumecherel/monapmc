@@ -8,7 +8,7 @@ module Test.Util.Cache where
 
 import Protolude
 
-import Control.Monad.Random
+import Control.Monad.Random.Lazy
 import Data.Text
 import Data.Text.Read
 import Development.Shake
@@ -21,7 +21,7 @@ import Test.QuickCheck
 import Test.QuickCheck.Assertions
 import Test.Util
 
-import Util.Cache
+import Util.Cache as Cache
 
 readInt :: Text -> Either Text Int
 readInt = bimap pack fst . signed decimal
@@ -62,6 +62,44 @@ testFile path content = do
                                 <> unpack content
                                 <> "\".")
                               (valInFile == content)
+
+-- Run build in a clean directory
+runClean :: FilePath -> Cache a -> IO ()
+runClean dir x = do
+  rmRec dir
+  shakeGo dir $ buildCache x
+
+  
+-- Test function application.
+testFunAp :: FilePath -> IO () -> (Text, Text) ->  Property
+testFunAp dir touch (expectedA, expectedFA) = once $ ioProperty $ do
+  let a x = pure x
+          & cache (dir </> "a") show readInt
+  let f i a = pure (+ (10 * i)) <*> a
+           & cache (dir </> "fa") show readInt
+
+  -- Delete shake cache files
+  rmRec dir
+
+  -- Build "a" once
+  shakeGo dir $ do
+    buildCache $ f 1 (a 1)
+
+  touch
+
+  -- Build cache
+  shakeGo dir $ do
+    buildCache $ f 2 (a 2)
+
+  -- Test the cache files
+  testA <- testFile (dir </> "a") expectedA
+  testFA <- testFile (dir </> "fa") expectedFA
+
+  return $ testA .&&. testFA
+
+
+
+---- Tests ----
 
 ---- Single values depending on no other cached value
 
@@ -122,39 +160,11 @@ prop_SinValRecomp = ioProperty $ do
 
 ---- Function application (cached values depending on another cached value)
 
-funApTest :: FilePath -> IO () -> (Text, Text) ->  Property
-funApTest dir touch (expectedA, expectedFA) = once $ ioProperty $ do
-  let a x = pure x
-          & cache (dir </> "a") show readInt
-  let f i a = pure (+ (10 * i)) <*> a
-           & cache (dir </> "fa") show readInt
-
-  -- Delete shake cache files
-  rmRec dir
-
-  -- Build "a" once
-  shakeGo dir $ do
-    buildCache $ f 1 (a 1)
-
-  touch
-
-  -- Build cache
-  shakeGo dir $ do
-    buildCache $ f 2 (a 2)
-
-  -- Test the cache files
-  testA <- testFile (dir </> "a") expectedA
-  testFA <- testFile (dir </> "fa") expectedFA
-
-  return $ testA .&&. testFA
-
-
-
 -- State: A absent, FA absent
 -- Check that when no cache file is present, the function application `pure f <*> a` creates a cache file for `a` and for the last value `f <$> a`.
 prop_FunApAAbsentFAAbsent :: Property
 prop_FunApAAbsentFAAbsent =
-  funApTest "test-output/formulas/Util/Cache/FunApAAbsentFAAbsent"
+  testFunAp "test-output/formulas/Util/Cache/FunApAAbsentFAAbsent"
             (do
               rmFile "test-output/formulas/Util/Cache/FunApAAbsentFAAbsent/a"
               rmFile "test-output/formulas/Util/Cache/FunApAAbsentFAAbsent/fa")
@@ -164,7 +174,7 @@ prop_FunApAAbsentFAAbsent =
 -- Check that when the cache file for `a` only already exists, a is not recomputed and the cache file for `f <$> a` is created.
 prop_FunApAUnchangedFAAbsent :: Property
 prop_FunApAUnchangedFAAbsent =
-  funApTest "test-output/formulas/Util/Cache/FunApAUnchangedFAAbsent"
+  testFunAp "test-output/formulas/Util/Cache/FunApAUnchangedFAAbsent"
             (do
               rmFile "test-output/formulas/Util/Cache/FunApAUnchangedFAAbsent/fa")
             ("1", "21")
@@ -173,7 +183,7 @@ prop_FunApAUnchangedFAAbsent =
 -- Check that a is recomputed and FA is recomputed
 prop_FunApAModifiedFAAbsent :: Property
 prop_FunApAModifiedFAAbsent =
-  funApTest "test-output/formulas/Util/Cache/FunApAModifiedFAAbsent"
+  testFunAp "test-output/formulas/Util/Cache/FunApAModifiedFAAbsent"
             (do
               threadDelay 5000
               writeFile "test-output/formulas/Util/Cache/FunApAModifiedFAAbsent/a" "3"
@@ -187,8 +197,9 @@ prop_FunApAModifiedFAAbsent =
 -- Check that "a" and "fa" are recomputed
 prop_FunApAAbsentFAUnchanged :: Property
 prop_FunApAAbsentFAUnchanged =
-  funApTest "test-output/formulas/Util/Cache/FunApAAbsentFAUnchanged"
+  testFunAp "test-output/formulas/Util/Cache/FunApAAbsentFAUnchanged"
             (do
+              threadDelay 5000
               rmFile "test-output/formulas/Util/Cache/FunApAAbsentFAUnchanged/a")
             ("2", "22")
 
@@ -196,7 +207,7 @@ prop_FunApAAbsentFAUnchanged =
 -- Check that nothing is recomputed
 prop_FunApAUnchangedFAUnchanged :: Property
 prop_FunApAUnchangedFAUnchanged =
-  funApTest "test-output/formulas/Util/Cache/FunApAUnchangedFAUnchanged"
+  testFunAp "test-output/formulas/Util/Cache/FunApAUnchangedFAUnchanged"
             (do
               return ())
             ("1", "11")
@@ -205,7 +216,7 @@ prop_FunApAUnchangedFAUnchanged =
 -- Check that a is recomputed and FA is recomputed
 prop_FunApAModifiedFAUnchanged :: Property
 prop_FunApAModifiedFAUnchanged =
-  funApTest "test-output/formulas/Util/Cache/FunApAModifiedFAUnchanged"
+  testFunAp "test-output/formulas/Util/Cache/FunApAModifiedFAUnchanged"
             (do
               threadDelay 5000
               writeFile "test-output/formulas/Util/Cache/FunApAModifiedFAUnchanged/a" "3")
@@ -218,7 +229,7 @@ prop_FunApAModifiedFAUnchanged =
 -- Check that both are recomputed
 prop_FunApAAbsentFAModified :: Property
 prop_FunApAAbsentFAModified =
-  funApTest "test-output/formulas/Util/Cache/FunApAAbsentFAModified"
+  testFunAp "test-output/formulas/Util/Cache/FunApAAbsentFAModified"
             (do
               rmFile "test-output/formulas/Util/Cache/FunApAAbsentFAModified/a"
               threadDelay 5000
@@ -229,7 +240,7 @@ prop_FunApAAbsentFAModified =
 -- Check that "fa" is recomputed but not "a" 
 prop_FunApAUnchangedFAModified :: Property
 prop_FunApAUnchangedFAModified =
-  funApTest "test-output/formulas/Util/Cache/FunApAUnchangedFAModified"
+  testFunAp "test-output/formulas/Util/Cache/FunApAUnchangedFAModified"
             (do
               threadDelay 5000
               writeFile "test-output/formulas/Util/Cache/FunApAUnchangedFAModified/fa" "77")
@@ -239,15 +250,13 @@ prop_FunApAUnchangedFAModified =
 -- Check that both are recomputed.
 prop_FunApAModifiedFAModified :: Property
 prop_FunApAModifiedFAModified =
-  funApTest "test-output/formulas/Util/Cache/FunApAModifiedFAModified"
+  testFunAp "test-output/formulas/Util/Cache/FunApAModifiedFAModified"
             (do
               threadDelay 5000
               writeFile "test-output/formulas/Util/Cache/FunApAModifiedFAModified/a" "3"
               threadDelay 5000
               writeFile "test-output/formulas/Util/Cache/FunApAModifiedFAModified/fa" "77")
             ("2", "22")
-
-
 
 
 -- State: A absent, FA absent
@@ -273,19 +282,79 @@ prop_FunApCompAllFunctor = once $ ioProperty $ do
   return $ testA .&&. testFA
 
 
+---- Monoid
+
+-- The monoid is left-biased: when two different values are cached to the same
+-- target, the first is kept.
+prop_MonoidCacheTwice :: Property
+prop_MonoidCacheTwice = ioProperty $ do
+  let mon = cache "test-output/formulas/Util/Cache/Monoid/CacheTwice/a"
+                  (show . getSum) (fmap Sum . readInt) (pure (Sum 1))
+         <> cache "test-output/formulas/Util/Cache/Monoid/CacheTwice/a"
+                  (show . getSum) (fmap Sum . readInt) (pure (Sum 2))
+  runClean "test-output/formulas/Util/Cache/Monoid/CacheTwice" mon
+  testFile "test-output/formulas/Util/Cache/Monoid/CacheTwice/a" "1"
+
+-- Two independant values can be built in parallel
+prop_MonoidParallelism :: Property
+prop_MonoidParallelism = within 15000 $ ioProperty $ do
+  let c = cache' "test-output/formulas/Util/Cache/Monoid/Parallelism/a"
+                   (Cache.liftIO $ threadDelay 10000)
+         <> cache' "test-output/formulas/Util/Cache/Monoid/Parallelism/b"
+                   (Cache.liftIO $ threadDelay 10000)
+  rmRec "test-output/formulas/Util/Cache/Monoid/Parallelism/"
+  shakeArgs shakeOptions{ shakeReport = [ "test-output/formulas/Util/Cache/Monoid/Parallelism/" </> "shakeReport.html"]
+                        , shakeFiles =  "test-output/formulas/Util/Cache/Monoid/Parallelism/" </> ".shake/"
+                        , shakeThreads = 2 }
+    $ buildCache c
+
+---- Applicative
+
+-- The applicative is left-biased: Check that caching twice to the same file
+-- only builds the first.
+prop_ApplicativeCacheTwice :: Property
+prop_ApplicativeCacheTwice = ioProperty $ do
+  let ap = cache "test-output/formulas/Util/Cache/Applicative/CacheTwice/a"
+                  (\_ -> "1") (\_ -> Right (+ 1)) (pure (+ 1))
+       <*> cache "test-output/formulas/Util/Cache/Applicative/CacheTwice/a"
+                  (\_ -> "2") (\_ -> Right 1) (pure 1)
+                  
+  runClean "test-output/formulas/Util/Cache/Applicative/CacheTwice" ap
+  testFile "test-output/formulas/Util/Cache/Applicative/CacheTwice/a" "1"
+
+-- Two independant values can be built in parallel
+prop_ApplicativeParallelism :: Property
+prop_ApplicativeParallelism = within 15000 $ ioProperty $ do
+  let c = cache "test-output/formulas/Util/Cache/Applicative/Parallelism/a"
+                (\_ -> "1") (\_ -> pure (+ 1))
+                (Cache.liftIO $ threadDelay 10000 >> return (+ 1))
+          <*> cache "test-output/formulas/Util/Cache/Applicative/Parallelism/b"
+                (\_ -> "2") (\_ -> pure (2))
+                (Cache.liftIO $ threadDelay 10000 >> return (2))
+
+  rmRec "test-output/formulas/Util/Cache/Applicative/Parallelism/"
+  shakeArgs shakeOptions{ shakeReport = [ "test-output/formulas/Util/Cache/Applicative/Parallelism/" </> "shakeReport.html"]
+                        , shakeFiles =  "test-output/formulas/Util/Cache/Applicative/Parallelism/" </> ".shake/"
+                        , shakeThreads = 2 }
+    $ buildCache c
+
 
 runTests = do
-  checkOrExit prop_SinValCreaCache
-  checkOrExit prop_SinValNoRecomp
-  checkOrExit prop_SinValRecomp
-  checkOrExit prop_FunApAAbsentFAAbsent
-  checkOrExit prop_FunApAAbsentFAUnchanged
-  checkOrExit prop_FunApAAbsentFAModified
-  checkOrExit prop_FunApAUnchangedFAAbsent
-  checkOrExit prop_FunApAUnchangedFAUnchanged
-  checkOrExit prop_FunApAUnchangedFAModified
-  checkOrExit prop_FunApAModifiedFAAbsent
-  checkOrExit prop_FunApAModifiedFAUnchanged
-  checkOrExit prop_FunApAModifiedFAModified
-  checkOrExit prop_FunApCompAllFunctor
+  checkOrExit "prop_SinValCreaCache" prop_SinValCreaCache
+  checkOrExit "prop_SinValNoRecomp" prop_SinValNoRecomp
+  checkOrExit "prop_SinValRecomp" prop_SinValRecomp
+  checkOrExit "prop_FunApAAbsentFAAbsent" prop_FunApAAbsentFAAbsent
+  checkOrExit "prop_FunApAAbsentFAUnchanged" prop_FunApAAbsentFAUnchanged
+  checkOrExit "prop_FunApAAbsentFAModified" prop_FunApAAbsentFAModified
+  checkOrExit "prop_FunApAUnchangedFAAbsent" prop_FunApAUnchangedFAAbsent
+  checkOrExit "prop_FunApAUnchangedFAUnchanged" prop_FunApAUnchangedFAUnchanged
+  checkOrExit "prop_FunApAUnchangedFAModified" prop_FunApAUnchangedFAModified
+  checkOrExit "prop_FunApAModifiedFAAbsent" prop_FunApAModifiedFAAbsent
+  checkOrExit "prop_FunApAModifiedFAUnchanged" prop_FunApAModifiedFAUnchanged
+  checkOrExit "prop_FunApAModifiedFAModified" prop_FunApAModifiedFAModified
+  checkOrExit "prop_FunApCompAllFunctor" prop_FunApCompAllFunctor
+  checkOrExit "prop_MonoidCacheTwice" prop_MonoidCacheTwice
+  checkOrExit "prop_ApplicativeCacheTwice" prop_ApplicativeCacheTwice
+  checkOrExit "prop_MonoidParallelism" prop_MonoidParallelism
+  checkOrExit "prop_ApplicativeParallelism" prop_ApplicativeParallelism
 

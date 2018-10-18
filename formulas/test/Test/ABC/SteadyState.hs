@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Test.ABC.SteadyState where
 
@@ -14,4 +15,4 @@ import Test.Util
 import ABC.SteadyState
 
 runTests = do
-  checkOrExit True
+  checkOrExit "True" True

@@ -8,7 +8,7 @@ module ABC.SteadyState where
 import Protolude
 import Unsafe (unsafeHead)
 
-import Control.Monad.Random (MonadRandom, weighted, getRandom)
+import Control.Monad.Random.Lazy (MonadRandom, weighted, getRandom)
 import Control.Monad.Zip (mzip)
 import Data.Monoid (Last(..), (<>))
 import qualified Data.IntMap as Map

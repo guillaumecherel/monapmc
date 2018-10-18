@@ -11,7 +11,7 @@ import System.Process
 import Util.Cache
 
 gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Cache ()
-gnuplot output script args = sink output command (script : fmap snd args)
+gnuplot output script args = sink output (\() -> command) needs
   where command = do
           (status, out, err) <- lift
             $ readProcessWithExitCode ("gnuplot" :: String) gpArgs []
@@ -25,5 +25,5 @@ gnuplot output script args = sink output command (script : fmap snd args)
         gpArgs = [ ("-e" :: String), "outputPath='" <> output <> "'" ]
               <> join ( fmap (\(arg,val) -> ["-e", arg <> "='" <> val <> "'"]) 
                              args )
-              <> ["-c", script] 
-
+              <> ["-c", script]
+        needs = foldMap need $ script:(map snd args)

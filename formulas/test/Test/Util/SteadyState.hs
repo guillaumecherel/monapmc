@@ -42,5 +42,5 @@ prop_steadyStateParallel =
         update (_, _) = return ((), ())
 
 runTests = do
-  checkOrExit prop_RunningRuns
-  checkOrExit prop_steadyStateParallel
+  checkOrExit "prop_RunningRuns" prop_RunningRuns
+  checkOrExit "prop_steadyStateParallel" prop_steadyStateParallel

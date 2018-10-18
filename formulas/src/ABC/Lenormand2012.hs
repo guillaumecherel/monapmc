@@ -5,7 +5,7 @@ module ABC.Lenormand2012 where
 import Data.Monoid
 import Control.Monad
 import Control.Monad.State
-import Control.Monad.Random
+import Control.Monad.Random.Lazy
 import Control.Monad.Zip
 import Data.List
 import qualified Numeric.LinearAlgebra as LA

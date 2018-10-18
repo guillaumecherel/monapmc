@@ -6,7 +6,7 @@
 module Model where
 
 import Protolude
-import Control.Monad.Random
+import Control.Monad.Random.Lazy
 import qualified Data.Random as R
 import qualified Data.Vector as V
 import qualified Text.Parsec as P

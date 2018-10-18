@@ -91,28 +91,28 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb2-5" data-line-number="5"></a>
 <a class="sourceLine" id="cb2-6" data-line-number="6"><span class="kw">import</span> <span class="dt">Protolude</span> </a>
 <a class="sourceLine" id="cb2-7" data-line-number="7"></a>
-<a class="sourceLine" id="cb2-8" data-line-number="8"><span class="kw">import</span> <span class="dt">Development.Shake</span></a>
-<a class="sourceLine" id="cb2-9" data-line-number="9"><span class="kw">import</span> <span class="dt">Development.Shake.Command</span></a>
-<a class="sourceLine" id="cb2-10" data-line-number="10"><span class="kw">import</span> <span class="dt">Development.Shake.FilePath</span></a>
-<a class="sourceLine" id="cb2-11" data-line-number="11"><span class="kw">import</span> <span class="dt">Development.Shake.Util</span></a>
-<a class="sourceLine" id="cb2-12" data-line-number="12"></a>
-<a class="sourceLine" id="cb2-13" data-line-number="13"><span class="kw">import</span> <span class="dt">Steps</span></a>
-<a class="sourceLine" id="cb2-14" data-line-number="14"><span class="kw">import</span> <span class="dt">L2VSNSimus</span></a>
-<a class="sourceLine" id="cb2-15" data-line-number="15"></a>
-<a class="sourceLine" id="cb2-16" data-line-number="16"><span class="ot">main ::</span> <span class="dt">IO</span> ()</a>
-<a class="sourceLine" id="cb2-17" data-line-number="17">main <span class="fu">=</span> shakeArgs shakeOptions{shakeVerbosity<span class="fu">=</span><span class="dt">Normal</span>,</a>
-<a class="sourceLine" id="cb2-18" data-line-number="18">                              shakeColor<span class="fu">=</span><span class="dt">True</span>} <span class="fu">$</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb2-19" data-line-number="19">  want <span class="fu">$</span> [ <span class="st">&quot;report/5steps.png&quot;</span></a>
-<a class="sourceLine" id="cb2-20" data-line-number="20">         , <span class="st">&quot;report/L2_vs_nsimus.png&quot;</span></a>
-<a class="sourceLine" id="cb2-21" data-line-number="21">         ] </a>
-<a class="sourceLine" id="cb2-22" data-line-number="22"></a>
-<a class="sourceLine" id="cb2-23" data-line-number="23">  buildSteps</a>
-<a class="sourceLine" id="cb2-24" data-line-number="24">  <span class="co">-- buildLenormand2012Steps</span></a>
-<a class="sourceLine" id="cb2-25" data-line-number="25">  <span class="co">-- buildSteadyStateSteps</span></a>
-<a class="sourceLine" id="cb2-26" data-line-number="26">  <span class="co">-- buildEasyABCSteps</span></a>
-<a class="sourceLine" id="cb2-27" data-line-number="27">  <span class="co">-- buildHistograms</span></a>
-<a class="sourceLine" id="cb2-28" data-line-number="28">  <span class="co">-- buildFigurePosteriorSteps</span></a>
-<a class="sourceLine" id="cb2-29" data-line-number="29">  <span class="co">-- buildFigureL2VSNSimu</span></a>
-<a class="sourceLine" id="cb2-30" data-line-number="30">  <span class="co">-- buildL2VSNSimu </span></a></code></pre></div>
+<a class="sourceLine" id="cb2-8" data-line-number="8"><span class="kw">import</span> <span class="dt">Control.Monad.Random.Lazy</span></a>
+<a class="sourceLine" id="cb2-9" data-line-number="9"><span class="kw">import</span> <span class="dt">Development.Shake</span></a>
+<a class="sourceLine" id="cb2-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb2-11" data-line-number="11"><span class="kw">import</span> <span class="dt">L2VSNSimus</span></a>
+<a class="sourceLine" id="cb2-12" data-line-number="12"><span class="kw">import</span> <span class="dt">Steps</span></a>
+<a class="sourceLine" id="cb2-13" data-line-number="13"><span class="kw">import</span> <span class="dt">Util.Cache</span></a>
+<a class="sourceLine" id="cb2-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb2-15" data-line-number="15"><span class="ot">main ::</span> <span class="dt">IO</span> ()</a>
+<a class="sourceLine" id="cb2-16" data-line-number="16">main <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb2-17" data-line-number="17">  ran <span class="ot">&lt;-</span> getStdGen</a>
+<a class="sourceLine" id="cb2-18" data-line-number="18">  putStrLn (<span class="st">&quot;Constructing cache system.&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</a>
+<a class="sourceLine" id="cb2-19" data-line-number="19">  <span class="kw">let</span> c <span class="fu">=</span> mconcat <span class="fu">$</span> flip evalRand ran <span class="fu">$</span> sequence </a>
+<a class="sourceLine" id="cb2-20" data-line-number="20">                    [ buildSteps</a>
+<a class="sourceLine" id="cb2-21" data-line-number="21">                    , buildL2VSNSimus</a>
+<a class="sourceLine" id="cb2-22" data-line-number="22">                    ]</a>
+<a class="sourceLine" id="cb2-23" data-line-number="23">  putStrLn (prettyCache c)</a>
+<a class="sourceLine" id="cb2-24" data-line-number="24">  putStrLn (<span class="st">&quot;Creating Shake Rules.&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</a>
+<a class="sourceLine" id="cb2-25" data-line-number="25">  rules <span class="ot">&lt;-</span> return <span class="fu">$</span> buildCache c</a>
+<a class="sourceLine" id="cb2-26" data-line-number="26">  putStrLn (<span class="st">&quot;Running cache system.&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</a>
+<a class="sourceLine" id="cb2-27" data-line-number="27">  shakeArgs shakeOptions{ shakeVerbosity<span class="fu">=</span><span class="dt">Normal</span></a>
+<a class="sourceLine" id="cb2-28" data-line-number="28">                        , shakeColor<span class="fu">=</span><span class="dt">True</span> </a>
+<a class="sourceLine" id="cb2-29" data-line-number="29">                        , shakeThreads<span class="fu">=</span><span class="dv">0</span> } </a>
+<a class="sourceLine" id="cb2-30" data-line-number="30">            rules</a></code></pre></div>
 </body>
 </html>

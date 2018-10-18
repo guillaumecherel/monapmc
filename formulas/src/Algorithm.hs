@@ -23,7 +23,7 @@ data Algorithm =
     , getPAccMin :: Double
     , getParallel :: Int
     }
-  deriving (Show, Eq, Ord)
+  deriving (Show, Read, Eq, Ord)
 
 eqAlgorithm :: Algorithm -> Algorithm -> Bool
 eqAlgorithm Lenormand2012{} Lenormand2012{} = True

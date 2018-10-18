@@ -6,7 +6,7 @@
 module Distribution where
 
 import Protolude
-import Control.Monad.Random
+import Control.Monad.Random.Lazy
 import qualified Data.Random as R
 import Data.Word (Word64)
 import qualified Text.Parsec as P

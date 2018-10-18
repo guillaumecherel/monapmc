@@ -8,7 +8,7 @@ module Run where
 import Protolude
 import qualified Control.Foldl as L
 import qualified Data.Map as Map
-import Data.Text (unpack)
+import Data.Text (pack, unpack, intercalate)
 import qualified Data.Text.IO as TIO
 import qualified Data.Vector as V
 import Formatting
@@ -28,7 +28,7 @@ data Run = Run
   , getReplication:: Int
   , getSample:: V.Vector (V.Vector Double)
   }
-  deriving (Eq, Ord)
+  deriving (Show, Read, Eq, Ord)
 
 
 --------
@@ -130,31 +130,33 @@ pprint s = pprintAlgorithm (getAlgorithm s)
         <> " sample=" <> show (take 3 $ V.toList $ V.head <$> getSample s)
         <> if length (getSample s) > 3 then "..." else ""
 
-runFileName :: Run -> FilePath
-runFileName s = unpack $
-     algorithmPart (getAlgorithm s) <> "_"
-  <> show (getStep s) <> "_"
-  <> show (getReplication s) <> ".csv"
-  where algorithmPart Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
-          "lenormand2012_" <> show n <> "_" <> show2dec alpha <> "_" <> show2dec pAccMin
-        algorithmPart Beaumont2009{getN=n, getEpsilonFrom=eFrom, getEpsilonTo=eTo} =
-          "beaumont2009_" <> show n <> "_" <> show2dec eFrom <> "_" <> show2dec eTo
-        algorithmPart SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
-          "steadyState_" <> show n <> "_" <> show2dec alpha <> "_" <> show2dec pAccMin <> "_" <> show par
+-- runFileName :: Run -> FilePath
+-- runFileName s = unpack $
+--      algorithmPart (getAlgorithm s) <> "_"
+--   <> show (getStep s) <> "_"
+--   <> show (getReplication s) <> ".csv"
+--   where algorithmPart Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
+--           "lenormand2012_" <> show n <> "_" <> show2dec alpha <> "_" <> show2dec pAccMin
+--         algorithmPart Beaumont2009{getN=n, getEpsilonFrom=eFrom, getEpsilonTo=eTo} =
+--           "beaumont2009_" <> show n <> "_" <> show2dec eFrom <> "_" <> show2dec eTo
+--         algorithmPart SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
+--           "steadyState_" <> show n <> "_" <> show2dec alpha <> "_" <> show2dec pAccMin <> "_" <> show par
 
 show2dec :: Double -> Text
 show2dec = sformat (fixed 2)
 
-cacheRun :: Text -> Run -> Cache Run
-cacheRun expName s =
-  let filename = "output/formulas/run"
-             </> unpack expName
-             </> runFileName s
-  in cache filename
-           (column . V.toList . V.concat . V.toList . getSample)
-           (bimap show identity . readRun filename )
-           (pure s)
+cacheRun :: FilePath -> Cache Run -> Cache Run
+cacheRun = cache'
 
+cacheSample :: FilePath -> Cache Run -> Cache (V.Vector (V.Vector Double))
+cacheSample path =
+    cache path w r . fmap getSample
+  where w :: V.Vector (V.Vector Double) -> Text
+        w = Data.Text.intercalate "\n"
+          . fmap (Data.Text.intercalate " " . fmap show . V.toList)
+          . V.toList
+        r :: Text -> Either Text (V.Vector (V.Vector Double))
+        r = bimap show identity . readSample path
 --------
 -- Parsing
 --------
@@ -164,8 +166,19 @@ read1DSample = --mapM ((fmap fst) . TR.double) (T.lines text)
   P.parse parser1DSample
 
 parser1DSample :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double))
-parser1DSample = fmap (V.fromList . fmap V.singleton) (P.many $ P.try parserDouble <* P.optional P.endOfLine)
-  --P.sepBy parserDouble P.endOfLine << P.endOfLine
+parser1DSample = (V.fromList . fmap V.singleton)
+             <$> (P.many $ P.try parserDouble <* P.optional P.endOfLine)
+             <*  P.eof
+
+readSample :: FilePath -> Text -> Either P.ParseError (V.Vector (V.Vector Double))
+readSample = --mapM ((fmap fst) . TR.double) (T.lines text)
+  P.parse parser1DSample
+
+parserSample :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double))
+parserSample = (V.fromList . fmap V.fromList)
+           <$> (P.many $ P.try (P.sepBy1 parserDouble (P.char ' '))
+                      <* P.optional P.endOfLine)
+           <*  P.eof
 
 loadSimulation :: FilePath -> IO (Either P.ParseError Run)
 loadSimulation f = (TIO.readFile f) >>= return . readRun f

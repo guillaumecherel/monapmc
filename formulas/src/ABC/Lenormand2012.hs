@@ -4,16 +4,12 @@ module ABC.Lenormand2012 where
 
 import Data.Monoid
 import Control.Monad
-import Control.Monad.State
 import Control.Monad.Random.Lazy
 import Control.Monad.Zip
-import Data.List
 import qualified Numeric.LinearAlgebra as LA
 import qualified Statistics.Quantile as SQ
-import System.Random
 import qualified Data.Vector as V
 import qualified Data.Text as T
-import Debug.Trace
 
 -- The algorithm parameters
 data P m = P

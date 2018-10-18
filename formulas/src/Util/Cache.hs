@@ -6,15 +6,10 @@ module Util.Cache where
 import Protolude
 
 import Control.Monad.Fail
-import Data.Functor
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Text
-import Data.Text.Read
 import Development.Shake
-import Development.Shake.Command
-import Development.Shake.FilePath
-import Development.Shake.Util
 
 data Cache a = Cache { cacheRead :: ExceptT Text IO a
                      , cacheNeeds :: Set FilePath
@@ -148,7 +143,7 @@ need path = Cache
 
 cache :: FilePath -> (a -> Text) -> (Text -> Either Text a) -> Cache a
          -> Cache a
-cache path toText fromText (CacheFail err) = CacheFail err
+cache _ _ _ (CacheFail err) = CacheFail err
 cache path toText fromText a = if isBuilt path (cacheBuild a)
   then CacheFail ("The cache file already exists: " <> pack path)
   else Cache { cacheRead = ExceptT $ fromText <$> readFile path
@@ -163,7 +158,7 @@ cache' :: (Show a, Read a) => FilePath -> Cache a -> Cache a
 cache' path = cache path show (bimap pack identity . readEither . unpack)
 
 sink :: FilePath -> (a -> ExceptT Text IO ()) -> Cache a -> Cache ()
-sink path write (CacheFail err) = CacheFail err
+sink _ _ (CacheFail err) = CacheFail err
 sink path write a = if isBuilt path (cacheBuild a)
   then CacheFail ("The cache file already exists: " <> pack path)
   else Cache { cacheRead = return ()
@@ -226,7 +221,7 @@ build b = do
             want (buildTargets b)
             foldMap buildOne ( buildList b )
   where buildOne (outPath, write, needs) =
-                    outPath %> \out -> do
+                    outPath %> \_ -> do
                       Development.Shake.need (Set.toList needs)
                       e <- traced "Writing cache" $ runExceptT write
                       case e of

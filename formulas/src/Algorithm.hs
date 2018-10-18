@@ -4,7 +4,6 @@
 module Algorithm where
 
 import Protolude
-import qualified Text.Parsec as P
 
 data Algorithm =
   Lenormand2012

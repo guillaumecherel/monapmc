@@ -41,7 +41,7 @@ run SteadyState{getAlpha=alpha, getPAccMin=pAccMin} replication =
 lenormand2012 :: Double -> Double -> Int -> Rand StdGen (Cache Run)
 lenormand2012 alpha pAccMin replication =
   let steps :: Rand StdGen [(Int, Lenormand2012.S)]
-      steps = zip [1..]
+      steps = zip [1..stepMax]
           <$> Lenormand2012.scan p toyModel 
       algo = Algorithm.Lenormand2012 5000 alpha pAccMin
       p = Lenormand2012.P
@@ -72,7 +72,7 @@ steadyState :: Double -> Double -> Int -> Rand StdGen (Cache Run)
 steadyState alpha pAccMin replication = 
   let steps :: RandT StdGen IO [SteadyState.S]
       steps = SteadyState.scanIndices needSteps ssr
-      needSteps = [5000, 10000 .. 100000]
+      needSteps = fmap (* 5000) [1..stepMax]
       enumSteps :: RandT StdGen IO [(Int, SteadyState.S)]
       enumSteps = zip needSteps <$> steps
       ssr = SteadyState.runner p model
@@ -102,14 +102,19 @@ steadyState alpha pAccMin replication =
   in do
         g <- getSplit
         return $ cacheRun' $ fmap (getRun . last) $ evalRandT enumSteps g
+        
+stepMax :: Int
+stepMax = 5
 
 rootSquaredError :: Double -> Double -> Double
 rootSquaredError expected x = sqrt ((x - expected) ** 2)
 
 samplePAccMin :: [Double]
 samplePAccMin = [0.01, 0.05, 0.1, 0.2]
+-- samplePAccMin = [0.01]
 sampleAlpha :: [Double]
 sampleAlpha = [0.1,0.2..0.9]
+-- sampleAlpha = [0.1]
 
 rep :: Algo -> RunC [Run]
 rep algo = traverse (\r ->  run algo r) 

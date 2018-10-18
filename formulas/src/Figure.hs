@@ -5,7 +5,6 @@ module Figure where
 
 import Protolude
 import Data.String (String)
-import Data.Text (pack)
 import System.Process
 
 import Util.Cache

@@ -8,16 +8,14 @@ module Run where
 import Protolude
 import qualified Control.Foldl as L
 import qualified Data.Map as Map
-import Data.Text (pack, unpack, intercalate)
+import Data.Text (intercalate)
 import qualified Data.Text.IO as TIO
 import qualified Data.Vector as V
 import Formatting
 import qualified Text.Parsec as P
 import Util.Cache
-import Util.CSV
 import Util.Parser
 import System.Directory
-import System.FilePath
 
 import Algorithm
 import Statistics
@@ -198,7 +196,7 @@ readRun filename column =
 parseLenormand2012 :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> Run)
 parseLenormand2012 = do
   parserSkipDirname
-  P.string "lenormand2012"
+  _ <- P.string "lenormand2012"
   n <- P.char '_' *> parserInt
   alpha <- P.char '_' *> parserDouble
   pAccMin <- P.char '_' *> parserDouble

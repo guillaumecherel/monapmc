@@ -7,6 +7,7 @@
 *.class
 *.log
 .shake/
+formulas.prof*
 blocks-simulations/target/
 blocks-simulations/project/target/
 formulas/.stack-work/

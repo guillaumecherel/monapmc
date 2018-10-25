@@ -12,68 +12,93 @@ import qualified Statistics.Quantile as SQ
 
 data SteadyStateRunner m s y = SteadyStateRunner
   { start :: m (s, [Running y])
-  , step :: (s, [Running y]) -> m (s, [Running y]) }
+  , step :: (s, [Running y]) -> m (Maybe (s, [Running y]))}
 
 steadyStateRunner :: (MonadIO m) =>
                      (x -> IO y)
                      -> m (s, [x])
-                     -> ((s, y) -> m (s, x))
+                     -> ((s, y) -> m (Maybe (s, x)))
                      -> SteadyStateRunner m s y
 steadyStateRunner f init update = SteadyStateRunner
   { start = init >>= steadyStateStart f
   , step = steadyStateStep f update
   }
 
+run :: (Monad m) => SteadyStateRunner m s y -> m s
+run ssr = do
+  (s, r) <- start ssr
+  mNext <- step ssr (s, r)
+  case mNext of
+    Nothing -> return s
+    Just (s',r') -> run ssr{start = return (s', r')}
+    
+scan :: (Monad m) => SteadyStateRunner m s y -> m [s]
+scan ssr = do
+  (s, r) <- start ssr
+  mNext <- step ssr (s, r)
+  case mNext of
+    Nothing -> return [s]
+    Just (s',r') -> do
+      next <- scan ssr{start = return (s',r')}
+      return (s:next)
+
 runN :: (Monad m) => Int -> SteadyStateRunner m s y -> m s
 runN n SteadyStateRunner{start=start, step=step} =
-  fmap fst $ foldl' (>>=) start (replicate n step)
+  if n > 0
+    then do
+      mNext <- start >>= step
+      case mNext of
+        Nothing -> fmap fst start
+        Just (s, r) -> runN (n - 1) SteadyStateRunner{start=return (s,r), step=step}
+    else
+      fmap fst start
 
 scanN :: (Monad m) => Int -> SteadyStateRunner m s y -> m [s]
-scanN n r = if n <= 0
-  then return []
+scanN n ssr = if n <= 0
+  then fmap (\(s, _) -> [s]) (start ssr)
   else do
-    (state, running) <- start r
-    next <- scanN (n - 1) r{start = (step r) (state, running)}
-    return $ state : next
+    (s, r) <- start ssr
+    mNext <- step ssr (s,r)
+    case mNext of
+      Nothing -> return [s]
+      Just (s', r') -> do
+        next <- scanN (n - 1) ssr{start = return (s', r')}
+        return $ s : next
 
 scanIndices :: forall m s y. (Monad m) => [Int] -> SteadyStateRunner m s y -> m [s]
 scanIndices is ssr = scanIndices' 0 is ssr
   where scanIndices' :: Int -> [Int] -> SteadyStateRunner m s y -> m [s]
         scanIndices' _ [] _ = return []
-        scanIndices' cur (i:is) ssr = do
-          (sNew, rNew) <- foldl' (>>=) (start ssr)
-                                 (replicate (i - cur) (step ssr))
-          let ssrNew = ssr{start = return (sNew, rNew)}
-          next <- scanIndices' i is ssrNew
-          return (sNew:next)
-
-runUntil :: (Monad m) => (s -> Bool) -> SteadyStateRunner m s y -> m s
-runUntil stop r = do
-  (state, running) <- start r
-  if stop state
-    then return state
-    else runUntil stop r{start = (step r) (state, running)}
-    
-scanUntil :: (Monad m) => (s -> Bool) -> SteadyStateRunner m s y -> m [s]
-scanUntil stop r = do
-  (state, running) <- start r
-  if stop state
-    then return [state]
-    else do
-      next <- scanUntil stop r{start = (step r) (state, running)}
-      return $ state : next 
+        scanIndices' cur (i:is) ssr =
+          if cur == i
+            then do
+              (s,r) <- start ssr
+              mNext <- step ssr (s, r)
+              case mNext of
+                Nothing -> return [s]
+                Just (s', r') -> do
+                  nextRes <- scanIndices' (cur + 1) is ssr{start=return (s',r')}
+                  return (s:nextRes)
+            else do
+              mNext <- start ssr >>= step ssr
+              case mNext of
+                Nothing -> return []
+                Just (s', r') -> scanIndices' (cur + 1) is ssr{start=return (s', r')}
 
 steadyStateStart :: (MonadIO m) => (x -> IO y) -> (s,[x]) -> m (s, [Running y])
 steadyStateStart f (s, xs) = do
   running <- traverse (mkRunning . f) xs
   return (s, running)
 
-steadyStateStep :: (MonadIO m) => (x -> IO y) -> ((s, y) -> m (s, x)) -> (s, [Running y]) -> m (s, [Running y])
+steadyStateStep :: (MonadIO m) => (x -> IO y) -> ((s, y) -> m (Maybe (s, x))) -> (s, [Running y]) -> m (Maybe (s, [Running y]))
 steadyStateStep f update (s, running) = do
   (y, running') <- getFirstDone running
-  (s', x) <- update (s, y)
-  newRunning <- mkRunning (f x)
-  return (s', running' ++ [newRunning])
+  mNext <- update (s, y)
+  case mNext of
+    Nothing -> return Nothing
+    Just (s', x) -> do
+      newRunning <- mkRunning (f x)
+      return $ Just (s', running' ++ [newRunning])
 
 newtype Running a = Running { getMVar :: MVar a }
 

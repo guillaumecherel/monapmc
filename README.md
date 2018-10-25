@@ -29,5 +29,23 @@ main = do
                         , shakeColor=True 
                         , shakeThreads=0 } 
             rules
+
+-- -- Profiling            
+-- main :: IO ()
+-- main = do
+--   ran <- getStdGen
+--   let c = mconcat $ flip evalRand ran $ sequence 
+--           $ (fmap . fmap . fmap) (\_ -> ()) 
+--             [ steadyState 0.2 0.01 1
+--             ]
+--             -- , steadyState 0.1 0.01 2
+--             -- , steadyState 0.1 0.05 1
+--             -- , steadyState 0.1 0.05 2 ]
+--   putStrLn (prettyCache c)
+--   let rules = buildCache c
+--   shakeArgs shakeOptions{ shakeVerbosity = Normal
+--                         , shakeColor = True
+--                         , shakeThreads=0 }
+--             rules
 ~~~~~~~~
 

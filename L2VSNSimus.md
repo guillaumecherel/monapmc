@@ -77,11 +77,8 @@ lenormand2012 alpha pAccMin replication =
 
 steadyState :: Double -> Double -> Int -> Rand StdGen (Cache Run)
 steadyState alpha pAccMin replication = 
-  let steps :: RandT StdGen IO [SteadyState.S]
-      steps = SteadyState.scanIndices needSteps ssr
-      needSteps = fmap (* 5000) [1..stepMax]
-      enumSteps :: RandT StdGen IO [(Int, SteadyState.S)]
-      enumSteps = zip needSteps <$> steps
+  let steps :: RandT StdGen IO SteadyState.S
+      steps = SteadyState.runN (stepMax * 5000) ssr
       ssr = SteadyState.runner p model
       model (seed, xs) = return $ evalRand (toyModel xs) (mkStdGen seed)
       algo = Algorithm.SteadyState 5000 alpha pAccMin 1
@@ -95,9 +92,9 @@ steadyState alpha pAccMin replication =
         , SteadyState.priorDensity = toyPrior
         , SteadyState.distanceToData = rootSquaredError 0 . V.head
         }
-      getRun (i, r) = Run 
+      getRun r = Run 
         { getAlgorithm = algo
-        , getStep = i
+        , getStep = SteadyState.curStep r
         , getReplication = replication
         , getSample = fmap (SteadyState.getTheta . SteadyState.getSimulation . SteadyState.getReady) (SteadyState.accepteds r) }
       cacheRun' = 
@@ -108,10 +105,10 @@ steadyState alpha pAccMin replication =
         . Cache.liftIO 
   in do
         g <- getSplit
-        return $ cacheRun' $ fmap (getRun . last) $ evalRandT enumSteps g
+        return $ cacheRun' $ fmap getRun $ evalRandT steps g
         
 stepMax :: Int
-stepMax = 5
+stepMax = 100
 
 rootSquaredError :: Double -> Double -> Double
 rootSquaredError expected x = sqrt ((x - expected) ** 2)

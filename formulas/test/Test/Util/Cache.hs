@@ -297,7 +297,7 @@ prop_MonoidCacheTwice = ioProperty $ do
 
 -- Two independant values can be built in parallel
 prop_MonoidParallelism :: Property
-prop_MonoidParallelism = within 15000 $ ioProperty $ do
+prop_MonoidParallelism = within 18000 $ ioProperty $ do
   let c = cache' "test-output/formulas/Util/Cache/Monoid/Parallelism/a"
                    (Cache.liftIO $ threadDelay 10000)
          <> cache' "test-output/formulas/Util/Cache/Monoid/Parallelism/b"
@@ -324,7 +324,7 @@ prop_ApplicativeCacheTwice = ioProperty $ do
 
 -- Two independant values can be built in parallel
 prop_ApplicativeParallelism :: Property
-prop_ApplicativeParallelism = within 15000 $ ioProperty $ do
+prop_ApplicativeParallelism = within 18000 $ ioProperty $ do
   let c = cache "test-output/formulas/Util/Cache/Applicative/Parallelism/a"
                 (\_ -> "1") (\_ -> pure (+ 1))
                 (Cache.liftIO $ threadDelay 10000 >> return (+ 1))

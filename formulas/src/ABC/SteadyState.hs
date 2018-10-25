@@ -31,7 +31,8 @@ data P m = P
 
 -- The algorithm's state.
 data S = S
-  { accepteds:: V.Vector Accepted
+  { curStep :: Int
+  , accepteds:: V.Vector Accepted
   , readys:: V.Vector Ready
   , pendings:: Map.IntMap Simulation
   , sigmaSquared:: LA.Herm Double
@@ -61,17 +62,6 @@ data Accepted = Accepted
 
 type Seed = Int
 
-scan :: (MonadRandom m, MonadIO m) => P m -> ((Seed, V.Vector Double) -> IO (V.Vector Double)) -> m [S]
-scan p f = start >>= go
-  where go (s,r) = do
-          (s', r') <- step (s, r)
-          if stop s'
-            then return [s', s]
-            else fmap (s':) (go (s',r'))
-        stop s = pAcc s < pAccMin p
-        SteadyStateRunner {start = start, step = step} = runner p f
-          
-
 runner :: (MonadRandom m, MonadIO m) => P m -> ((Seed, V.Vector Double) -> IO (V.Vector Double)) -> SteadyStateRunner m S Simulation
 runner p f =
   let init = initialS p >>= \s -> initialThetas p s >>= \thetas -> return (s, thetas)
@@ -83,7 +73,8 @@ initialS :: (MonadRandom m) => P m -> m S
 initialS p = do
   firstSeed <- getRandom
   return $ S
-    { accepteds = V.empty
+    { curStep = 0
+    , accepteds = V.empty
     , readys = V.empty
     , pendings = Map.empty
     , sigmaSquared = LA.trustSym $ LA.fromLists [[0]]
@@ -101,7 +92,7 @@ initialThetas p s = do
   thetas <- replicateM (parallel p) (priorSample p)
   return ((,,) <$> ids <*> seeds <*> thetas)
 
-update :: (MonadRandom m) => P m -> (S, Simulation) -> m (S, (Int, Seed, V.Vector Double))
+update :: (MonadRandom m) => P m -> (S, Simulation) -> m (Maybe (S, (Int, Seed, V.Vector Double)))
 update p (s, current) = do
   let pendingCur = Map.insert (getIndex current) current (pendings s)
 
@@ -127,11 +118,12 @@ update p (s, current) = do
     -- Update only the sets of ready and pending simulations
     then do
       thetaNew <- (priorSample p)
-      let newS = s{ readys = readyNew
+      let newS = s{ curStep = curStep s + 1
+                  , readys = readyNew
                   , pendings = pendingNew
                   , curIndexReady = curIndexReadyNew
                   , curIndexPending = curIndexPendingNew }
-      return (newS, (curIndexPendingNew, seedNew, thetaNew))
+      return $ Just (newS, (curIndexPendingNew, seedNew, thetaNew))
 
     -- Else if no simulation have been accepted yet
     else if null (accepteds s)
@@ -153,7 +145,8 @@ update p (s, current) = do
         -- Compute the new pAcc
         let pAcc = 1.0
 
-        let newS = s { accepteds = acceptedNew
+        let newS = s { curStep = curStep s + 1
+                     , accepteds = acceptedNew
                      , readys = V.empty
                      , pendings = pendingNew
                      , epsilon = epsilonNew
@@ -165,7 +158,7 @@ update p (s, current) = do
 
         thetaNew <- newSample (n p) newS
 
-        return (newS, (curIndexPendingNew, seedNew, thetaNew))
+        return $ Just (newS, (curIndexPendingNew, seedNew, thetaNew))
 
       -- Else, some simulations have been accepted before
       else do
@@ -197,7 +190,8 @@ update p (s, current) = do
         let sigmaSquaredNew =
              LA.scale 2 $ weightedCovariance matrixThetas vectorWeights
 
-        let newS = s { accepteds = acceptedNew
+        let newS = s { curStep = curStep s + 1
+                     , accepteds = acceptedNew
                      , readys = V.empty
                      , pendings = pendingNew
                      , epsilon = epsilonNew
@@ -209,7 +203,9 @@ update p (s, current) = do
         
         thetaNew <- newSample (n p) newS
 
-        return (newS, (curIndexPendingNew, seedNew, thetaNew))
+        if pAcc s < pAccMin p
+          then return Nothing
+          else return $ Just (newS, (curIndexPendingNew, seedNew, thetaNew))
 
 newSample :: (MonadRandom m) => Int -> S -> m (V.Vector Double)
 newSample n s = do

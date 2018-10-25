@@ -11,13 +11,14 @@ import qualified Data.Set as Set
 import Data.Text
 import Development.Shake
 
+
+
+-- * Cache
+
 data Cache a = Cache { cacheRead :: ExceptT Text IO a
                      , cacheNeeds :: Set FilePath
                      , cacheBuild :: Build }
              | CacheFail Text
-
-liftIO :: IO a -> Cache a
-liftIO io = Cache (lift io) mempty mempty
 
 instance Functor Cache where
   fmap _ (CacheFail err) = CacheFail err
@@ -129,6 +130,13 @@ instance Floating a => Floating (Cache a) where
     logBase = liftA2 logBase
     {-# INLINE logBase #-}
 
+
+
+-- ** Utility functions
+
+liftIO :: IO a -> Cache a
+liftIO io = Cache (lift io) mempty mempty
+
 source :: FilePath -> (Text -> Either Text a) -> Cache a
 source path fromText = Cache
   { cacheRead = ExceptT $ fromText <$> readFile path
@@ -168,19 +176,23 @@ sink path write a = if isBuilt path (cacheBuild a)
                                         (cacheNeeds a)
                          <> cacheBuild a}
 
-mute :: Cache a -> Cache ()
-mute a = a { cacheRead = return ()
-           , cacheNeeds = mempty }
-
 sinkIO :: FilePath -> (a -> IO ()) -> Cache a -> Cache ()
 sinkIO path write = sink path (lift . write)
 
 sinkTxt :: FilePath -> (a -> Either Text Text) -> Cache a -> Cache ()
 sinkTxt path toText = sink path (\a -> ExceptT (return $ toText a) >>= lift . writeFile path)
 
+
+
+-- ** Building
+
 buildCache :: Cache a -> Rules ()
 buildCache (CacheFail err) = action $ fail $ unpack err
 buildCache a = build $ cacheBuild a
+
+
+
+-- ** Pretty printing
 
 prettyCache :: (Show a) => Cache a -> Text
 prettyCache (Cache _ n b) = "Cache Reads = ?" <> "\n"
@@ -191,12 +203,10 @@ prettyCache (Cache _ n b) = "Cache Reads = ?" <> "\n"
                                     (lines $ prettyBuild b)
 prettyCache (CacheFail err) = "CacheFail " <> err
 
-prettyBuild :: Build -> Text
-prettyBuild (Build a) = foldMap showOne $ Map.toList a
-  where showOne :: (FilePath, (ExceptT Text IO (), Set FilePath)) -> Text
-        showOne (target, (_, needs)) =
-             pack target <> "\n"
-          <> foldMap (\n -> "  " <> pack n <> "\n") needs
+
+
+
+-- * Build
 
 newtype Build = Build (Map FilePath (ExceptT Text IO (), Set FilePath))
 
@@ -227,3 +237,13 @@ build b = do
                       case e of
                         Right () -> return ()
                         Left err -> fail $ unpack err
+
+prettyBuild :: Build -> Text
+prettyBuild (Build a) = foldMap showOne $ Map.toList a
+  where showOne :: (FilePath, (ExceptT Text IO (), Set FilePath)) -> Text
+        showOne (target, (_, needs)) =
+             pack target <> "\n"
+          <> foldMap (\n -> "  " <> pack n <> "\n") needs
+
+
+

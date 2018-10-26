@@ -91,12 +91,12 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb2-5" data-line-number="5"></a>
 <a class="sourceLine" id="cb2-6" data-line-number="6"><span class="kw">import</span> <span class="dt">Protolude</span> </a>
 <a class="sourceLine" id="cb2-7" data-line-number="7"></a>
-<a class="sourceLine" id="cb2-8" data-line-number="8"><span class="kw">import</span> <span class="dt">Control.Monad.Random.Lazy</span></a>
-<a class="sourceLine" id="cb2-9" data-line-number="9"><span class="kw">import</span> <span class="dt">Development.Shake</span></a>
-<a class="sourceLine" id="cb2-10" data-line-number="10"></a>
-<a class="sourceLine" id="cb2-11" data-line-number="11"><span class="kw">import</span> <span class="dt">L2VSNSimus</span></a>
-<a class="sourceLine" id="cb2-12" data-line-number="12"><span class="kw">import</span> <span class="dt">Steps</span></a>
-<a class="sourceLine" id="cb2-13" data-line-number="13"><span class="kw">import</span> <span class="dt">Util.Cache</span></a>
+<a class="sourceLine" id="cb2-8" data-line-number="8"><span class="kw">import</span> <span class="dt">Data.Cached</span></a>
+<a class="sourceLine" id="cb2-9" data-line-number="9"><span class="kw">import</span> <span class="dt">Control.Monad.Random.Lazy</span></a>
+<a class="sourceLine" id="cb2-10" data-line-number="10"><span class="kw">import</span> <span class="dt">Development.Shake</span></a>
+<a class="sourceLine" id="cb2-11" data-line-number="11"></a>
+<a class="sourceLine" id="cb2-12" data-line-number="12"><span class="kw">import</span> <span class="dt">L2VSNSimus</span></a>
+<a class="sourceLine" id="cb2-13" data-line-number="13"><span class="kw">import</span> <span class="dt">Steps</span></a>
 <a class="sourceLine" id="cb2-14" data-line-number="14"></a>
 <a class="sourceLine" id="cb2-15" data-line-number="15"><span class="ot">main ::</span> <span class="dt">IO</span> ()</a>
 <a class="sourceLine" id="cb2-16" data-line-number="16">main <span class="fu">=</span> <span class="kw">do</span></a>
@@ -106,7 +106,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb2-20" data-line-number="20">                    [ buildSteps</a>
 <a class="sourceLine" id="cb2-21" data-line-number="21">                    , buildL2VSNSimus</a>
 <a class="sourceLine" id="cb2-22" data-line-number="22">                    ]</a>
-<a class="sourceLine" id="cb2-23" data-line-number="23">  putStrLn (prettyCache c)</a>
+<a class="sourceLine" id="cb2-23" data-line-number="23">  prettyCached c <span class="fu">&gt;&gt;=</span> putStrLn</a>
 <a class="sourceLine" id="cb2-24" data-line-number="24">  putStrLn (<span class="st">&quot;Creating Shake Rules.&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</a>
 <a class="sourceLine" id="cb2-25" data-line-number="25">  rules <span class="ot">&lt;-</span> return <span class="fu">$</span> buildCache c</a>
 <a class="sourceLine" id="cb2-26" data-line-number="26">  putStrLn (<span class="st">&quot;Running cache system.&quot;</span><span class="ot"> ::</span> <span class="dt">Text</span>)</a>
@@ -115,7 +115,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb2-29" data-line-number="29">                        , shakeThreads<span class="fu">=</span><span class="dv">0</span> } </a>
 <a class="sourceLine" id="cb2-30" data-line-number="30">            rules</a>
 <a class="sourceLine" id="cb2-31" data-line-number="31"></a>
-<a class="sourceLine" id="cb2-32" data-line-number="32"><span class="co">-- -- Profiling            </span></a>
+<a class="sourceLine" id="cb2-32" data-line-number="32"><span class="co">-- Profiling            </span></a>
 <a class="sourceLine" id="cb2-33" data-line-number="33"><span class="co">-- main :: IO ()</span></a>
 <a class="sourceLine" id="cb2-34" data-line-number="34"><span class="co">-- main = do</span></a>
 <a class="sourceLine" id="cb2-35" data-line-number="35"><span class="co">--   ran &lt;- getStdGen</span></a>
@@ -126,7 +126,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb2-40" data-line-number="40"><span class="co">--             -- , steadyState 0.1 0.01 2</span></a>
 <a class="sourceLine" id="cb2-41" data-line-number="41"><span class="co">--             -- , steadyState 0.1 0.05 1</span></a>
 <a class="sourceLine" id="cb2-42" data-line-number="42"><span class="co">--             -- , steadyState 0.1 0.05 2 ]</span></a>
-<a class="sourceLine" id="cb2-43" data-line-number="43"><span class="co">--   putStrLn (prettyCache c)</span></a>
+<a class="sourceLine" id="cb2-43" data-line-number="43"><span class="co">--   (prettyCached c) &gt;&gt;= putStrLn</span></a>
 <a class="sourceLine" id="cb2-44" data-line-number="44"><span class="co">--   let rules = buildCache c</span></a>
 <a class="sourceLine" id="cb2-45" data-line-number="45"><span class="co">--   shakeArgs shakeOptions{ shakeVerbosity = Normal</span></a>
 <a class="sourceLine" id="cb2-46" data-line-number="46"><span class="co">--                         , shakeColor = True</span></a>

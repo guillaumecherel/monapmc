@@ -4,25 +4,28 @@
 module Figure where
 
 import Protolude
+
+import Control.Monad.Fail
+import qualified Data.Set as Set
 import Data.String (String)
 import System.Process
 
-import Util.Cache
+import Data.Cached
 
-gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Cache ()
-gnuplot output script args = sink output (\() -> command) needs
+gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Cached ()
+gnuplot output script args = tag (output  ++ ".tag")
+                           $ fromIO (Set.fromList $ fmap snd args) command
   where command = do
-          (status, out, err) <- lift
-            $ readProcessWithExitCode ("gnuplot" :: String) gpArgs []
-          lift $ hPutStrLn stderr err
-          lift $ hPutStrLn stdout out
+          (status, out, err) <- readProcessWithExitCode ("gnuplot" :: String) gpArgs []
+          hPutStrLn stderr err
+          hPutStrLn stdout out
           case status of
             ExitSuccess -> return ()
-            ExitFailure code -> throwE $
+            ExitFailure code -> fail $
               "Error: command gnuplot exited with status " <> show code
               <> "\nFailing command: " <> "gnuplot " <> show gpArgs
         gpArgs = [ ("-e" :: String), "outputPath='" <> output <> "'" ]
               <> join ( fmap (\(arg,val) -> ["-e", arg <> "='" <> val <> "'"]) 
                              args )
               <> ["-c", script]
-        needs = foldMap need $ script:(map snd args)
+

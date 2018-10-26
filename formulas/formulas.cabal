@@ -26,7 +26,6 @@ library
                        ABC.SteadyState,
                        Distribution,
                        Util.SteadyState,
-                       Util.Cache,
                        Util.Parser,
                        Steps,
                        L2VSNSimus
@@ -50,7 +49,8 @@ library
                        shake >= 0.16.4,
                        Glob >= 0.7.4,
                        mwc-random >= 0.13,
-                       process >= 1.6.1.0
+                       process >= 1.6.1.0,
+                       cached
 
 executable formulas
   hs-source-dirs:      app
@@ -68,6 +68,7 @@ executable formulas
                        MonadRandom >= 0.5,
                        vector >= 0.12,
                        filepath >= 1.4.1,
+                       cached,
                        formulas
                        
 test-suite formulas-test
@@ -94,7 +95,6 @@ test-suite formulas-test
                        Test.ABC.SteadyState,
                        Test.ToyModel,
                        Test.Util
-                       Test.Util.Cache
   default-language:    Haskell2010
 
 

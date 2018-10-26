@@ -7,13 +7,13 @@ module Run where
 
 import Protolude
 import qualified Control.Foldl as L
+import Data.Cached
 import qualified Data.Map as Map
 import Data.Text (intercalate)
 import qualified Data.Text.IO as TIO
 import qualified Data.Vector as V
 import Formatting
 import qualified Text.Parsec as P
-import Util.Cache
 import Util.Parser
 import System.Directory
 
@@ -143,10 +143,10 @@ pprint s = pprintAlgorithm (getAlgorithm s)
 show2dec :: Double -> Text
 show2dec = sformat (fixed 2)
 
-cacheRun :: FilePath -> Cache Run -> Cache Run
+cacheRun :: FilePath -> Cached Run -> Cached Run
 cacheRun = cache'
 
-cacheSample :: FilePath -> Cache Run -> Cache (V.Vector (V.Vector Double))
+cacheSample :: FilePath -> Cached Run -> Cached (V.Vector (V.Vector Double))
 cacheSample path =
     cache path w r . fmap getSample
   where w :: V.Vector (V.Vector Double) -> Text

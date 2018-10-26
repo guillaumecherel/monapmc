@@ -9,6 +9,7 @@ import Protolude
 
 import qualified Control.Foldl as Fold
 import Control.Monad.Random.Lazy
+import Data.Cached as Cached
 import Data.Functor.Compose
 import Data.List (last)
 import Data.Text (Text, pack, unpack, unlines, intercalate)
@@ -23,14 +24,13 @@ import Run
 import Statistics
 import qualified ABC.Lenormand2012 as Lenormand2012
 import qualified ABC.SteadyState as SteadyState
-import Util.Cache as Cache
 import qualified Util.SteadyState as SteadyState 
 
 data Algo = Lenormand2012 {getAlpha :: Double, getPAccMin :: Double}
           | SteadyState {getAlpha :: Double, getPAccMin :: Double}
   deriving (Ord, Eq, Show)
 
-type RunC a = Compose (Rand StdGen) Cache a
+type RunC a = Compose (Rand StdGen) Cached a
 
 run :: Algo -> Int -> RunC Run
 run Lenormand2012{getAlpha=alpha, getPAccMin=pAccMin} replication = 
@@ -38,7 +38,7 @@ run Lenormand2012{getAlpha=alpha, getPAccMin=pAccMin} replication =
 run SteadyState{getAlpha=alpha, getPAccMin=pAccMin} replication = 
      Compose $ steadyState alpha pAccMin replication
 
-lenormand2012 :: Double -> Double -> Int -> Rand StdGen (Cache Run)
+lenormand2012 :: Double -> Double -> Int -> Rand StdGen (Cached Run)
 lenormand2012 alpha pAccMin replication =
   let steps :: Rand StdGen [(Int, Lenormand2012.S)]
       steps = zip [1..stepMax]
@@ -68,7 +68,7 @@ lenormand2012 alpha pAccMin replication =
     g <- getSplit
     return $ cacheRun' . getRun .  last $ evalRand steps g
 
-steadyState :: Double -> Double -> Int -> Rand StdGen (Cache Run)
+steadyState :: Double -> Double -> Int -> Rand StdGen (Cached Run)
 steadyState alpha pAccMin replication = 
   let steps :: RandT StdGen IO SteadyState.S
       steps = SteadyState.runN (stepMax * 5000) ssr
@@ -95,7 +95,7 @@ steadyState alpha pAccMin replication =
                              <> sformat (fixed 2) alpha <> "_"
                              <> sformat (fixed 2) pAccMin <> "_"
                              <> show replication )
-        . Cache.liftIO 
+        . Cached.fromIO mempty
   in do
         g <- getSplit
         return $ cacheRun' $ fmap getRun $ evalRandT steps g
@@ -168,19 +168,19 @@ plotL2VSNSim :: RunC ()
 plotL2VSNSim =
   let lenPath = "output/formulas/l2VSNSimus/lenormand2012.csv"
       stePath = "output/formulas/l2VSNSimus/steadyState.csv"
-  in  (liftC2 (<>)) (sinkTxt lenPath (pure . plotDataToText) `liftC` dataLenormand2012)
-      $ (liftC2 (<>)) (sinkTxt stePath (pure . plotDataToText) `liftC` dataSteadyState)
+  in  (liftC2 (<>)) (sinkEither lenPath (pure . plotDataToText) `liftC` dataLenormand2012)
+      $ (liftC2 (<>)) (sinkEither stePath (pure . plotDataToText) `liftC` dataSteadyState)
                       (Compose $ return $ gnuplot "report/L2_vs_nsimus.png"
                                     "report/L2_vs_nsimus.gnuplot"
                                     [ ("lenormand2012", lenPath)
                                     , ("steadyState", stePath) ])
 
-liftC :: (Cache a -> Cache b) -> RunC a -> RunC b
+liftC :: (Cached a -> Cached b) -> RunC a -> RunC b
 liftC f = Compose . liftA f . getCompose
 
-liftC2 :: (Cache a -> Cache b -> Cache c) -> RunC a -> RunC b -> RunC c
+liftC2 :: (Cached a -> Cached b -> Cached c) -> RunC a -> RunC b -> RunC c
 liftC2 f a b = Compose $ liftA2 f (getCompose a) (getCompose b)
 
-buildL2VSNSimus :: Rand StdGen (Cache ())
+buildL2VSNSimus :: Rand StdGen (Cached ())
 buildL2VSNSimus = getCompose plotL2VSNSim
 

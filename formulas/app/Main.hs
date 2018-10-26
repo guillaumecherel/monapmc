@@ -5,12 +5,12 @@ module Main where
 
 import Protolude 
 
+import Data.Cached
 import Control.Monad.Random.Lazy
 import Development.Shake
 
 import L2VSNSimus
 import Steps
-import Util.Cache
 
 main :: IO ()
 main = do
@@ -20,7 +20,7 @@ main = do
                     [ buildSteps
                     , buildL2VSNSimus
                     ]
-  putStrLn (prettyCache c)
+  prettyCached c >>= putStrLn
   putStrLn ("Creating Shake Rules." :: Text)
   rules <- return $ buildCache c
   putStrLn ("Running cache system." :: Text)
@@ -29,7 +29,7 @@ main = do
                         , shakeThreads=0 } 
             rules
 
--- -- Profiling            
+-- Profiling            
 -- main :: IO ()
 -- main = do
 --   ran <- getStdGen
@@ -40,7 +40,7 @@ main = do
 --             -- , steadyState 0.1 0.01 2
 --             -- , steadyState 0.1 0.05 1
 --             -- , steadyState 0.1 0.05 2 ]
---   putStrLn (prettyCache c)
+--   (prettyCached c) >>= putStrLn
 --   let rules = buildCache c
 --   shakeArgs shakeOptions{ shakeVerbosity = Normal
 --                         , shakeColor = True

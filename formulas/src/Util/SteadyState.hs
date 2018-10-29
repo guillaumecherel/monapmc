@@ -10,6 +10,7 @@ import qualified Data.Vector as V
 import qualified Numeric.LinearAlgebra as LA
 import qualified Statistics.Quantile as SQ
 
+
 data SteadyStateRunner m s y = SteadyStateRunner
   { start :: m (s, [Running y])
   , step :: (s, [Running y]) -> m (Maybe (s, [Running y]))}
@@ -83,7 +84,7 @@ scanIndices is ssr = scanIndices' 0 is ssr
               mNext <- start ssr >>= step ssr
               case mNext of
                 Nothing -> return []
-                Just (s', r') -> scanIndices' (cur + 1) is ssr{start=return (s', r')}
+                Just (s', r') -> scanIndices' (cur + 1) (i:is) ssr{start=return (s', r')}
 
 steadyStateStart :: (MonadIO m) => (x -> IO y) -> (s,[x]) -> m (s, [Running y])
 steadyStateStart f (s, xs) = do

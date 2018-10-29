@@ -118,11 +118,11 @@ Simulations are run for each algorithm and the following values of alpha and pAc
 
 ~~~~ {.haskell file="formulas/src/L2VSNSimus.hs"}
 samplePAccMin :: [Double]
-samplePAccMin = [0.01, 0.05, 0.1, 0.2]
--- samplePAccMin = [0.01]
+-- samplePAccMin = [0.01, 0.05, 0.1, 0.2]
+samplePAccMin = [0.01, 0.05]
 sampleAlpha :: [Double]
-sampleAlpha = [0.1,0.2..0.9]
--- sampleAlpha = [0.1]
+-- sampleAlpha = [0.1,0.2..0.9]
+sampleAlpha = [0.1, 0.2]
 ~~~~~~~~
 
 For each combination of algorithm and parameter values, replicate simulations.
@@ -196,8 +196,8 @@ plotL2VSNSim :: RunC ()
 plotL2VSNSim =
   let lenPath = "output/formulas/l2VSNSimus/lenormand2012.csv"
       stePath = "output/formulas/l2VSNSimus/steadyState.csv"
-  in  (liftC2 (<>)) (sinkEither lenPath (pure . plotDataToText) `liftC` dataLenormand2012)
-      $ (liftC2 (<>)) (sinkEither stePath (pure . plotDataToText) `liftC` dataSteadyState)
+  in  (liftC2 (<>)) (sink lenPath (pure . plotDataToText) `liftC` dataLenormand2012)
+      $ (liftC2 (<>)) (sink stePath (pure . plotDataToText) `liftC` dataSteadyState)
                       (Compose $ return $ gnuplot "report/L2_vs_nsimus.png"
                                     "report/L2_vs_nsimus.gnuplot"
                                     [ ("lenormand2012", lenPath)

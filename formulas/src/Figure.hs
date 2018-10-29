@@ -13,15 +13,16 @@ import System.Process
 import Data.Cached
 
 gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Cached ()
-gnuplot output script args = tag (output  ++ ".tag")
-                           $ fromIO (Set.fromList $ fmap snd args) command
+gnuplot output script args = trigger (output  ++ ".tag")
+                                     (command)
+                                     (Set.fromList $ fmap snd args)
   where command = do
           (status, out, err) <- readProcessWithExitCode ("gnuplot" :: String) gpArgs []
           hPutStrLn stderr err
           hPutStrLn stdout out
           case status of
-            ExitSuccess -> return ()
-            ExitFailure code -> fail $
+            ExitSuccess -> return $ Right ()
+            ExitFailure code -> return $ Left $
               "Error: command gnuplot exited with status " <> show code
               <> "\nFailing command: " <> "gnuplot " <> show gpArgs
         gpArgs = [ ("-e" :: String), "outputPath='" <> output <> "'" ]

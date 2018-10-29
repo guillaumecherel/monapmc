@@ -21,13 +21,8 @@ main = do
                     , buildL2VSNSimus
                     ]
   prettyCached c >>= putStrLn
-  putStrLn ("Creating Shake Rules." :: Text)
-  rules <- return $ buildCache c
   putStrLn ("Running cache system." :: Text)
-  shakeArgs shakeOptions{ shakeVerbosity=Normal
-                        , shakeColor=True 
-                        , shakeThreads=0 } 
-            rules
+  runShake c
 
 -- Profiling            
 -- main :: IO ()

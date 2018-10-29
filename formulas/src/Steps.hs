@@ -53,8 +53,8 @@ lenormand2012Steps = do
           , getStep = i
           , getReplication = 1
           , getSample = Lenormand2012.thetas s }
-        cacheSteps = cache' "output/formulas/5steps/toy/lenormand2012"
-                     . pure
+        cacheSteps s = cache' "output/formulas/5steps/toy/lenormand2012"
+                       (pure s)
  
 steadyStateSteps :: Rand StdGen (Cached [Run])
 steadyStateSteps = do
@@ -80,8 +80,8 @@ steadyStateSteps = do
           , getStep = i
           , getReplication = 1
           , getSample = fmap (SteadyState.getTheta . SteadyState.getSimulation . SteadyState.getReady) (SteadyState.accepteds s) }
-        cacheSteps = cache' "output/formulas/5steps/toy/lenormand2012"
-                     . Cached.fromIO mempty
+        cacheSteps s = cache' "output/formulas/5steps/toy/steadyState"
+                       (Cached.fromIO mempty s)
 
 rootSquaredError :: Double -> Double -> Double
 rootSquaredError expected x = sqrt ((x - expected) ** 2)
@@ -112,7 +112,7 @@ histogramLenormand2012Step :: Int -> Rand StdGen (Cached ())
 histogramLenormand2012Step i = do
   hs <- histogramsLenormand2012
   let cmh = List.lookup i . zip [1..] <$> hs 
-  return $ sinkEither
+  return $ sink
     ("output/formulas/scaledHistogram/toy/lenormand2012_" <> show i <> ".csv")
     (\mh -> case mh of
             Just h -> Right $ columns2 " " h 
@@ -123,7 +123,7 @@ histogramSteadyStateStep :: Int -> Rand StdGen (Cached ())
 histogramSteadyStateStep i = do
   hs <- histogramsSteadyState
   let cmh = List.lookup i . zip [1..] <$> hs 
-  return $ sinkEither
+  return $ sink
     ("output/formulas/scaledHistogram/toy/steadyState_" <> show (i * 5000) <> ".csv")
     (\mh -> case mh of
             Just h -> Right $ columns2 " " h

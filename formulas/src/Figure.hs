@@ -13,9 +13,9 @@ import System.Process
 import Data.Cached
 
 gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Cached ()
-gnuplot output script args = trigger (output  ++ ".tag")
+gnuplot output script args = trigger output
                                      (command)
-                                     (Set.fromList $ fmap snd args)
+                                     (Set.fromList $ script:fmap snd args)
   where command = do
           (status, out, err) <- readProcessWithExitCode ("gnuplot" :: String) gpArgs []
           hPutStrLn stderr err

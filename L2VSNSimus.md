@@ -118,11 +118,11 @@ Simulations are run for each algorithm and the following values of alpha and pAc
 
 ~~~~ {.haskell file="formulas/src/L2VSNSimus.hs"}
 samplePAccMin :: [Double]
--- samplePAccMin = [0.01, 0.05, 0.1, 0.2]
-samplePAccMin = [0.01, 0.05]
+samplePAccMin = [0.01, 0.05, 0.1, 0.2]
+-- samplePAccMin = [0.01, 0.05]
 sampleAlpha :: [Double]
--- sampleAlpha = [0.1,0.2..0.9]
-sampleAlpha = [0.1, 0.2]
+sampleAlpha = [0.1,0.2..0.9]
+-- sampleAlpha = [0.1, 0.2]
 ~~~~~~~~
 
 For each combination of algorithm and parameter values, replicate simulations.
@@ -133,7 +133,7 @@ rep algo = traverse (\r ->  run algo r)
                [1..nReplications]
 
 nReplications :: Int
-nReplications = 2
+nReplications = 10
 ~~~~~~~~
 
 Compute L2 and the number of simulation for a run.
@@ -153,9 +153,17 @@ We will compute average L2 and number of simulation for each algorithm and param
 ~~~~ {.haskell file="formulas/src/L2VSNSimus.hs"}
 l2Mean :: Fold.Fold Run Double
 l2Mean = Fold.premap l2 Fold.mean 
-        
+
+l2Std :: Fold.Fold Run Double
+l2Std = fmap (\v -> sqrt (v * fromIntegral nReplications / (fromIntegral nReplications - 1)))
+      $ Fold.premap l2 Fold.variance
+
 nSimMean :: Fold.Fold Run Double
 nSimMean = Fold.premap (fromIntegral . nsim) Fold.mean 
+
+nSimStd :: Fold.Fold Run Double
+nSimStd = fmap (\v -> sqrt (v * fromIntegral nReplications / (fromIntegral nReplications - 1)))
+        $ Fold.premap (fromIntegral . nsim) Fold.variance
 ~~~~~~~~
 
 Generate the data to plot.
@@ -164,15 +172,15 @@ Generate the data to plot.
 data PlotData = PlotData { plotAlpha :: Double
                          , plotPAccMin :: Double
                          , plotNSimus :: Double
-                         , plotL2 :: Double}
+                         , plotNSimusStd :: Double
+                         , plotL2 :: Double
+                         , plotL2Std :: Double}
   deriving (Show)
 
 plotData :: Algo -> RunC PlotData
-plotData algo = 
-  let nsimusL2 :: RunC (Double, Double)
-      nsimusL2 = Fold.fold f <$> rep algo
-      f = (,) <$> nSimMean <*> l2Mean
-  in uncurry (PlotData (getAlpha algo) (getPAccMin algo)) <$> nsimusL2
+plotData algo =  Fold.fold f <$> rep algo
+  where f = PlotData (getAlpha algo) (getPAccMin algo) 
+            <$> nSimMean <*> nSimStd <*> l2Mean <*> l2Std
 
 dataLenormand2012 :: RunC [[PlotData]] 
 dataLenormand2012 = (traverse . traverse) plotData algos
@@ -188,7 +196,9 @@ dataSteadyState = (traverse . traverse) plotData algos
 
 plotDataToText :: [[PlotData]] -> Text
 plotDataToText datasets = 
-  let rowTxt (PlotData _ _ nSim l2) = pack $ show nSim ++ " " ++ show l2
+  let rowTxt (PlotData _ _ nSim nSimStd l2 l2Std) = 
+        pack $ show nSim ++ " " ++ show l2 ++ " " 
+            ++ show nSimStd ++ " " ++ show l2Std
       dataSetTxt rows = unlines $ fmap rowTxt rows
   in Data.Text.intercalate "\n\n" $ map dataSetTxt datasets
         
@@ -210,7 +220,7 @@ liftC2 :: (Cached a -> Cached b -> Cached c) -> RunC a -> RunC b -> RunC c
 liftC2 f a b = Compose $ liftA2 f (getCompose a) (getCompose b)
 ~~~~~~~~
 
-Build everything we want.
+Build everything we need.
 
 ~~~~ {.haskell file="formulas/src/L2VSNSimus.hs"}
 buildL2VSNSimus :: Rand StdGen (Cached ())

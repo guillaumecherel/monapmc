@@ -86,6 +86,56 @@ steadyStateSteps = do
 rootSquaredError :: Double -> Double -> Double
 rootSquaredError expected x = sqrt ((x - expected) ** 2)
 
+easyABCLenormand2012Steps :: Cached [Run]
+easyABCLenormand2012Steps = traverse getRun (zip [1..] files)
+  where getRun :: (Int, FilePath) -> Cached Run
+        getRun (i,f) = source f (read i f)
+        read :: Int -> FilePath -> Text -> Either Text Run
+        read i f = bimap show (run i) . read1DSample f
+        run :: Int -> (V.Vector (V.Vector Double)) -> Run
+        run i s = Run { getAlgorithm = Lenormand2012 5000 0.1 0.01
+                      , getStep = i
+                      , getReplication = 1
+                      , getSample = s }
+        files = [ "output/easyABC/simulationResult/5steps/"      
+                  <> "lenormand2012_5000_0.1_0.01_1_1.csv"
+                , "output/easyABC/simulationResult/5steps/"      
+                  <> "lenormand2012_5000_0.1_0.01_2_1.csv"
+                , "output/easyABC/simulationResult/5steps/"      
+                  <> "lenormand2012_5000_0.1_0.01_3_1.csv"
+                , "output/easyABC/simulationResult/5steps/"      
+                  <> "lenormand2012_5000_0.1_0.01_4_1.csv"
+                , "output/easyABC/simulationResult/5steps/"      
+                  <> "lenormand2012_5000_0.1_0.01_5_1.csv"
+                ]
+                
+easyABCBeaumont2009Steps :: Cached [Run]
+easyABCBeaumont2009Steps = traverse getRun (zip [1..] files)
+  where getRun :: (Int, FilePath) -> Cached Run
+        getRun (i,f) = source f (read i f)
+        read :: Int -> FilePath -> Text -> Either Text Run
+        read i f = bimap show (run i) . read1DSample f
+        run :: Int -> (V.Vector (V.Vector Double)) -> Run
+        run i s = Run { getAlgorithm = Beaumont2009 5000 2.0 0.01
+                      , getStep = i
+                      , getReplication = 1
+                      , getSample = s }
+        files = [ "output/easyABC/simulationResult/5steps/"
+                  <> "beaumont2009_5000_2.00_0.01_1_1.csv"
+                , "output/easyABC/simulationResult/5steps/"
+                  <> "beaumont2009_5000_2.00_0.01_2_1.csv"
+                , "output/easyABC/simulationResult/5steps/"
+                  <> "beaumont2009_5000_2.00_0.01_3_1.csv"
+                , "output/easyABC/simulationResult/5steps/"
+                  <> "beaumont2009_5000_2.00_0.01_4_1.csv"
+                , "output/easyABC/simulationResult/5steps/"
+                  <> "beaumont2009_5000_2.00_0.01_5_1.csv"
+                , "output/easyABC/simulationResult/5steps/"
+                  <> "beaumont2009_5000_2.00_0.01_6_1.csv"
+                , "output/easyABC/simulationResult/5steps/"
+                  <> "beaumont2009_5000_2.00_0.01_7_1.csv"
+                ]
+
 histogramStep :: Run -> [(Double, Double)]
 histogramStep = scaledHistogram (-10) 10 300 . V.toList . V.concat . V.toList . getSample
 
@@ -107,6 +157,18 @@ histogramsSteadyState =
   steadyStateSteps
   >>= return . (fmap . fmap) histogramStep
   >>= return . cache' "output/formulas/scaledHistogram/toy/steadyState"
+
+histogramsEasyABCLenormand2012 :: Cached [[(Double, Double)]]
+histogramsEasyABCLenormand2012 = 
+  easyABCLenormand2012Steps
+  & (fmap . fmap) histogramStep
+  & cache' "output/easyABC/scaledHistogram/toy/lenormand2012" 
+
+histogramsEasyABCBeaumont2009 :: Cached [[(Double, Double)]]
+histogramsEasyABCBeaumont2009 = 
+  easyABCBeaumont2009Steps
+  & (fmap . fmap) histogramStep
+  & cache' "output/easyABC/scaledHistogram/toy/beaumont2009" 
 
 histogramLenormand2012Step :: Int -> Rand StdGen (Cached ())
 histogramLenormand2012Step i = do
@@ -130,6 +192,28 @@ histogramSteadyStateStep i = do
             Nothing -> Left $ "No step " <> show i <> " for histogram SteadyState")
     cmh
 
+histogramEasyABCLenormand2012Step :: Int -> Cached ()
+histogramEasyABCLenormand2012Step i =
+  let hs = histogramsEasyABCLenormand2012
+      cmh = List.lookup i . zip [1..] <$> hs 
+  in sink
+    ("output/easyABC/scaledHistogram/toy/lenormand2012_" <> show i <> ".csv")
+    (\mh -> case mh of
+            Just h -> Right $ columns2 " " h 
+            Nothing -> Left $ "No step " <> show i <> " for histogram EasyABCLenornand2012")
+    cmh
+    
+histogramEasyABCBeaumont2009Step :: Int -> Cached ()
+histogramEasyABCBeaumont2009Step i =
+  let hs = histogramsEasyABCBeaumont2009
+      cmh = List.lookup i . zip [1..] <$> hs 
+  in sink
+    ("output/easyABC/scaledHistogram/toy/beaumont2009_" <> show i <> ".csv")
+    (\mh -> case mh of
+            Just h -> Right $ columns2 " " h 
+            Nothing -> Left $ "No step " <> show i <> " for histogram EasyABCBeaumont2009")
+    cmh
+        
 figurePosteriorSteps :: Cached () 
 figurePosteriorSteps =
   gnuplot "report/5steps.png" "report/5steps.gnuplot"
@@ -154,28 +238,26 @@ figurePosteriorSteps =
     , ( "formulas_steadyState_5", "output/formulas/scaledHistogram/toy/"
                                <> "steadyState_25000.csv")
     , ( "easyABC_lenormand2012_1", "output/easyABC/scaledHistogram/toy/"
-                               <> "lenormand2012_5000_0.10_0.01_0_1.csv")
+                                <> "lenormand2012_1.csv")
     , ( "easyABC_lenormand2012_2", "output/easyABC/scaledHistogram/toy/"
-                                <> "lenormand2012_5000_0.10_0.01_1_1.csv")
+                                <> "lenormand2012_2.csv")
     , ( "easyABC_lenormand2012_3", "output/easyABC/scaledHistogram/toy/"
-                                <> "lenormand2012_5000_0.10_0.01_2_1.csv")
+                                <> "lenormand2012_3.csv")
     , ( "easyABC_lenormand2012_4", "output/easyABC/scaledHistogram/toy/"
-                                <> "lenormand2012_5000_0.10_0.01_3_1.csv")
+                                <> "lenormand2012_4.csv")
     , ( "easyABC_lenormand2012_5", "output/easyABC/scaledHistogram/toy/"
-                                <> "lenormand2012_5000_0.10_0.01_4_1.csv")
+                               <> "lenormand2012_5.csv")
     , ( "easyABC_beaumont2009_1", "output/easyABC/scaledHistogram/toy/"
-                               <> "beaumont2009_5000_2.00_0.01_0_1.csv")
+                               <> "beaumont2009_1.csv")
     , ( "easyABC_beaumont2009_2", "output/easyABC/scaledHistogram/toy/"
-                               <> "beaumont2009_5000_2.00_0.01_1_1.csv")
+                               <> "beaumont2009_2.csv")
     , ( "easyABC_beaumont2009_3", "output/easyABC/scaledHistogram/toy/"
-                               <> "beaumont2009_5000_2.00_0.01_2_1.csv")
+                               <> "beaumont2009_3.csv")
     , ( "easyABC_beaumont2009_4", "output/easyABC/scaledHistogram/toy/"
-                               <> "beaumont2009_5000_2.00_0.01_3_1.csv")
+                               <> "beaumont2009_4.csv")
     , ( "easyABC_beaumont2009_5", "output/easyABC/scaledHistogram/toy/"
-                               <> "beaumont2009_5000_2.00_0.01_4_1.csv")
+                               <> "beaumont2009_7.csv")
     ]
-
-
 
 buildSteps :: Rand StdGen (Cached ())
 buildSteps = liftA2 mappend (histogramLenormand2012Step 1) 
@@ -188,5 +270,17 @@ buildSteps = liftA2 mappend (histogramLenormand2012Step 1)
            $ liftA2 mappend (histogramSteadyStateStep 3)
            $ liftA2 mappend (histogramSteadyStateStep 4)
            $ liftA2 mappend (histogramSteadyStateStep 5)
+           $ liftA2 mappend (return $ histogramEasyABCLenormand2012Step 1) 
+           $ liftA2 mappend (return $ histogramEasyABCLenormand2012Step 2)
+           $ liftA2 mappend (return $ histogramEasyABCLenormand2012Step 3)
+           $ liftA2 mappend (return $ histogramEasyABCLenormand2012Step 4)
+           $ liftA2 mappend (return $ histogramEasyABCLenormand2012Step 5)
+           $ liftA2 mappend (return $ histogramEasyABCBeaumont2009Step 1)
+           $ liftA2 mappend (return $ histogramEasyABCBeaumont2009Step 2)
+           $ liftA2 mappend (return $ histogramEasyABCBeaumont2009Step 3)
+           $ liftA2 mappend (return $ histogramEasyABCBeaumont2009Step 4)
+           $ liftA2 mappend (return $ histogramEasyABCBeaumont2009Step 5)
+           $ liftA2 mappend (return $ histogramEasyABCBeaumont2009Step 6)
+           $ liftA2 mappend (return $ histogramEasyABCBeaumont2009Step 7)
                             (return $ figurePosteriorSteps)
 

@@ -10,7 +10,6 @@ import Control.Monad.Random.Lazy
 import qualified Data.Random as R
 import qualified Data.Vector as V
 import qualified Text.Parsec as P
-import Util.Parser
 
 import Distribution
 
@@ -18,7 +17,9 @@ import Distribution
 -- Toy Model
 --------
 
+toyModelVar1 :: Double
 toyModelVar1 = 1 / 100
+toyModelVar2 :: Double
 toyModelVar2 = 1
 
 -- Mixture of 2 gaussians with equal weight, mean 0 and one has variance 0.01

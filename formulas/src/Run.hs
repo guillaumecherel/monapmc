@@ -202,18 +202,18 @@ parseLenormand2012 = do
   pAccMin <- P.char '_' *> parserDouble
   step <- P.char '_' *> parserInt
   replication <- P.char '_' *> parserInt
-  ext <- P.string ".csv"
+  _ <- P.string ".csv"
   return $ Run (Lenormand2012 n alpha pAccMin) step replication
 
 parseBeaumont2009 :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> Run)
 parseBeaumont2009 = do
-  parserSkipDirname *> P.string "beaumont2009"
+  _ <- parserSkipDirname *> P.string "beaumont2009"
   n <- P.char '_' *> parserInt
   epsilonFrom <- P.char '_' *> parserDouble
   epsilonTo <- P.char '_' *> parserDouble
   step <- P.char '_' *> parserInt
   replication <- P.char '_' *> parserInt
-  P.string ".csv"
+  _ <- P.string ".csv"
   return $ Run (Beaumont2009 n epsilonFrom epsilonTo) step replication
 
 parseSteadyState :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> Run)

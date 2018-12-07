@@ -5,7 +5,6 @@ module Figure where
 
 import Protolude
 
-import Control.Monad.Fail
 import qualified Data.Set as Set
 import Data.String (String)
 import System.Process

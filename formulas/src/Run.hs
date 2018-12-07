@@ -218,14 +218,14 @@ parseBeaumont2009 = do
 
 parseSteadyState :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> Run)
 parseSteadyState = do
-  parserSkipDirname *> P.string "steadyState"
+  _ <- parserSkipDirname *> P.string "steadyState"
   n <- P.char '_' *> parserInt
   alpha <- P.char '_' *> parserDouble
   pAccMin <- P.char '_' *> parserDouble
   parallel <- P.char '_' *> parserInt
   step <- P.char '_' *> parserInt
   replication <- P.char '_' *> parserInt
-  P.string ".csv"
+  _ <- P.string ".csv"
   return $ Run (SteadyState n alpha pAccMin parallel) step replication
 
 parserSkipDirname :: (P.Stream s m Char) => P.ParsecT s u m ()

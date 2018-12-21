@@ -20,11 +20,13 @@ import System.Directory
 import Algorithm
 import Statistics
 
+type Weight = Double
+
 data Run = Run
   { getAlgorithm :: Algorithm
   , getStep :: Int
   , getReplication:: Int
-  , getSample:: V.Vector (V.Vector Double)
+  , getSample:: V.Vector (Weight, V.Vector Double)
   }
   deriving (Show, Read, Eq, Ord)
 
@@ -44,39 +46,6 @@ numberSimusSteadyState :: Int -> Int
 numberSimusSteadyState step = step
 
 
-
-
---------
--- Descriptive statistics and quantities over sets of simulations (Folds)
--------
-
-posteriorL2Mean :: Double -> Double -> Int -> (Double -> Double) -> L.Fold Run Double
-posteriorL2Mean lowerBound upperBound bins density = L.premap (posteriorL2 lowerBound upperBound bins density . V.toList . fmap V.head getSample) L.mean
-
-nSimusMean :: L.Fold Run Double
-nSimusMean = L.premap (fromIntegral . nSimus) L.mean
-
-alphaMean :: L.Fold Run Double
-alphaMean = L.premap (getAlpha . getAlgorithm) L.mean
-
-alphaFirst :: L.Fold Run (Maybe Double)
-alphaFirst = (fmap . fmap) (getAlpha . getAlgorithm) L.head
-
-pAccMinMean :: L.Fold Run Double
-pAccMinMean = L.premap (getPAccMin . getAlgorithm) L.mean
-
-pAccMinFirst :: L.Fold Run (Maybe Double)
-pAccMinFirst = (fmap . fmap) (getPAccMin . getAlgorithm) L.head
-
--- l2VsNSimus :: Double -> Double -> Int -> (Double -> Double) -> L.Fold Run [(Double, Double)]
--- l2VsNSimus lowerBound upperBound bins density = Map.elems <$> groupReplications ((,) <$> numberSimusMean <*> posteriorL2Mean lowerBound upperBound bins density )
---   
--- l2VsAlpha :: Double -> Double -> Int -> (Double -> Double) -> L.Fold Run [(Double, Double)]
--- l2VsAlpha lowerBound upperBound bins density = Map.elems <$> groupReplications ((,) <$> alphaMean <*> posteriorL2Mean lowerBound upperBound bins density )
--- 
--- nSimusVsAlpha :: L.Fold Run [(Double, Double)]
--- nSimusVsAlpha = (Map.elems <$> groupReplications ((,) <$> numberSimusMean <*> alphaMean))
--- 
 
 
 
@@ -125,7 +94,7 @@ pprint :: Run -> Text
 pprint s = pprintAlgorithm (getAlgorithm s)
         <> " step=" <> show (getStep s)
         <> " replication=" <> show (getReplication s)
-        <> " sample=" <> show (take 3 $ V.toList $ V.head <$> getSample s)
+        <> " sample=" <> show (take 3 $ V.toList $ fmap (second V.head) $ getSample s)
         <> if length (getSample s) > 3 then "..." else ""
 
 -- runFileName :: Run -> FilePath
@@ -146,37 +115,25 @@ show2dec = sformat (fixed 2)
 cacheRun :: FilePath -> Cached Run -> Cached Run
 cacheRun = cache'
 
-cacheSample :: FilePath -> Cached Run -> Cached (V.Vector (V.Vector Double))
-cacheSample path =
-    cache path w r . fmap getSample
-  where w :: V.Vector (V.Vector Double) -> Text
-        w = Data.Text.intercalate "\n"
-          . fmap (Data.Text.intercalate " " . fmap show . V.toList)
-          . V.toList
-        r :: Text -> Either Text (V.Vector (V.Vector Double))
-        r = bimap show identity . readSample path
 --------
 -- Parsing
 --------
 
-read1DSample :: FilePath -> Text -> Either P.ParseError (V.Vector (V.Vector Double))
+read1DSample :: FilePath -> Text -> Either P.ParseError (V.Vector (Weight, V.Vector Double))
 read1DSample = --mapM ((fmap fst) . TR.double) (T.lines text)
   P.parse parser1DSample
 
-parser1DSample :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double))
-parser1DSample = (V.fromList . fmap V.singleton)
-             <$> (P.many $ P.try parserDouble <* P.optional P.endOfLine)
+parser1DSample :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (Weight, V.Vector Double))
+parser1DSample = V.fromList 
+             <$> (P.many $ P.try weightAndValue <* P.optional P.endOfLine)
              <*  P.eof
-
-readSample :: FilePath -> Text -> Either P.ParseError (V.Vector (V.Vector Double))
-readSample = --mapM ((fmap fst) . TR.double) (T.lines text)
-  P.parse parser1DSample
-
-parserSample :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double))
-parserSample = (V.fromList . fmap V.fromList)
-           <$> (P.many $ P.try (P.sepBy1 parserDouble (P.char ' '))
-                      <* P.optional P.endOfLine)
-           <*  P.eof
+  where weightAndValue = (\w x -> (w, V.singleton x)) <$> parserDouble <*> parserDouble
+ 
+-- parserSample :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (Weight, V.Vector Double))
+-- parserSample = (V.fromList . fmap V.fromList)
+--            <$> (P.many $ P.try (P.sepBy1 parserDouble (P.char ' '))
+--                       <* P.optional P.endOfLine)
+--            <*  P.eof
 
 loadSimulation :: FilePath -> IO (Either P.ParseError Run)
 loadSimulation f = (TIO.readFile f) >>= return . readRun f
@@ -193,7 +150,7 @@ readRun filename column =
   <*> read1DSample filename column
   where parseSimulationFileName = P.try parseLenormand2012 <|> P.try parseBeaumont2009 <|> parseSteadyState
 
-parseLenormand2012 :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> Run)
+parseLenormand2012 :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (Weight, V.Vector Double) -> Run)
 parseLenormand2012 = do
   parserSkipDirname
   _ <- P.string "lenormand2012"
@@ -205,7 +162,7 @@ parseLenormand2012 = do
   _ <- P.string ".csv"
   return $ Run (Lenormand2012 n alpha pAccMin) step replication
 
-parseBeaumont2009 :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> Run)
+parseBeaumont2009 :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (Weight, V.Vector Double) -> Run)
 parseBeaumont2009 = do
   _ <- parserSkipDirname *> P.string "beaumont2009"
   n <- P.char '_' *> parserInt
@@ -216,7 +173,7 @@ parseBeaumont2009 = do
   _ <- P.string ".csv"
   return $ Run (Beaumont2009 n epsilonFrom epsilonTo) step replication
 
-parseSteadyState :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (V.Vector Double) -> Run)
+parseSteadyState :: (P.Stream s m Char) => P.ParsecT s u m (V.Vector (Weight, V.Vector Double) -> Run)
 parseSteadyState = do
   _ <- parserSkipDirname *> P.string "steadyState"
   n <- P.char '_' *> parserInt

@@ -41,6 +41,11 @@ toyPosterior :: Double -> Double -> Double
 toyPosterior theta x =
   0.5 * normalDensity theta toyModelVar1 x + 0.5 * normalDensity theta toyModelVar2 x
 
+toyPosteriorCDF :: Double -> Double -> Double
+toyPosteriorCDF theta x =
+  0.5 * normalCDF theta toyModelVar1 x
+    + 0.5 * normalCDF theta toyModelVar2 x
+
 toyPosteriorRegularSample :: Double -> Double -> Double -> Int -> [(Double, Double)]
 toyPosteriorRegularSample theta lowerBound upperBound samples =
   let every = (upperBound - lowerBound) / fromIntegral samples

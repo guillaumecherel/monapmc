@@ -38,8 +38,8 @@ data Replications a = Replications Int a deriving (Eq, Show)
 newtype L2 a = L2 a deriving (Eq, Show, Num, Fractional, Floating)
 
 runL2 :: Run -> L2 Double
-runL2 r = L2 $ posteriorL2 (-10) 10 300 (toyPosterior 0) sample
-  where sample = join $ V.toList $ V.toList <$> getSample r
+runL2 r = L2 $ posteriorL2 (-10) 10 300 (toyPosteriorCDF 0) sample
+  where sample = fmap (second V.head) $ V.toList $ getSample r
 
 newtype NSimus a = NSimus a 
   deriving (Eq, Show, Num, Enum, Ord, Fractional, Floating)
@@ -90,28 +90,29 @@ l2VSNSimusSeriesReplications replications
 data Figure = Figure [L2VSNSimusSeries]
   deriving (Eq, Show, Ord)
 
-fig = Figure 
-  [ L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.01) 
-  , L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.05) 
-  , L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.1) 
-  , L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.2) 
-  , L2VSNSimusSeriesSteadyState alphas (PAccMin 0.01) 
-  , L2VSNSimusSeriesSteadyState alphas (PAccMin 0.05) 
-  , L2VSNSimusSeriesSteadyState alphas (PAccMin 0.1) 
-  , L2VSNSimusSeriesSteadyState alphas (PAccMin 0.2) 
-  ]
-  where alphas = [Alpha 0.1, Alpha 0.2 .. Alpha 0.9]
-  
-figLenormand2012 = Figure
-  [ L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.01) 
-  , L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.05) 
-  , L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.1) 
-  , L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.2) 
-  ]
-  where alphas = [Alpha 0.1, Alpha 0.2 .. Alpha 0.9]
+-- fig = Figure 
+--   [ L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.01) 
+--   , L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.05) 
+--   , L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.1) 
+--   , L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.2) 
+--   , L2VSNSimusSeriesSteadyState alphas (PAccMin 0.01) 
+--   , L2VSNSimusSeriesSteadyState alphas (PAccMin 0.05) 
+--   , L2VSNSimusSeriesSteadyState alphas (PAccMin 0.1) 
+--   , L2VSNSimusSeriesSteadyState alphas (PAccMin 0.2) 
+--   ]
+--   where alphas = [Alpha 0.1, Alpha 0.2 .. Alpha 0.9]
 
-figBuilder :: FilePath -> Figure -> RunC ()
-figBuilder outPath (Figure series) = 
+fig = Figure 
+  [ 
+  -- L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.01) 
+  -- , L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.05) 
+  -- , L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.1) 
+  L2VSNSimusSeriesLenormand2012 alphas (PAccMin 0.2) 
+  ]
+  where alphas = [Alpha 0.1, Alpha 0.2 .. Alpha 0.4]
+
+figBuilder :: Figure -> RunC ()
+figBuilder (Figure series) = 
   let replications = 10
       lenPath = "output/formulas/l2VSNSimus/lenormand2012.csv"
       stePath = "output/formulas/l2VSNSimus/steadyState.csv"
@@ -133,7 +134,7 @@ figBuilder outPath (Figure series) =
       csv path series' = sink path (pure . figDataSetsToText) 
         `liftC` figData series' 
       fig :: Cached ()
-      fig = gnuplot outPath "report/L2_vs_nsimus.gnuplot"
+      fig = gnuplot "report/L2_vs_nsimus.png" "report/L2_vs_nsimus.gnuplot"
                         [("lenormand2012", lenPath)
                         ,("steadyState", stePath)]
   in foldr (liftC2 (<>))  (Compose (pure fig))
@@ -157,16 +158,18 @@ foldL2Mean = fmap Mean $ Fold.premap runL2 Fold.mean
 
 foldL2Std :: Int -> Fold.Fold Run (Std (L2 Double))
 foldL2Std replications = fmap Std
-          $ fmap (\v -> sqrt (v * fromIntegral replications / 
-                                  (fromIntegral replications - 1)))
+          $ fmap sqrt 
           $ Fold.premap runL2 Fold.variance
 
 foldNSimMean :: Fold.Fold Run (Mean (NSimus Double))
-foldNSimMean = Fold.premap (fromIntegral . runNSim) Fold.mean 
+foldNSimMean = fmap Mean $ Fold.premap (fromIntegral . runNSim) Fold.mean 
 
 foldNSimStd :: Int -> Fold.Fold Run (Std (NSimus Double))
-foldNSimStd replications = fmap (\v -> sqrt (v * fromIntegral replications / (fromIntegral replications - 1)))
-        $ Fold.premap (fromIntegral . runNSim) Fold.variance
+foldNSimStd replications = fmap Std
+          $ fmap sqrt 
+          -- $ fmap (\v -> sqrt (v * fromIntegral replications / 
+          --                         (fromIntegral replications - 1)))
+          $ Fold.premap (fromIntegral . runNSim) Fold.variance
         
 figDataSetsToText :: [[FigPoint]] -> Text
 figDataSetsToText datasets = 
@@ -215,7 +218,10 @@ lenormand2012 alpha pAccMin replication =
   let steps :: Rand StdGen [(Int, Lenormand2012.S)]
       steps = zip [1..stepMax]
           <$> Lenormand2012.scan p toyModel 
-      algo = Algorithm.Lenormand2012 5000 alpha pAccMin
+      algo = Algorithm.Lenormand2012
+             { Algorithm.getN=5000
+             , Algorithm.getAlpha=alpha 
+             , Algorithm.getPAccMin=pAccMin }
       p = Lenormand2012.P
         { Lenormand2012.n = Algorithm.getN algo
         , Lenormand2012.nAlpha = floor $ (Algorithm.getAlpha algo) 
@@ -226,10 +232,10 @@ lenormand2012 alpha pAccMin replication =
         , Lenormand2012.distanceToData = absoluteError 0 . V.head
         }
       getRun (i, r) = Run 
-        { getAlgorithm = algo
+       { getAlgorithm = algo
         , getStep = i
         , getReplication = replication
-        , getSample = Lenormand2012.thetas r }
+        , getSample = V.zip (Lenormand2012.weights r) (Lenormand2012.thetas r) }
   in do
     g <- getSplit
     return $ getRun .  last $ evalRand steps g
@@ -255,7 +261,8 @@ steadyState alpha pAccMin replication =
         { getAlgorithm = algo
         , getStep = SteadyState.curStep r
         , getReplication = replication
-        , getSample = fmap (SteadyState.getTheta . SteadyState.getSimulation . SteadyState.getReady) (SteadyState.accepteds r) }
+        , getSample = fmap (\a -> (SteadyState.getWeight a, SteadyState.getTheta $ SteadyState.getSimulation $ SteadyState.getReady a)) (SteadyState.accepteds r) 
+        }
   in do
         g <- getSplit
         return $ fmap getRun $ evalRandT step g
@@ -270,7 +277,5 @@ absoluteError :: Double -> Double -> Double
 absoluteError expected x = abs (x - expected)
 
 buildL2VSNSimus :: Rand StdGen (Cached ())
-buildL2VSNSimus = getCompose $ liftA2 (<>) 
-                    (figBuilder "report/L2_vs_nsimus.png" fig) 
-                    (figBuilder "report/L2_vs_nsimus_Lenormand2012.png" figLenormand2012)
+buildL2VSNSimus = getCompose $ figBuilder fig
 

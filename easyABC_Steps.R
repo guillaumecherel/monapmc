@@ -24,7 +24,7 @@ setwd("../../../..")
 
 for (i in 1:length(result$intermediary)) {
   write.table(
-    result$intermediary[[i]]$posterior[,2],
+    result$intermediary[[i]]$posterior[,1:2],
     paste("output/easyABC/simulationResult/5steps/lenormand2012_5000_0.1_0.01_",i,"_1.csv", sep=""),
     row.names=FALSE, col.names=FALSE)
 }
@@ -37,7 +37,7 @@ setwd("../../../..")
 
 for (i in 1:length(result$intermediary)) {
   write.table(
-    result$intermediary[[i]]$posterior[,2],
+    result$intermediary[[i]]$posterior[,1:2],
     paste("output/easyABC/simulationResult/5steps/beaumont2009_5000_2.00_0.01_",i,"_1.csv", sep=""),
     row.names=FALSE, col.names=FALSE)
 }

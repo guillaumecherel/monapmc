@@ -9,6 +9,8 @@ import Protolude
 import Control.Monad.Random.Lazy
 import qualified Data.Random as R
 import Data.Word (Word64)
+import Statistics.Distribution hiding (mean)
+import Statistics.Distribution.Normal
 import qualified Text.Parsec as P
 import Util.Parser
 
@@ -51,6 +53,9 @@ normalDensity mean var x =
 normalRandomSample :: forall m . (MonadRandom m) => Double -> Double -> m Double
 normalRandomSample mean var =
   R.runRVar (R.normal mean (sqrt var)) (getRandom :: m Word64)
+
+normalCDF :: Double -> Double -> Double -> Double
+normalCDF mean var = cumulative (normalDistr mean (sqrt var))
 
 
 --------

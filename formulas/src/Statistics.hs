@@ -5,35 +5,48 @@
 module Statistics where
 
 import Protolude
+import qualified Data.Map as Map
 import qualified Data.Vector as V
 import qualified Text.Parsec as P
 import qualified Statistics.Sample.Histogram as S
 import Util.Parser
 
-histogram :: Double -> Double -> Int -> [Double] -> [(Double, Double)]
-histogram lowerBound upperBound bins xs =
-  let every = (upperBound - lowerBound) / fromIntegral bins
-      lowerBoundBins = [lowerBound, lowerBound + every .. upperBound]
-      statHist = V.toList $ S.histogram_ bins lowerBound upperBound (V.fromList $ filter (\x -> x > lowerBound && x <= upperBound) xs)
-  in zip lowerBoundBins statHist
+-- Estimated posterior density given the posterior sample as list
+-- [(weight_i, theta_i) | i <= N]
+estPostDen
+  :: Double -> Double -> Int -> [(Double, Double)] -> [(Double, Double)]
+estPostDen lowerBound upperBound bins weightsXs =
+  let width = (upperBound - lowerBound) / fromIntegral bins
+      weightSum = sum $ fmap fst weightsXs
+  in  Map.toAscList
+        $ fmap (\s -> getSum s / (width * weightSum))
+        $ Map.fromListWith (<>)
+        $ fmap (\(w, x) -> (toBin lowerBound upperBound bins x, Sum w))
+        $ filter (\(w, x) -> x >= lowerBound && x < upperBound) weightsXs
 
-scaledHistogram :: Double -> Double -> Int -> [Double] -> [(Double, Double)]
-scaledHistogram lowerBound upperBound bins xs =
-  let hist = histogram lowerBound upperBound bins xs
-      binWidth = (upperBound - lowerBound) / fromIntegral bins
-      scalingFactor = 1.0 / (sum (map snd hist) * binWidth)
-  in map (\(x, h) -> (x, h * scalingFactor)) hist
+posteriorL2
+  :: Double
+  -> Double
+  -> Int
+  -> (Double -> Double)
+  -> [(Double, Double)]
+  -> Double
+posteriorL2 lowerBound upperBound bins targetCDF weightsXs =
+  let width       = (upperBound - lowerBound) / fromIntegral bins
+      theoPostBin bin = targetCDF (bin + width) - targetCDF bin
+      sumWeights = sum $ fmap fst weightsXs
+      estPostBin = Map.toAscList
+                   $ fmap (\s -> getSum s / sumWeights)
+                   $ Map.fromListWith (<>)
+                   $ fmap (\(w, x) ->
+                            (toBin lowerBound upperBound bins x, Sum w))
+                          weightsXs
+  in  sqrt $ sum $ fmap (\(b, e) -> (e - theoPostBin b) ** 2) estPostBin
+                              
 
-posteriorL2 :: Double -> Double -> Int -> (Double -> Double) -> [Double] -> Double
-posteriorL2 lowerBound upperBound bins targetDensity xs =
-  let scaledHist = scaledHistogram lowerBound upperBound bins xs
-      binWidth = (upperBound - lowerBound) / fromIntegral bins
-      density = [targetDensity (x + (binWidth / 2.0)) | (x,_) <- scaledHist]
-      scaledHistHeights = map snd scaledHist
-  in sqrt $ getSum $ foldMap (\(d,h) -> Sum $ (d - h) ** 2) (zip density scaledHistHeights)
-
-
-
+toBin :: Double -> Double -> Int -> Double -> Double
+toBin lowerBound upperBound bins x = lowerBound + width * fromIntegral (floor ((x - lowerBound) / width))
+  where width = (upperBound - lowerBound) / fromIntegral bins
 
 --------
 -- Parsing

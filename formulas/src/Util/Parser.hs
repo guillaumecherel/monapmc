@@ -36,8 +36,9 @@ parserInt = fromIntegral <$> integer emptyTokenParser
  -- read <$> (P.option "" (P.string "-") <> P.many1 P.digit)
 
 parserDouble :: (Stream s m Char) => ParsecT s u m Double
-parserDouble = option identity (try ((string "-") *> pure (* (-1))))
-           <*> float emptyTokenParser
+parserDouble = try strictDouble <|> fmap fromIntegral parserInt
+  where strictDouble = option identity (try ((string "-") *> pure (* (-1))))
+                        <*> float emptyTokenParser
   -- read <$> (P.option "" (P.string "-") <> P.many1 P.digit <> P.option "" (P.string "." <> P.many P.digit) <> P.option "" (P.string "e" <> P.option "" (P.string "-") <> P.many1 P.digit))
 
 

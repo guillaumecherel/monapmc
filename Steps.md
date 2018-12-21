@@ -53,13 +53,13 @@ lenormand2012Steps = do
           , Lenormand2012.pAccMin = getPAccMin algo
           , Lenormand2012.priorSample = toyPriorRandomSample
           , Lenormand2012.priorDensity = toyPrior
-          , Lenormand2012.distanceToData = rootSquaredError 0 . V.head
+          , Lenormand2012.distanceToData = absoluteError 0 . V.head
           }
         getRun (i, s) = Run 
           { getAlgorithm = algo
           , getStep = i
           , getReplication = 1
-          , getSample = Lenormand2012.thetas s }
+          , getSample = V.zip (Lenormand2012.weights s) (Lenormand2012.thetas s) }
         cacheSteps s = cache' "output/formulas/5steps/toy/lenormand2012"
                        (pure s)
  
@@ -80,18 +80,23 @@ steadyStateSteps = do
           , SteadyState.parallel = getParallel algo
           , SteadyState.priorSample = toyPriorRandomSample
           , SteadyState.priorDensity = toyPrior
-          , SteadyState.distanceToData = rootSquaredError 0 . V.head
+          , SteadyState.distanceToData = absoluteError 0 . V.head
           }
+        getRun :: (Int, SteadyState.S) -> Run
         getRun (i, s) = Run 
           { getAlgorithm = algo
           , getStep = i
           , getReplication = 1
-          , getSample = fmap (SteadyState.getTheta . SteadyState.getSimulation . SteadyState.getReady) (SteadyState.accepteds s) }
+          , getSample = fmap (\a -> (SteadyState.getWeight a, SteadyState.getTheta $ SteadyState.getSimulation $ SteadyState.getReady a)) (SteadyState.accepteds s) 
+          }
         cacheSteps s = cache' "output/formulas/5steps/toy/steadyState"
                        (Cached.fromIO mempty s)
 
 rootSquaredError :: Double -> Double -> Double
 rootSquaredError expected x = sqrt ((x - expected) ** 2)
+
+absoluteError :: Double -> Double -> Double
+absoluteError expected x = abs (x - expected)
 
 easyABCLenormand2012Steps :: Cached [Run]
 easyABCLenormand2012Steps = traverse getRun (zip [1..] files)
@@ -99,7 +104,7 @@ easyABCLenormand2012Steps = traverse getRun (zip [1..] files)
         getRun (i,f) = source f (read i f)
         read :: Int -> FilePath -> Text -> Either Text Run
         read i f = bimap show (run i) . read1DSample f
-        run :: Int -> (V.Vector (V.Vector Double)) -> Run
+        run :: Int -> (V.Vector (Weight, V.Vector Double)) -> Run
         run i s = Run { getAlgorithm = Lenormand2012 5000 0.1 0.01
                       , getStep = i
                       , getReplication = 1
@@ -122,7 +127,7 @@ easyABCBeaumont2009Steps = traverse getRun (zip [1..] files)
         getRun (i,f) = source f (read i f)
         read :: Int -> FilePath -> Text -> Either Text Run
         read i f = bimap show (run i) . read1DSample f
-        run :: Int -> (V.Vector (V.Vector Double)) -> Run
+        run :: Int -> (V.Vector (Weight, V.Vector Double)) -> Run
         run i s = Run { getAlgorithm = Beaumont2009 5000 2.0 0.01
                       , getStep = i
                       , getReplication = 1
@@ -148,7 +153,7 @@ The histogram for one posterior sample:
 
 ~~~~ {.haskell file="formulas/src/Steps.hs"}
 histogramStep :: Run -> [(Double, Double)]
-histogramStep = scaledHistogram (-10) 10 300 . V.toList . V.concat . V.toList . getSample
+histogramStep = estPostDen (-10) 10 300 . fmap (second V.head) . V.toList . getSample
 
 -- cacheHistogram :: FilePath -> Cached (V.Vector Double) -> Cached [(Double, Double)]
 -- cacheHistogram path r = 

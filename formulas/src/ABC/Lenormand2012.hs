@@ -35,17 +35,26 @@ pprintS :: S -> T.Text
 pprintS s = T.pack $ show $ thetas s
 
 -- run :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
--- run p f = 
+-- run p f =
+  --
+
+run :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
+run p f = stepOne p f >>= go
+  where go s = do
+          s' <- step p f s
+          if stop s'
+            then return s'
+            else go s'
+        stop s = pAcc s < pAccMin p
 
 scan :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m [S]
 scan p f =
   -- sequence $ scanl' (>>=) (stepOne p f) (repeat (step p f))
   stepOne p f >>= go
   where go s = do
-          s' <- step p f s
-          if stop s'
-            then return [s', s]
-            else fmap (s':) (go s')
+          if stop s
+            then return [s]
+            else step p f s >>= fmap (s:) . go
         stop s = pAcc s < pAccMin p
 
 stepOne :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
@@ -61,6 +70,15 @@ stepOne p f = do
   let sigmaSquared = LA.scale 2 $ snd $ LA.meanCov $ LA.fromLists $ V.toList $ fmap V.toList thetaSelected
   let pAcc = 1
   let weightsSelected = V.replicate (nAlpha p) 1
+--   let sigmaSquared = LA.trustSym $ LA.scalar $
+--                      2 * ((sum (mzipWith (\w t -> w * t ** 2) weightsSelected
+--                                  (fmap V.head thetaSelected))
+--                              / sum weightsSelected)
+--                            - ((sum (mzipWith (*) weightsSelected
+--                                  (fmap V.head thetaSelected))
+--                                / sum weightsSelected) ** 2))
+--                        / (1 - (sum (fmap (** 2) weightsSelected)
+--                                 / (sum weightsSelected ** 2)))
   return $ S {thetas = thetaSelected, weights = weightsSelected, rhos = rhoSelected, sigmaSquared = sigmaSquared, pAcc = pAcc, epsilon = epsilon}
 
 step :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> S -> m S
@@ -79,13 +97,20 @@ step p f s = do
   let selected xs = fmap fst $ mfilter snd (mzip xs select)
   let thetaSelected = selected allThetas
   let rhoSelected = selected allRhos
-  --TODO: tous les poids sont 0 ou 1
   let newWeightsSelected = fmap (weight p s)
                                 $ fmap fst $ mfilter snd
                                 $ mzip newThetas (V.drop (nAlpha p) select)
   let weightsSelected = (fmap fst $ mfilter snd $ mzip (weights s) select) <> newWeightsSelected
-  -- TODO: scale 2 ?
   let newSigmaSquared = LA.scale 2 $ weightedCovariance (LA.fromLists $ fmap V.toList $ V.toList thetaSelected) (LA.fromList $ V.toList weightsSelected)
+--   let newSigmaSquared = LA.trustSym $ LA.scalar $
+--                       2 * ((sum (mzipWith (\w t -> w * t ** 2) weightsSelected
+--                                   (fmap V.head thetaSelected))
+--                               / sum weightsSelected)
+--                             - ((sum (mzipWith (*) weightsSelected
+--                                   (fmap V.head thetaSelected))
+--                                 / sum weightsSelected) ** 2))
+--                         / (1 - (sum (fmap (** 2) weightsSelected)
+--                                  / (sum weightsSelected ** 2)))
   let newS =  S { thetas = thetaSelected
                  , weights = weightsSelected
                  , rhos = rhoSelected

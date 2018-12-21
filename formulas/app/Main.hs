@@ -9,6 +9,7 @@ import Data.Cached
 import Control.Monad.Random.Lazy
 import Development.Shake
 
+import ToyModel
 import L2VSNSimus
 import Steps
 
@@ -17,7 +18,8 @@ main = do
   ran <- getStdGen
   putStrLn ("Constructing cache system." :: Text)
   let c = mconcat $ flip evalRand ran $ sequence 
-                    [ buildSteps
+                    [ buildToyModel
+                    , buildSteps
                     , buildL2VSNSimus
                     ]
   prettyCached c >>= putStrLn

@@ -38,9 +38,7 @@ scan ssr = do
   mNext <- step ssr (s, r)
   case mNext of
     Nothing -> return [s]
-    Just (s',r') -> do
-      next <- scan ssr{start = return (s',r')}
-      return (s:next)
+    Just (s',r') -> fmap (s:) $ scan ssr{start = return (s',r')}
 
 runN :: (Monad m) => Int -> SteadyStateRunner m s y -> m s
 runN n SteadyStateRunner{start=start, step=step} =

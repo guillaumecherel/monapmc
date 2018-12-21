@@ -31,23 +31,23 @@ set multiplot layout 4,5 rowsfirst
 
 iSteadyState = 5000 
 set title "steadyState step ".iSteadyState
-plot formulas_lenormand2012_1 w boxes t "" fs solid, \
+plot formulas_steadyState_1 w boxes t "" fs solid, \
      posterior(x) t "" w l lc "black"
 iSteadyState = 10000 
 set title "steadyState step ".iSteadyState
-plot formulas_lenormand2012_2 w boxes t "" fs solid, \
+plot formulas_steadyState_2 w boxes t "" fs solid, \
      posterior(x) t "" w l lc "black"
 iSteadyState = 15000 
 set title "steadyState step ".iSteadyState
-plot formulas_lenormand2012_3 w boxes t "" fs solid, \
+plot formulas_steadyState_3 w boxes t "" fs solid, \
      posterior(x) t "" w l lc "black"
 iSteadyState = 20000 
 set title "steadyState step ".iSteadyState
-plot formulas_lenormand2012_4 w boxes t "" fs solid, \
+plot formulas_steadyState_4 w boxes t "" fs solid, \
      posterior(x) t "" w l lc "black"
 iSteadyState = 25000 
 set title "steadyState step ".iSteadyState
-plot formulas_lenormand2012_5 w boxes t "" fs solid, \
+plot formulas_steadyState_5 w boxes t "" fs solid, \
      posterior(x) t "" w l lc "black"
 
 set title "lenormand2012 step 1"

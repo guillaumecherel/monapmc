@@ -17,11 +17,11 @@ main :: IO ()
 main = do
   ran <- getStdGen
   putStrLn ("Constructing cache system." :: Text)
-  let c = mconcat $ flip evalRand ran $ sequence 
+  let c = mconcat $ (flip evalRand ran $ sequence
                     [ buildToyModel
                     , buildSteps
                     , buildL2VSNSimus
-                    ]
+                    ])
   prettyCached c >>= putStrLn
   putStrLn ("Running cache system." :: Text)
   runShake c

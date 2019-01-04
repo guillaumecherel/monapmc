@@ -5,6 +5,8 @@ module Algorithm where
 
 import Protolude
 
+import qualified ABC.Lenormand2012 as Lenormand2012
+
 data Algorithm =
   Lenormand2012
     { getN :: Int
@@ -29,7 +31,6 @@ eqAlgorithm Lenormand2012{} Lenormand2012{} = True
 eqAlgorithm Beaumont2009{} Beaumont2009{} = True
 eqAlgorithm SteadyState{} SteadyState{} = True
 eqAlgorithm _ _ = False
-
 
 pprintAlgorithm :: Algorithm -> Text
 pprintAlgorithm Lenormand2012

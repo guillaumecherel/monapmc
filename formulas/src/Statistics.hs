@@ -5,6 +5,7 @@
 module Statistics where
 
 import Protolude
+import qualified Control.Foldl as Fold
 import qualified Data.Map as Map
 import qualified Data.Vector as V
 import qualified Text.Parsec as P
@@ -47,6 +48,17 @@ posteriorL2 lowerBound upperBound bins targetCDF weightsXs =
 toBin :: Double -> Double -> Int -> Double -> Double
 toBin lowerBound upperBound bins x = lowerBound + width * fromIntegral (floor ((x - lowerBound) / width))
   where width = (upperBound - lowerBound) / fromIntegral bins
+
+
+--------
+-- Fold stats
+--------
+
+foldMeanWith :: (a -> Double) -> Fold.Fold a Double
+foldMeanWith f = Fold.premap f Fold.mean
+
+foldStdWith :: (a -> Double) -> Fold.Fold a Double
+foldStdWith f = fmap sqrt $ Fold.premap f Fold.variance
 
 --------
 -- Parsing

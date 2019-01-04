@@ -21,6 +21,7 @@ library
                        Figure,
                        Model,
                        Run,
+                       Replications,
                        Statistics,
                        ABC.Lenormand2012,
                        ABC.SteadyState,

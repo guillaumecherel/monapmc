@@ -11,21 +11,24 @@ import qualified Statistics.Quantile as SQ
 import qualified Data.Vector as V
 import qualified Data.Text as T
 
+import Debug
+
 -- The algorithm parameters
+-- TODO. V.Vector performance issue vs LA.Vector?
 data P m = P
   { n :: Int
   , nAlpha :: Int
   , pAccMin :: Double
   , priorSample :: m (V.Vector Double)
   , priorDensity :: V.Vector Double -> Double
-  , distanceToData :: V.Vector Double -> Double
+  , observed :: V.Vector Double
   }
 
 -- The algorithm's state.
 data S = S
-  { thetas:: V.Vector (V.Vector Double)
-  , weights:: V.Vector Double
-  , rhos:: V.Vector Double
+  { thetas:: LA.Matrix Double
+  , weights:: LA.Vector Double
+  , rhos:: LA.Vector Double
   , sigmaSquared:: LA.Herm Double
   , pAcc:: Double
   , epsilon:: Double
@@ -33,10 +36,6 @@ data S = S
   
 pprintS :: S -> T.Text
 pprintS s = T.pack $ show $ thetas s
-
--- run :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
--- run p f =
-  --
 
 run :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
 run p f = stepOne p f >>= go
@@ -49,7 +48,6 @@ run p f = stepOne p f >>= go
 
 scan :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m [S]
 scan p f =
-  -- sequence $ scanl' (>>=) (stepOne p f) (repeat (step p f))
   stepOne p f >>= go
   where go s = do
           if stop s
@@ -59,58 +57,58 @@ scan p f =
 
 stepOne :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
 stepOne p f = do
-  thetas <- V.replicateM (n p) (priorSample p)
-  x <- traverse f thetas
-  let rhos = fmap (distanceToData p) x
+  thetasV <- sequence $ replicate (n p) (priorSample p)
+  xsV <- traverse f thetasV
+  let thetas = LA.fromLists $ fmap V.toList thetasV
+  let xs = LA.fromLists $ fmap V.toList xsV
+  let dim = LA.cols (thetas :: LA.Matrix Double)
+  let obs = LA.vector $ V.toList $ observed p
+  -- TODO: euclidean distance
+  let rhos = LA.cmap sqrt $
+               ((xs - LA.asRow obs) ** 2) LA.#> LA.konst 1 dim
   let epsilon = SQ.weightedAvg (nAlpha p) (n p - 1) rhos
-  let select = fmap (< epsilon) rhos
-  let selected xs = fmap fst $ V.filter snd (mzip xs select)
-  let thetaSelected = selected thetas
-  let rhoSelected = selected rhos
-  let sigmaSquared = LA.scale 2 $ snd $ LA.meanCov $ LA.fromLists $ V.toList $ fmap V.toList thetaSelected
+  let select = LA.find (< epsilon) rhos
+  let thetaSelected = thetas LA.? select
+  let rhoSelected = LA.vector $ fmap (rhos LA.!) select
+  let sigmaSquared = LA.scale 2 $ snd $ LA.meanCov thetaSelected
   let pAcc = 1
-  let weightsSelected = V.replicate (nAlpha p) 1
---   let sigmaSquared = LA.trustSym $ LA.scalar $
---                      2 * ((sum (mzipWith (\w t -> w * t ** 2) weightsSelected
---                                  (fmap V.head thetaSelected))
---                              / sum weightsSelected)
---                            - ((sum (mzipWith (*) weightsSelected
---                                  (fmap V.head thetaSelected))
---                                / sum weightsSelected) ** 2))
---                        / (1 - (sum (fmap (** 2) weightsSelected)
---                                 / (sum weightsSelected ** 2)))
+  let weightsSelected = LA.konst 1 (nAlpha p)
   return $ S {thetas = thetaSelected, weights = weightsSelected, rhos = rhoSelected, sigmaSquared = sigmaSquared, pAcc = pAcc, epsilon = epsilon}
 
 step :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> S -> m S
 step p f s = do
   let nMinusNAlpha = n p - nAlpha p
-  resample <- replicateM nMinusNAlpha $ weighted $ (mzip (thetas s) (fmap toRational $ weights s))
-  hmSeeds <- getRandoms
-  let newThetas = V.fromList $ fmap (\(seed, mean) -> V.fromList $ head $ LA.toLists $ LA.gaussianSample seed 1 (LA.fromList $ V.toList mean) (sigmaSquared s)) (mzip hmSeeds resample)
-  newXs <- traverse f newThetas
-  let allThetas = (thetas s) <> newThetas
-  let newRhos = fmap (distanceToData p) newXs
-  let allRhos = (rhos s) V.++ (newRhos)
+  resampleIndices <- replicateM nMinusNAlpha $ weighted $ (mzip [0..] (fmap toRational $ LA.toList $ weights s))
+  let resampleThetas = thetas s LA.? resampleIndices
+  seed <- getRandom
+  let dim = LA.cols (thetas s)
+  -- TODO: check that I can take the mean out of the sample generation
+  let newThetas = resampleThetas +
+                    LA.gaussianSample seed nMinusNAlpha
+                      (LA.konst 0 dim)
+                      (sigmaSquared s)
+  -- TODO: check performance wrapping/unwrapping
+  newXs <- LA.fromRows . fmap (LA.fromList . V.toList) <$> traverse (f . V.fromList . LA.toList) (LA.toRows newThetas)
+  let allThetas = (thetas s) LA.=== newThetas
+  let obs = LA.vector $ V.toList $ observed p
+  let newRhos = LA.cmap sqrt $
+               -- MATRIX PRODUCT
+               ((newXs - LA.asRow obs) ** 2) LA.#> LA.konst 1 dim
+  let allRhos = LA.vjoin [rhos s, newRhos]
   let newEpsilon = SQ.weightedAvg (nAlpha p) (n p - 1) allRhos
-  let newPAcc = (1 / fromIntegral nMinusNAlpha) * (getSum $ foldMap (\r -> if (r < newEpsilon) then Sum 1 else Sum 0) newRhos)
-  let select = fmap (< newEpsilon) allRhos
-  let selected xs = fmap fst $ mfilter snd (mzip xs select)
-  let thetaSelected = selected allThetas
-  let rhoSelected = selected allRhos
-  let newWeightsSelected = fmap (weight p s)
-                                $ fmap fst $ mfilter snd
-                                $ mzip newThetas (V.drop (nAlpha p) select)
-  let weightsSelected = (fmap fst $ mfilter snd $ mzip (weights s) select) <> newWeightsSelected
-  let newSigmaSquared = LA.scale 2 $ weightedCovariance (LA.fromLists $ fmap V.toList $ V.toList thetaSelected) (LA.fromList $ V.toList weightsSelected)
---   let newSigmaSquared = LA.trustSym $ LA.scalar $
---                       2 * ((sum (mzipWith (\w t -> w * t ** 2) weightsSelected
---                                   (fmap V.head thetaSelected))
---                               / sum weightsSelected)
---                             - ((sum (mzipWith (*) weightsSelected
---                                   (fmap V.head thetaSelected))
---                                 / sum weightsSelected) ** 2))
---                         / (1 - (sum (fmap (** 2) weightsSelected)
---                                  / (sum weightsSelected ** 2)))
+  let newPAcc = (1 / fromIntegral nMinusNAlpha) *
+                  (LA.sumElements $ LA.step (LA.scalar newEpsilon - newRhos))
+  let select = LA.find (< newEpsilon) allRhos
+  let thetaSelected = allThetas LA.? select
+  let rhoSelected = LA.vector $ fmap (allRhos LA.!) select
+  let newWeightsSelected = compWeights p s
+                            (newThetas LA.? LA.find (< newEpsilon) newRhos)
+  let weightsSelected = LA.vjoin
+                          [LA.vector $ fmap (weights s LA.!)
+                            (LA.find (< newEpsilon) (rhos s))
+                          , newWeightsSelected]
+  let newSigmaSquared = LA.scale 2
+                         $ weightedCovariance thetaSelected weightsSelected
   let newS =  S { thetas = thetaSelected
                  , weights = weightsSelected
                  , rhos = rhoSelected
@@ -118,23 +116,28 @@ step p f s = do
                  , pAcc = newPAcc
                  , epsilon = newEpsilon
                  }
-  -- trace ("trace: " ++ show newS) $ return ()
   return newS
 
-weight :: P m -> S -> V.Vector Double -> Double
-weight p s theta =
-  let weightSum = sum (weights s)
+compWeights :: P m -> S -> LA.Matrix Double -> LA.Vector Double
+compWeights p s newThetasSelected =
+  let weightSum = LA.sumElements (weights s)
       (inverseSigmaSquared, (lnDetSigmaSquared, signDetSigmaSquared)) = LA.invlndet $ LA.unSym (sigmaSquared s)
       sqrtDet2PiSigmaSquared = (2.0 * pi) ** (fromIntegral (LA.cols $ LA.unSym $ sigmaSquared s) / 2.0) * signDetSigmaSquared * exp (lnDetSigmaSquared / 2.0)
-      thetaV = LA.fromList $ V.toList theta
-  in priorDensity p theta / (getSum (
-        foldMap (\(wJ, thetaJ) -> Sum (
-                  let thetaJV = LA.fromList $ V.toList thetaJ
-                      thetaDiff = thetaV - thetaJV
-                  in (wJ / weightSum)
-                    * (exp $ (-0.5) * ((thetaDiff LA.<# inverseSigmaSquared) LA.<.> thetaDiff) )
-                    / sqrtDet2PiSigmaSquared))
-                (mzip (weights s) (thetas s))))
+      normFactor thetaI = let thetaDiff = LA.asRow thetaI - thetas s
+                    in LA.sumElements $
+                         (weights s / LA.scalar weightSum)
+                            * LA.scalar (1 * sqrtDet2PiSigmaSquared)
+                            * exp (LA.scalar (-0.5) * LA.vector
+                                    (zipWith (LA.<.>)
+                                      (LA.toRows $
+                                      -- MATRIX PRODUCT
+                                        thetaDiff LA.<> inverseSigmaSquared)
+                                      (LA.toRows thetaDiff)))
+      -- TODO: wrapping/unwrapping performance ?
+      priors = LA.fromList $ fmap (priorDensity p . V.fromList)
+                                 (LA.toLists newThetasSelected)
+      normFactors = LA.vector $ fmap normFactor $ LA.toRows newThetasSelected
+  in priors / normFactors
 
 weightedCovariance :: LA.Matrix Double -> LA.Vector Double -> LA.Herm Double
 weightedCovariance sample weights =
@@ -144,6 +147,7 @@ weightedCovariance sample weights =
       weightsSumSquared = weightsSum ** 2
       weightsSquaredSum = getSum $ foldMap (\x -> Sum (x ** 2)) $ LA.toList weights
       sampleMean :: LA.Vector Double
+      -- MATRIX PRODUCT
       sampleMean = (LA.scale (1 / weightsSum) weights) LA.<# sample
       sampleCenteredWeighted = (sample - LA.asRow sampleMean) * (LA.asColumn $ sqrt weights)
       (_, covCenteredWeighted) = LA.meanCov sampleCenteredWeighted

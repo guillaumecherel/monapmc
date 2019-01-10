@@ -50,17 +50,18 @@ l2VSNSimus' nRep stepMax algo =
 fig :: Compose (Rand StdGen) Cached ()
 fig = 
   let replications = 10 -- 10
-      alphas = [0.1] -- [0.1,0.2..0.9]
+      alphas = [0.1, 0.2..0.9] -- [0.1,0.2..0.9]
+      nAlpha = 5000
       pAccMins = [0.1] -- [0.01, 0.05, 0.1, 0.2]
       stepMax = 100
       lenPath = "output/formulas/l2VSNSimus/lenormand2012.csv"
       stePath = "output/formulas/l2VSNSimus/steadyState.csv"
       len pAccMin alpha = Lenormand2012
-                          { getN = 5000
-                          , getAlpha=alpha
-                          , getPAccMin=pAccMin}
+                            { getN = floor (nAlpha / alpha)
+                            , getAlpha=alpha
+                            , getPAccMin=pAccMin}
       ste pAccMin alpha = SteadyState
-                            { getN = 5000
+                            { getN = floor (nAlpha / alpha)
                             , getAlpha = alpha
                             , getPAccMin = pAccMin
                             , getParallel = 1}
@@ -82,10 +83,13 @@ fig =
       fig :: Cached ()
       fig = gnuplot "report/L2_vs_nsimus.png" "report/L2_vs_nsimus.gnuplot"
                         [("lenormand2012", lenPath)
-                        ,("steadyState", stePath)]
+                        -- DEBUG ,("steadyState", stePath)]
+                        ,("steadyState", lenPath)]
+
   in foldr (liftC2 (<>))  (Compose (pure fig))
                           [ gnuplotInputFile lenPath len
-                          , gnuplotInputFile stePath ste ]
+                          -- DEBUG , gnuplotInputFile stePath ste ]
+                          ]
 
 liftC :: (Cached a -> Cached b) 
       -> Compose (Rand StdGen) Cached a

@@ -16,6 +16,7 @@ import Data.Text (intercalate, unpack)
 import qualified Data.Text.IO as TIO
 import qualified Data.Vector as V
 import Formatting
+import qualified Numeric.LinearAlgebra as LA
 import qualified Text.Parsec as P
 import Util.Parser
 import System.Directory
@@ -45,12 +46,14 @@ run stepMax algo@Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
         , Lenormand2012.pAccMin = Algorithm.getPAccMin algo
         , Lenormand2012.priorSample = toyPriorRandomSample
         , Lenormand2012.priorDensity = toyPrior
-        , Lenormand2012.distanceToData = absoluteError 0 . V.head
+        , Lenormand2012.observed = V.singleton 0
         }
       getRun (i, r) = Run
         { _algorithm = algo
         , _stepCount = i
-        , _sample = V.zip (Lenormand2012.weights r) (Lenormand2012.thetas r) }
+        , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights r)
+                          (V.fromList $ fmap V.fromList $ LA.toLists
+                            $ Lenormand2012.thetas r) }
   in return . getRun . last <$> steps
 run stepMax algo@SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
   let step :: RandT StdGen IO SteadyState.S

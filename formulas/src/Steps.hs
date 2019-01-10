@@ -12,6 +12,7 @@ import Data.Cached as Cached
 import Control.Monad.Random.Lazy
 import qualified Data.List as List
 import qualified Data.Vector as V
+import qualified Numeric.LinearAlgebra as LA
 import System.Random (StdGen, mkStdGen)
 
 import Algorithm
@@ -38,12 +39,14 @@ steps stepMax algo@Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
         , Lenormand2012.pAccMin = Algorithm.getPAccMin algo
         , Lenormand2012.priorSample = toyPriorRandomSample
         , Lenormand2012.priorDensity = toyPrior
-        , Lenormand2012.distanceToData = absoluteError 0 . V.head
+        , Lenormand2012.observed = V.singleton 0
         }
       getRun (i, r) = Run
         { _algorithm = algo
         , _stepCount = i
-        , _sample = V.zip (Lenormand2012.weights r) (Lenormand2012.thetas r) }
+        , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights r)
+                          (V.fromList $ fmap V.fromList $ LA.toLists
+                            $ Lenormand2012.thetas r) }
   in return . Steps . fmap getRun <$> steps
 steps stepMax algo@SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
   let steps :: RandT StdGen IO [(Int, SteadyState.S)]

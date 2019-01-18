@@ -116,9 +116,6 @@ step p f s = do
                  , pAcc = newPAcc
                  , epsilon = newEpsilon
                  }
-  -- trace ( show ("Avg Weight " <> show (LA.sumElements (weights newS) / fromIntegral (LA.size (weights newS)))) <> "\n" <>
-  --         show ("pAcc " <> show newPAcc)
-  --      )
   (return newS)
 
 compWeights :: P m -> S -> LA.Matrix Double -> LA.Vector Double

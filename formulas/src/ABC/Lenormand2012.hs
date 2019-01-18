@@ -53,7 +53,7 @@ scan p f =
           if stop s
             then return [s]
             else step p f s >>= fmap (s:) . go
-        stop s = pAcc s < pAccMin p
+        stop s = pAcc s <= pAccMin p
 
 stepOne :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
 stepOne p f = do
@@ -83,17 +83,16 @@ step p f s = do
   seed <- getRandom
   let dim = LA.cols (thetas s)
   -- TODO: check that I can take the mean out of the sample generation
-  let newThetas = resampleThetas +
+  let newThetas =  resampleThetas +
                     LA.gaussianSample seed nMinusNAlpha
                       (LA.konst 0 dim)
-                      (sigmaSquared s)
+                      (  sigmaSquared s)
   -- TODO: check performance wrapping/unwrapping
   newXs <- LA.fromRows . fmap (LA.fromList . V.toList) <$> traverse (f . V.fromList . LA.toList) (LA.toRows newThetas)
-  let allThetas = (thetas s) LA.=== newThetas
   let obs = LA.vector $ V.toList $ observed p
   let newRhos = LA.cmap sqrt $
-               -- MATRIX PRODUCT
                ((newXs - LA.asRow obs) ** 2) LA.#> LA.konst 1 dim
+  let allThetas = (thetas s) LA.=== newThetas
   let allRhos = LA.vjoin [rhos s, newRhos]
   let newEpsilon = SQ.weightedAvg (nAlpha p) (n p - 1) allRhos
   let newPAcc = (1 / fromIntegral nMinusNAlpha) *
@@ -103,13 +102,14 @@ step p f s = do
   let rhoSelected = LA.vector $ fmap (allRhos LA.!) select
   let newWeightsSelected = compWeights p s
                             (newThetas LA.? LA.find (< newEpsilon) newRhos)
-  let weightsSelected = LA.vjoin
-                          [LA.vector $ fmap (weights s LA.!)
-                            (LA.find (< newEpsilon) (rhos s))
-                          , newWeightsSelected]
+  let previousWeightsSelected = LA.vector $ fmap (weights s LA.!)
+                                  (LA.find (< newEpsilon) (rhos s))
+  let weightsSelected = LA.vjoin [ previousWeightsSelected
+                                 , newWeightsSelected]
   let newSigmaSquared = LA.scale 2
                          $ weightedCovariance thetaSelected weightsSelected
   let newS =  S { thetas = thetaSelected
+                 -- TODO: les poids décroissent trop vite
                  , weights = weightsSelected
                  , rhos = rhoSelected
                  , sigmaSquared = newSigmaSquared
@@ -126,11 +126,10 @@ compWeights p s newThetasSelected =
       normFactor thetaI = let thetaDiff = LA.asRow thetaI - thetas s
                     in LA.sumElements $
                          (weights s / LA.scalar weightSum)
-                            * LA.scalar (1 * sqrtDet2PiSigmaSquared)
+                            * LA.scalar (1 / sqrtDet2PiSigmaSquared)
                             * exp (LA.scalar (-0.5) * LA.vector
                                     (zipWith (LA.<.>)
                                       (LA.toRows $
-                                      -- MATRIX PRODUCT
                                         thetaDiff LA.<> inverseSigmaSquared)
                                       (LA.toRows thetaDiff)))
       -- TODO: wrapping/unwrapping performance ?

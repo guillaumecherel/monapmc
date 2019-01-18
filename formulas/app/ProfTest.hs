@@ -3,14 +3,17 @@
 
 module Main where
 
-import Protolude 
+import Protolude
+import Unsafe (unsafeHead)
 
 import Data.List (last)
 import Data.Cached
 import qualified Data.Vector as V
 import Control.Parallel
 import Control.Monad.Random.Lazy
+import qualified Numeric.LinearAlgebra as LA
 import Development.Shake hiding (par)
+import qualified Control.Foldl as Fold
 
 
 import qualified Algorithm
@@ -18,10 +21,13 @@ import Model
 import L2VSNSimus
 import Steps
 import qualified Run
-import qualified ABC.Lenormand2012 as Lenormand2012
+import ABC.Lenormand2012
 
 main :: IO ()
 main = do
-  res <- evalRand (Run.run 100 (Algorithm.Lenormand2012 5000 0.1 0.01)) (mkStdGen 1)
-  putStrLn $ (show (Run._stepCount res) :: Text)
+  replicateM 10 $ do
+    g <- newStdGen
+    res <- newStdGen >>= evalRand (Run.run 100 (Algorithm.Lenormand2012 5000 0.1 0.1))
+    putStrLn $ (show (Run.nSimus res, Fold.fold ((,) <$> Fold.mean <*> Fold.variance) $ fmap (uncurry (*)) $ (fmap . second)  V.head $ Run._sample res) :: Text)
+  return ()
 

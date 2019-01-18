@@ -94,9 +94,9 @@ step p f s = do
                ((newXs - LA.asRow obs) ** 2) LA.#> LA.konst 1 dim
   let allThetas = (thetas s) LA.=== newThetas
   let allRhos = LA.vjoin [rhos s, newRhos]
-  let newEpsilon = SQ.weightedAvg (nAlpha p) (n p - 1) allRhos
   let newPAcc = (1 / fromIntegral nMinusNAlpha) *
-                  (LA.sumElements $ LA.step (LA.scalar newEpsilon - newRhos))
+                  (LA.sumElements $ LA.step (LA.scalar (epsilon s) - newRhos))
+  let newEpsilon = SQ.weightedAvg (nAlpha p) (n p - 1) allRhos
   let select = LA.find (< newEpsilon) allRhos
   let thetaSelected = allThetas LA.? select
   let rhoSelected = LA.vector $ fmap (allRhos LA.!) select
@@ -116,7 +116,10 @@ step p f s = do
                  , pAcc = newPAcc
                  , epsilon = newEpsilon
                  }
-  return newS
+  -- trace ( show ("Avg Weight " <> show (LA.sumElements (weights newS) / fromIntegral (LA.size (weights newS)))) <> "\n" <>
+  --         show ("pAcc " <> show newPAcc)
+  --      )
+  (return newS)
 
 compWeights :: P m -> S -> LA.Matrix Double -> LA.Vector Double
 compWeights p s newThetasSelected =

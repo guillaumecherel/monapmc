@@ -162,16 +162,16 @@ update p (s, current) = do
 
       -- Else, some simulations have been accepted before
       else do
-        -- Compute the new epsilon
-        let epsilonNew = SQ.weightedAvg (nAlpha p) (n p - 1)
-                         $ fmap getRho (fmap getReady (accepteds s) <> readyNew)
-
         -- Compute the new pAcc
         let countReadyAccepted = getSum
-                               $ foldMap (Sum . bool 0 1 . (<= epsilonNew))
+                               $ foldMap (Sum . bool 0 1 . (<= epsilon s))
                                $ fmap getRho readyNew
         let pAccNew = fromIntegral countReadyAccepted
                     / fromIntegral (V.length readyNew)
+
+        -- Compute the new epsilon
+        let epsilonNew = SQ.weightedAvg (nAlpha p) (n p - 1)
+                         $ fmap getRho (fmap getReady (accepteds s) <> readyNew)
 
         -- Filter the new accepted simulations
         let acceptedKeep = mfilter ((<= epsilonNew) . getRho . getReady) (accepteds s)

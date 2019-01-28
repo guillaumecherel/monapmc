@@ -49,11 +49,17 @@ prop_RunningRuns = once $ within 200000 $ ioProperty $ do
   return True
 
 -- Check that a steady state actually runs in parallel.
-prop_steadyStateParallel :: Property
-prop_steadyStateParallel =
-  within 60000 $ ioProperty $ do
-    res <- runN 10 $ ssr 10000 2 100000
+prop_steadyStateParallelRun :: Property
+prop_steadyStateParallelRun =
+  within 400000 $ ioProperty $ do
+    res <- run $ ssr 50000 2 10
     return $ res ?== 10
+
+prop_steadyStateParallelScan :: Property
+prop_steadyStateParallelScan =
+  within 400000 $ ioProperty $ do
+    res <- scan $ ssr 50000 2 10
+    return $ res ?== [0..10]
 
 prop_run :: (Positive Int) -> NonNegative Int -> Property
 prop_run (Positive parallel) (NonNegative n) =
@@ -96,7 +102,8 @@ prop_scanIndices (StrictlyIncreasing indices) (Positive parallel) (NonNegative n
 
 runTests = do
   checkOrExit "prop_RunningRuns" prop_RunningRuns
-  checkOrExit "prop_steadyStateParallel" prop_steadyStateParallel
+  checkOrExit "prop_steadyStateParallelRun" prop_steadyStateParallelRun
+  checkOrExit "prop_steadyStateParallelScan" prop_steadyStateParallelScan
   checkOrExit "prop_run" prop_run
   checkOrExit "prop_scan" prop_scan
   checkOrExit "prop_runN" prop_runN

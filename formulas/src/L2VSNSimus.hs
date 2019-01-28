@@ -51,8 +51,8 @@ fig :: Compose (Rand StdGen) Cached ()
 fig = 
   let replications = 10 -- 10
       alphas = [1%10, 2%10..9%10] -- [0.1,0.2..0.9]
-      nAlpha = 500
-      pAccMins = [0.1, 0.2] -- [0.01, 0.05, 0.1, 0.2]
+      nAlpha = 5000
+      pAccMins = [0.01, 0.05, 0.1, 0.2]
       stepMax = 100
       lenPath = "output/formulas/l2VSNSimus/lenormand2012.csv"
       stePath = "output/formulas/l2VSNSimus/steadyState.csv"

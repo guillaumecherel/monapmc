@@ -67,8 +67,8 @@ instance (Monad m, MonadRandom m) => Arbitrary (P1D m) where
     (Positive nAlpha) <- arbitrary `suchThat` ((<= n) . getPositive)
     pAccMin <- sized $ \s -> choose (1/(fromIntegral s+2), 0.5)
     (SampleableDistribution dName dDensity dSample) <- arbitrary
-    let distanceToData x = sqrt (V.head x ** 2)
-    return $ P1D (P n nAlpha pAccMin (fmap V.singleton dSample) (dDensity . V.head) distanceToData)
+    let observed = V.singleton 0
+    return $ P1D (P n nAlpha pAccMin (fmap V.singleton dSample) (dDensity . V.head) observed)
                  dName
 
 instance  Show (P1D m) where
@@ -91,7 +91,7 @@ exampleP1D = P1D (P { n = 100
                     , pAccMin = 0.05
                     , priorSample = fmap V.singleton (normalRandomSample 0 1)
                     , priorDensity = normalDensity 0 1 . V.head
-                    , distanceToData = \x -> sqrt ((V.head x - 0.5) ** 2)})
+                    , observed = V.singleton 0.5 })
                   "Normal 0 1"
 
 newtype S1D = S1D S
@@ -101,31 +101,30 @@ instance Arbitrary S1D where
 
 arbitraryS1D :: Int -> Gen S1D
 arbitraryS1D nAlpha = do
-  thetas <- fmap V.fromList $ vectorOf nAlpha $ fmap V.singleton arbitrary
-  weights <- fmap V.fromList $ vectorOf nAlpha $ fmap getNonNegative (arbitrary :: Gen (NonNegative Double))
-  let rhos = fmap (\x -> sqrt ((V.head x - 0.5) ** 2)) thetas
-  (Var1D sigmaSquared) <- arbitrary
+  thetas <- fmap LA.fromLists $ vectorOf nAlpha $ vectorOf 1 arbitrary
+  weights <- fmap LA.fromList $ vectorOf nAlpha $ fmap getNonNegative (arbitrary :: Gen (NonNegative Double))
+  let rhos = LA.fromList $ fmap (\x -> sqrt ((head x - 0.5) ** 2))
+                         $ LA.toLists thetas
   pAcc <- choose (0, 1)
   (NonNegative epsilon) <- arbitrary
-  return $ S1D $ S thetas weights rhos sigmaSquared pAcc epsilon
+  return $ S1D $ S thetas weights rhos pAcc epsilon
 
 instance Show S1D where
   show (S1D s) = "S1D (S { thetas = " ++ show (thetas s)
                      ++ ", weights = " ++ show (weights s)
                      ++ ", rhos = " ++ show (rhos s)
-                     ++ ", sigmaSquared = " ++ show (sigmaSquared s)
                      ++ ", pAcc = " ++ show (pAcc s)
                      ++ ", epsilon = " ++ show (epsilon s) ++ " })"
 
-exampleS1D = let thetas = V.fromList [V.singleton (fromIntegral x / 100.0) | x <- [0..9]]
-                 weights = V.fromList $ replicate 10 1
-                 rhos = fmap (\x -> sqrt ((V.head x - 0.5) ** 2)) thetas
-                 thetaMean = sum (fmap V.head thetas) / 10.0
-                 thetaVar = sum (fmap (\x -> (V.head x - thetaMean) ** 2) thetas) / 9.0
-                 sigmaSquared = LA.trustSym (LA.fromLists [[thetaVar]])
-                 pAcc = 0.1
-                 epsilon = V.maximum rhos
-             in S1D (S thetas weights rhos sigmaSquared pAcc epsilon)
+exampleS1D =
+  let thetas = LA.matrix 1 [fromIntegral x / 100.0 | x <- [0..9]]
+      weights = LA.vector $ replicate 10 1
+      rhos = sqrt (((head $ LA.toColumns thetas) - LA.scalar 0.5) ** 2)
+      thetaMean = LA.sumElements thetas / 10.0
+      thetaVar = LA.sumElements ((thetas - LA.scalar thetaMean) ** 2) / 9.0
+      pAcc = 0.1
+      epsilon = LA.maxElement rhos
+  in S1D (S thetas weights rhos pAcc epsilon)
 
 data PS1D m = PS1D (P m) String S
 
@@ -143,27 +142,35 @@ examplePS1D =
     (P1D p n) -> case exampleS1D of
       (S1D s) -> PS1D p n s
 
-newtype Theta1D = Theta1D (V.Vector Double) deriving (Show)
+newtype Theta1D = Theta1D {_theta1D :: LA.Vector Double} deriving (Show)
 
 instance Arbitrary Theta1D where
-  arbitrary = fmap (Theta1D . V.singleton) arbitrary
+  arbitrary = fmap (Theta1D . LA.vector . (\x -> [x])) (arbitrary :: Gen Double)
+
+newtype Thetas1D = Thetas1D {_thetas1D :: LA.Matrix Double} deriving (Show)
+
+instance Arbitrary Thetas1D where
+  arbitrary = fmap (Thetas1D . LA.fromRows . fmap _theta1D) $ listOf arbitrary
 
 newtype Var1D = Var1D (LA.Herm Double)
 
 instance Arbitrary Var1D where
   arbitrary = sized $ \s -> fmap (\s2 -> Var1D $ LA.trustSym (LA.fromLists [[s2]])) (choose (0, fromIntegral s))
 
--- Check the formula for the weight againts the simpler formulation in 1D.
+-- Check the formula for the weight againts the simpler formulation in 1D for a single theta.
 prop_weights1D :: PS1D (Rand StdGen) -> Theta1D -> Property
 prop_weights1D (PS1D p d s) (Theta1D theta) =
-  label ("weight = " ++ show (weight p s theta)) $
+  label ("weight = " ++ show (compWeights p s sigmaSquared (LA.asRow theta))) $
   counterexample (show exampleP1D ++ "\n" ++ show exampleS1D) (
-  weight p s theta ?~==
-  (priorDensity p theta * sum (weights s) / getSum (
-    foldMap (\(wj, thetaj) -> Sum (wj * exp (- ((V.head theta - V.head thetaj) ** 2) / (2 * s2) ) / sqrt (2 * pi * s2) ))
-            (mzip (weights s) (thetas s))))
+  (compWeights p s sigmaSquared (LA.asRow theta)) `LA.atIndex` 0 ?~==
+  (priorDensity p thetaV * LA.sumElements (weights s) / getSum (
+    foldMap (\(wj, thetaj) -> Sum (wj * exp (- ((V.head thetaV - thetaj `LA.atIndex` 0) ** 2) / (2 * s2) ) / sqrt (2 * pi * s2) ))
+            (mzip (LA.toList $ weights s) (LA.toRows $ thetas s))))
   )
-  where s2 = LA.unSym (sigmaSquared s) `LA.atIndex` (0,0)
+  where s2 = LA.unSym sigmaSquared `LA.atIndex` (0,0)
+        sigmaSquared = LA.scale 2
+                        $ weightedCovariance (thetas s) (weights s)
+        thetaV = V.fromList $ LA.toList theta
 
 -- -- Check the algorithm with a toy 1D model against the theoretical
 -- -- distribution, over the mean and variance of the resulting sample

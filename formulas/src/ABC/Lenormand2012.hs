@@ -13,6 +13,11 @@ import qualified Data.Text as T
 
 import Debug
 
+-- TODO. Dans Beaumont2009, le facteur 2 par lequel on multiplie la variance pondérée de l'échantillon pour calculer la nouvelle variance est fait composant par composant. Il faut peut-être considérer le noyau de transition composant par composant, plutôt que de le faire sur toutes les dimensions en utilisant une matrice de covariance comme c'est fait là. Ça veut dire qu'on utilise à la place un vecteur de variance et que les covariances entre les composants des thetas ne sont pas pris en compte pour les transitions. Ça peut accélerer le calcul et réduire l'emprunte mémoire.
+
+-- TODO. Mon implémentation est multidimensionnelle (pour theta), mais n'a
+-- pas été testée avec plusieurs dimensions.
+
 -- The algorithm parameters
 -- TODO. V.Vector performance issue vs LA.Vector?
 data P m = P
@@ -29,7 +34,6 @@ data S = S
   { thetas:: LA.Matrix Double
   , weights:: LA.Vector Double
   , rhos:: LA.Vector Double
-  , sigmaSquared:: LA.Herm Double
   , pAcc:: Double
   , epsilon:: Double
   } deriving (Show)
@@ -70,10 +74,9 @@ stepOne p f = do
   let select = LA.find (< epsilon) rhos
   let thetaSelected = thetas LA.? select
   let rhoSelected = LA.vector $ fmap (rhos LA.!) select
-  let sigmaSquared = LA.scale 2 $ snd $ LA.meanCov thetaSelected
   let pAcc = 1
   let weightsSelected = LA.konst 1 (nAlpha p)
-  return $ S {thetas = thetaSelected, weights = weightsSelected, rhos = rhoSelected, sigmaSquared = sigmaSquared, pAcc = pAcc, epsilon = epsilon}
+  return $ S {thetas = thetaSelected, weights = weightsSelected, rhos = rhoSelected, pAcc = pAcc, epsilon = epsilon}
 
 step :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> S -> m S
 step p f s = do
@@ -82,11 +85,13 @@ step p f s = do
   let resampleThetas = thetas s LA.? resampleIndices
   seed <- getRandom
   let dim = LA.cols (thetas s)
+  let sigmaSquared = LA.scale 2
+                         $ weightedCovariance (thetas s) (weights s)
   -- TODO: check that I can take the mean out of the sample generation
   let newThetas =  resampleThetas +
                     LA.gaussianSample seed nMinusNAlpha
                       (LA.konst 0 dim)
-                      (  sigmaSquared s)
+                      sigmaSquared
   -- TODO: check performance wrapping/unwrapping
   newXs <- LA.fromRows . fmap (LA.fromList . V.toList) <$> traverse (f . V.fromList . LA.toList) (LA.toRows newThetas)
   let obs = LA.vector $ V.toList $ observed p
@@ -100,29 +105,27 @@ step p f s = do
   let select = LA.find (< newEpsilon) allRhos
   let thetaSelected = allThetas LA.? select
   let rhoSelected = LA.vector $ fmap (allRhos LA.!) select
-  let newWeightsSelected = compWeights p s
+  let newWeightsSelected = compWeights p s sigmaSquared
                             (newThetas LA.? LA.find (< newEpsilon) newRhos)
   let previousWeightsSelected = LA.vector $ fmap (weights s LA.!)
                                   (LA.find (< newEpsilon) (rhos s))
   let weightsSelected = LA.vjoin [ previousWeightsSelected
                                  , newWeightsSelected]
-  let newSigmaSquared = LA.scale 2
-                         $ weightedCovariance thetaSelected weightsSelected
   let newS =  S { thetas = thetaSelected
                  -- TODO: les poids décroissent trop vite
                  , weights = weightsSelected
                  , rhos = rhoSelected
-                 , sigmaSquared = newSigmaSquared
                  , pAcc = newPAcc
                  , epsilon = newEpsilon
                  }
   (return newS)
 
-compWeights :: P m -> S -> LA.Matrix Double -> LA.Vector Double
-compWeights p s newThetasSelected =
+compWeights :: P m -> S -> LA.Herm Double -> LA.Matrix Double
+            -> LA.Vector Double
+compWeights p s sigmaSquared newThetasSelected =
   let weightSum = LA.sumElements (weights s)
-      (inverseSigmaSquared, (lnDetSigmaSquared, signDetSigmaSquared)) = LA.invlndet $ LA.unSym (sigmaSquared s)
-      sqrtDet2PiSigmaSquared = (2.0 * pi) ** (fromIntegral (LA.cols $ LA.unSym $ sigmaSquared s) / 2.0) * signDetSigmaSquared * exp (lnDetSigmaSquared / 2.0)
+      (inverseSigmaSquared, (lnDetSigmaSquared, signDetSigmaSquared)) = LA.invlndet $ LA.unSym sigmaSquared
+      sqrtDet2PiSigmaSquared = (2.0 * pi) ** (fromIntegral (LA.cols $ LA.unSym sigmaSquared) / 2.0) * signDetSigmaSquared * exp (lnDetSigmaSquared / 2.0)
       normFactor thetaI = let thetaDiff = LA.asRow thetaI - thetas s
                     in LA.sumElements $
                          (weights s / LA.scalar weightSum)

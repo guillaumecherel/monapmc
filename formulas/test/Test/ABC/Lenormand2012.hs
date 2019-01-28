@@ -6,6 +6,7 @@ module Test.ABC.Lenormand2012 where
 
 import Control.DeepSeq (NFData)
 import qualified Control.Monad.Random.Lazy as CMR
+import qualified Control.Foldl as Fold
 import Control.Monad.Random.Lazy (MonadRandom, Rand, getRandomR)
 import Control.Monad.Zip
 import Data.AEq
@@ -19,6 +20,7 @@ import System.Random
 
 import ABC.Lenormand2012
 import Distribution
+import Statistics
 import Model
 import Test.Util
 
@@ -183,7 +185,41 @@ prop_weights1D (PS1D p d s) (Theta1D theta) =
 --               , priorDensity = uniformDensity (-10, 10) . V.head
 --               , distanceToData = \x -> abs (V.head x)}
 
+-- Check the algorithm with a toy 1D model against sample values for L2
+prop_toyModelL2 :: Seed -> Property
+prop_toyModelL2 (Seed seed) =
+  let p = P { n = 100
+            , nAlpha = 10
+            , pAccMin = 0.05
+            , priorSample = fmap V.singleton (uniformRandomSample (-10, 10))
+            , priorDensity = uniformDensity (-10, 10) . V.head
+            , observed = V.singleton 0
+            }
+      observed = 0
+      doRun :: Rand StdGen S
+      doRun = run p toyModel
+      replications ::[S]
+      replications = CMR.evalRand (CMR.replicateM 10 doRun) (mkStdGen seed)
+      l2 :: S -> Double
+      l2 s = posteriorL2 (-10) 10 300 (toyPosteriorCDF observed)
+               $ zip (LA.toList $ weights s)
+                     (LA.toList $ head $ LA.toColumns $ thetas s)
+      l2Rep :: [Double]
+      l2Rep = fmap l2 replications
+      (l2Mean, l2Var) = Fold.fold ((,) <$> Fold.mean <*> Fold.variance) l2Rep
+      test :: Bool
+      test = (abs (l2Mean - 0.39) < 0.01)
+               && (abs (l2Var - 0.007) < 0.002 )
+  -- TODO: dans le code R, le l2 moyen avec ces paramètres reste au dessus de
+  -- 0.37
+  in cover (0.30 < l2Mean && l2Mean < 0.41) 90 "0.38 < l2Mean < 0.41"
+      $ classify (0.38 >= l2Mean) "0.38 >= l2Mean"
+      $ classify (l2Mean >= 0.41) "0.41 <= l2Mean"
+      $ True
+
+
 runTests = do
   checkOrExit "prop_weights1D" prop_weights1D
+  checkOrExit "prop_toyModelL2" prop_toyModelL2
   -- quickCheck prop_toyModel
 

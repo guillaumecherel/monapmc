@@ -25,6 +25,7 @@ library
                        Statistics,
                        ABC.Lenormand2012,
                        ABC.SteadyState,
+                       ABC.MonAPMC,
                        Distribution,
                        ToyModel,
                        Util.SteadyState,

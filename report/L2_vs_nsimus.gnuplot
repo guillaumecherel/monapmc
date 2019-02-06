@@ -10,7 +10,7 @@ set output outputPath
 
 set yrange [0:.25]
 set ytics 0,.05,.2
-set xrange [12500:33e5]
+set xrange [0.2e5:33e5]
 set logscale x 2
 set xtics (0.125e5, 0.25e5, 0.5e5, 1e5, 2e5, 4e5, 8e5, 16e5, 32e5)
 

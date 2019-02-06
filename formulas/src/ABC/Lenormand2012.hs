@@ -45,19 +45,20 @@ run :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
 run p f = stepOne p f >>= go
   where go s = do
           s' <- step p f s
-          if stop s'
+          if stop p s'
             then return s'
             else go s'
-        stop s = pAcc s < pAccMin p
 
 scan :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m [S]
 scan p f =
   stepOne p f >>= go
   where go s = do
-          if stop s
+          if stop p s
             then return [s]
             else step p f s >>= fmap (s:) . go
-        stop s = pAcc s <= pAccMin p
+
+stop :: (MonadRandom m) => P m -> S -> Bool
+stop p s = pAcc s <= pAccMin p
 
 stepOne :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
 stepOne p f = do

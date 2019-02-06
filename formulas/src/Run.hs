@@ -25,6 +25,7 @@ import Algorithm
 import Model
 import Statistics
 import qualified ABC.Lenormand2012 as Lenormand2012
+import qualified ABC.MonAPMC as MonAPMC
 import qualified ABC.SteadyState as SteadyState
 import qualified Util.SteadyState as SteadyState 
 
@@ -54,6 +55,25 @@ run stepMax algo@Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
         , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights r)
                           (V.fromList $ fmap V.fromList $ LA.toLists
                             $ Lenormand2012.thetas r) }
+  in return . getRun . last <$> steps
+run stepMax algo@MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
+  let steps :: Rand StdGen [(Int, MonAPMC.S)]
+      steps = zip [1..stepMax] <$> MonAPMC.scanSeq p toyModel
+      p = Lenormand2012.P
+        { Lenormand2012.n = Algorithm.getN algo
+        , Lenormand2012.nAlpha = floor $ (Algorithm.getAlpha algo) 
+                                 * (fromIntegral $ Algorithm.getN algo)
+        , Lenormand2012.pAccMin = Algorithm.getPAccMin algo
+        , Lenormand2012.priorSample = toyPriorRandomSample
+        , Lenormand2012.priorDensity = toyPrior
+        , Lenormand2012.observed = V.singleton 0
+        }
+      getRun (i, (MonAPMC.S s)) = Run
+        { _algorithm = algo
+        , _stepCount = i
+        , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights s)
+                          (V.fromList $ fmap V.fromList $ LA.toLists
+                            $ Lenormand2012.thetas s) }
   in return . getRun . last <$> steps
 run stepMax algo@SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
   let step :: RandT StdGen IO SteadyState.S

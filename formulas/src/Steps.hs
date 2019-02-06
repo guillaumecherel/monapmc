@@ -21,6 +21,7 @@ import Model
 import Run
 import Statistics
 import qualified ABC.Lenormand2012 as Lenormand2012
+import qualified ABC.MonAPMC as MonAPMC
 import qualified ABC.SteadyState as SteadyState
 import Util.CSV
 import qualified Util.SteadyState as SteadyState 
@@ -47,6 +48,25 @@ steps stepMax algo@Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
         , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights r)
                           (V.fromList $ fmap V.fromList $ LA.toLists
                             $ Lenormand2012.thetas r) }
+  in return . Steps . fmap getRun <$> steps
+steps stepMax algo@MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
+  let steps :: Rand StdGen [(Int, MonAPMC.S)]
+      steps = zip [1..stepMax] <$> MonAPMC.scanSeq p toyModel
+      p = Lenormand2012.P
+        { Lenormand2012.n = Algorithm.getN algo
+        , Lenormand2012.nAlpha = floor $ (Algorithm.getAlpha algo) 
+                                 * (fromIntegral $ Algorithm.getN algo)
+        , Lenormand2012.pAccMin = Algorithm.getPAccMin algo
+        , Lenormand2012.priorSample = toyPriorRandomSample
+        , Lenormand2012.priorDensity = toyPrior
+        , Lenormand2012.observed = V.singleton 0
+        }
+      getRun (i, (MonAPMC.S s)) = Run
+        { _algorithm = algo
+        , _stepCount = i
+        , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights s)
+                          (V.fromList $ fmap V.fromList $ LA.toLists
+                            $ Lenormand2012.thetas s) }
   in return . Steps . fmap getRun <$> steps
 steps stepMax algo@SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
   let steps :: RandT StdGen IO [(Int, SteadyState.S)]
@@ -82,6 +102,12 @@ cachedSteps stepMax algo =
 cachedStepsPath :: Int -> Algorithm -> FilePath
 cachedStepsPath stepMax Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
   unpack $ "output/formulas/steps/lenormand2012_"
+             <> show stepMax <> "_"
+             <> show n <> "_"
+             <> sformat (fixed 2) alpha <> "_"
+             <> sformat (fixed 2) pAccMin
+cachedStepsPath stepMax MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
+  unpack $ "output/formulas/steps/monAPMCSeq_"
              <> show stepMax <> "_"
              <> show n <> "_"
              <> sformat (fixed 2) alpha <> "_"
@@ -164,6 +190,8 @@ histogramStepsCachePath SteadyState{} =
   "output/formulas/scaledHistogram/toy/steadyState"
 histogramStepsCachePath Lenormand2012{} =
   "output/formulas/scaledHistogram/toy/lenormand2012"
+histogramStepsCachePath MonAPMCSeq{} =
+  "output/formulas/scaledHistogram/toy/monAPMCSeq"
 
 histogramsEasyABCLenormand2012 :: Cached [[(Double, Double)]]
 histogramsEasyABCLenormand2012 = 
@@ -182,6 +210,8 @@ histogramsEasyABCBeaumont2009 =
 fig :: Compose (Rand StdGen) Cached ()
 fig =
   let len = histogramSteps Lenormand2012{getN=5000, getAlpha=0.1,
+                                         getPAccMin=0.01}
+      mas = histogramSteps MonAPMCSeq{getN=5000, getAlpha=0.1,
                                          getPAccMin=0.01}
       ste = histogramSteps SteadyState { getN = 5000
                                        , getAlpha = 0.1
@@ -203,6 +233,7 @@ fig =
                            <> " to write histogram to file " <> pack prefix <> show step <> ".csv")
         <$> getCompose hs
       lenPrefix = "output/formulas/scaledHistogram/toy/lenormand2012_"
+      masPrefix = "output/formulas/scaledHistogram/toy/monAPMCSeq_"
       stePrefix = "output/formulas/scaledHistogram/toy/steadyState_"
       lenEasyABCPrefix = "output/easyABC/scaledHistogram/toy/lenormand2012_"
       beaEasyABCPrefix = "output/easyABC/scaledHistogram/toy/beaumont2009_"
@@ -223,6 +254,21 @@ fig =
             , ( "formulas_lenormand2012_5"
               , "output/formulas/scaledHistogram/toy/"
                                          <> "lenormand2012_5.csv")
+            , ( "formulas_monAPMCSeq_1"
+              , "output/formulas/scaledHistogram/toy/"
+                                       <> "monAPMCSeq_1.csv")
+            , ( "formulas_monAPMCSeq_2"
+              , "output/formulas/scaledHistogram/toy/"
+                                       <> "monAPMCSeq_2.csv")
+            , ( "formulas_monAPMCSeq_3"
+              , "output/formulas/scaledHistogram/toy/"
+                                       <> "monAPMCSeq_3.csv")
+            , ( "formulas_monAPMCSeq_4"
+              , "output/formulas/scaledHistogram/toy/"
+                                       <> "monAPMCSeq_4.csv")
+            , ( "formulas_monAPMCSeq_5"
+              , "output/formulas/scaledHistogram/toy/"
+                                       <> "monAPMCSeq_5.csv")
             , ( "formulas_steadyState_1"
               , "output/formulas/scaledHistogram/toy/"
                                        <> "steadyState_1.csv")
@@ -271,6 +317,7 @@ fig =
             ]
   in foldr (liftC2 (<>)) (Compose (pure gp))
        (fmap (\i -> gpInputFile lenPrefix i len) [1..5]
+         <> fmap (\i -> gpInputFile masPrefix i mas) [1..5]
          <> fmap (\i -> gpInputFile stePrefix i ste) [1..5]
          <> fmap (\i -> gpInputFile lenEasyABCPrefix i (Compose $ pure lenEasyABC)) [1..5]
          <> fmap (\i -> gpInputFile beaEasyABCPrefix i (Compose $ pure beaEasyABC)) [1..5])

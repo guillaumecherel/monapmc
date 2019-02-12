@@ -12,10 +12,7 @@ import Data.Text (unpack)
 import Formatting
 
 import Algorithm
-import Figure
-import Model
 import Run
-import Statistics
 
 newtype Replications = Replications {_replications :: [Run]}
   deriving (Eq, Show, Read)
@@ -36,7 +33,7 @@ cachedReplications nRep stepMax algo =
 
 cachePath :: Int -> Int -> Algorithm -> FilePath
 cachePath nRep stepMax
-  algo@Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
+  Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
    unpack $ "output/formulas/replications/lenormand2012_"
              <> show nRep <> "_"
              <> show stepMax <> "_"
@@ -44,7 +41,15 @@ cachePath nRep stepMax
              <> sformat (fixed 2) alpha <> "_"
              <> sformat (fixed 2) pAccMin
 cachePath nRep stepMax
-  algo@SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
+  MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
+   unpack $ "output/formulas/replications/monAPMCSeq_"
+             <> show nRep <> "_"
+             <> show stepMax <> "_"
+             <> show n <> "_"
+             <> sformat (fixed 2) alpha <> "_"
+             <> sformat (fixed 2) pAccMin
+cachePath nRep stepMax
+  SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
    unpack $ "output/formulas/replications/steadyState_"
              <> show nRep <> "_"
              <> show stepMax <> "_"
@@ -53,4 +58,10 @@ cachePath nRep stepMax
              <> sformat (fixed 2) pAccMin <> "_"
              <> show par
 cachePath nRep stepMax
-  algo@Beaumont2009{getN=n, getEpsilonFrom=ef, getEpsilonTo=et} = undefined
+  Beaumont2009{getN=n, getEpsilonFrom=ef, getEpsilonTo=et} = 
+   unpack $ "output/formulas/replications/beaumont2009"
+             <> show nRep <> "_"
+             <> show stepMax <> "_"
+             <> show n <> "_"
+             <> sformat (fixed 2) ef <> "_"
+             <> sformat (fixed 2) et

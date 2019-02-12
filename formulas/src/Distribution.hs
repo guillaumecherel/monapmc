@@ -14,17 +14,17 @@ import Statistics.Distribution.Normal
 import qualified Text.Parsec as P
 import Util.Parser
 
-data Uniform = Uniform {lowerBound :: Double, upperBound :: Double} deriving (Eq, Show)
-data Normal = Normal {mean :: Double, var :: Double} deriving (Eq, Show)
+data Uniform = Uniform {uniformLowerBound :: Double, uniformUpperBound :: Double} deriving (Eq, Show)
+data Normal = Normal {normalMean :: Double, normalVar :: Double} deriving (Eq, Show)
 
 class Sampleable d a | d -> a where
   sample :: (MonadRandom m) => d -> m a
 
 instance Sampleable Uniform Double where
-  sample (Uniform {lowerBound = l, upperBound = u}) = uniformRandomSample (l, u)
+  sample (Uniform {uniformLowerBound = l, uniformUpperBound = u}) = uniformRandomSample (l, u)
 
 instance Sampleable Normal Double where
-  sample (Normal {mean = m, var = v}) = normalRandomSample m v
+  sample (Normal {normalMean = m, normalVar = v}) = normalRandomSample m v
 
 class Continuous d a | d -> a where
   density :: d -> a -> Double

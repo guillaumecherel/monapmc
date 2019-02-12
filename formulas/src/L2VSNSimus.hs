@@ -11,21 +11,12 @@ import qualified Control.Foldl as Fold
 import Control.Monad.Random.Lazy
 import Data.Cached as Cached
 import Data.Functor.Compose
-import Data.List (last)
-import Data.Text (Text, pack, unpack, unlines, intercalate)
-import qualified Data.Vector as V
-import Formatting hiding ((%))
-import System.Random (StdGen, mkStdGen)
 
 import Algorithm
 import Figure
-import Model
 import Replications
 import Run
 import Statistics
-import qualified ABC.Lenormand2012 as Lenormand2012
-import qualified ABC.SteadyState as SteadyState
-import qualified Util.SteadyState as SteadyState
 
 data L2VSNSimus = L2VSNSimus
   { _l2Mean :: Double
@@ -49,7 +40,7 @@ l2VSNSimus' nRep stepMax algo =
 
 fig :: Compose (Rand StdGen) Cached ()
 fig = 
-  let replications = 10 -- 10
+  let nReplications = 10 -- 10
       alphas = [1%10, 2%10..9%10] -- [0.1,0.2..0.9]
       nAlpha = 5000
       pAccMins = [0.01] -- [0.01, 0.05, 0.1, 0.2]
@@ -68,21 +59,19 @@ fig =
       algos al = fmap (\pAccMin -> fmap (al pAccMin) alphas) pAccMins
       gnuplotData al =
         fmap (gnuplotData4 _nSimusMean _l2Mean _nSimusStd _l2Std)
-        $ (traverse . traverse) (l2VSNSimus' replications stepMax)
+        $ (traverse . traverse) (l2VSNSimus' nReplications stepMax)
         $ algos al
       gnuplotInputFile path al =
         liftC (gnuplotDataSink path)
         $ gnuplotData al
-      fig :: Cached ()
-      fig = gnuplot "report/L2_vs_nsimus.png" "report/L2_vs_nsimus.gnuplot"
-                        [("lenormand2012", lenPath)
-                        -- DEBUG ,("steadyState", stePath)]
-                        ,("steadyState", lenPath)]
+      fig' :: Cached ()
+      fig' = gnuplot "report/L2_vs_nsimus.png" "report/L2_vs_nsimus.gnuplot"
+                        [("lenormand2012", lenPath),
+                         ("steadyState", stePath)]
 
-  in foldr (liftC2 (<>))  (Compose (pure fig))
+  in foldr (liftC2 (<>))  (Compose (pure fig'))
                           [ gnuplotInputFile lenPath len
-                          -- DEBUG , gnuplotInputFile stePath ste ]
-                          ]
+                          , gnuplotInputFile stePath ste ]
 
 liftC :: (Cached a -> Cached b) 
       -> Compose (Rand StdGen) Cached a

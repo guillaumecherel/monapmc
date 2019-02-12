@@ -7,9 +7,7 @@ module Statistics where
 import Protolude
 import qualified Control.Foldl as Fold
 import qualified Data.Map as Map
-import qualified Data.Vector as V
 import qualified Text.Parsec as P
-import qualified Statistics.Sample.Histogram as S
 import Util.Parser
 
 -- Estimated posterior density given the posterior sample as list
@@ -23,7 +21,7 @@ estPostDen lowerBound upperBound bins weightsXs =
         $ fmap (\s -> getSum s / (width * weightSum))
         $ Map.fromListWith (<>)
         $ fmap (\(w, x) -> (toBin lowerBound upperBound bins x, Sum w))
-        $ filter (\(w, x) -> x >= lowerBound && x < upperBound) weightsXs
+        $ filter (\(_, x) -> x >= lowerBound && x < upperBound) weightsXs
 
 posteriorL2
   :: Double
@@ -46,7 +44,7 @@ posteriorL2 lowerBound upperBound bins targetCDF weightsXs =
                               
 
 toBin :: Double -> Double -> Int -> Double -> Double
-toBin lowerBound upperBound bins x = lowerBound + width * fromIntegral (floor ((x - lowerBound) / width))
+toBin lowerBound upperBound bins x = lowerBound + width * fromIntegral (floor ((x - lowerBound) / width) :: Int)
   where width = (upperBound - lowerBound) / fromIntegral bins
 
 

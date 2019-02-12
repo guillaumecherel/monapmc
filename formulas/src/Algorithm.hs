@@ -5,8 +5,6 @@ module Algorithm where
 
 import Protolude
 
-import qualified ABC.Lenormand2012 as Lenormand2012
-
 data Algorithm =
   Lenormand2012
     { getN :: Int

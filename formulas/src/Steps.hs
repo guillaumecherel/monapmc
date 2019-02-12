@@ -23,7 +23,6 @@ import Statistics
 import qualified ABC.Lenormand2012 as Lenormand2012
 import qualified ABC.MonAPMC as MonAPMC
 import qualified ABC.SteadyState as SteadyState
-import Util.CSV
 import qualified Util.SteadyState as SteadyState 
 
 newtype Steps = Steps {_steps::[Run]}
@@ -31,13 +30,12 @@ newtype Steps = Steps {_steps::[Run]}
 
 steps :: Int -> Algorithm -> Rand StdGen (IO Steps)
 steps stepMax algo@Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
-  let steps :: Rand StdGen [(Int, Lenormand2012.S)]
-      steps = zip [1..stepMax] <$> Lenormand2012.scan p toyModel 
+  let steps' :: Rand StdGen [(Int, Lenormand2012.S)]
+      steps' = zip [1..stepMax] <$> Lenormand2012.scan p toyModel
       p = Lenormand2012.P
-        { Lenormand2012.n = Algorithm.getN algo
-        , Lenormand2012.nAlpha = floor $ (Algorithm.getAlpha algo) 
-                                 * (fromIntegral $ Algorithm.getN algo)
-        , Lenormand2012.pAccMin = Algorithm.getPAccMin algo
+        { Lenormand2012.n = n
+        , Lenormand2012.nAlpha = floor $ alpha * (fromIntegral $ n)
+        , Lenormand2012.pAccMin = pAccMin
         , Lenormand2012.priorSample = toyPriorRandomSample
         , Lenormand2012.priorDensity = toyPrior
         , Lenormand2012.observed = V.singleton 0
@@ -48,37 +46,37 @@ steps stepMax algo@Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
         , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights r)
                           (V.fromList $ fmap V.fromList $ LA.toLists
                             $ Lenormand2012.thetas r) }
-  in return . Steps . fmap getRun <$> steps
+  in return . Steps . fmap getRun <$> steps'
 steps stepMax algo@MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
-  let steps :: Rand StdGen [(Int, MonAPMC.S)]
-      steps = zip [1..stepMax] <$> MonAPMC.scanSeq p toyModel
+  let steps' :: Rand StdGen [(Int, MonAPMC.S)]
+      steps' = zip [1..stepMax] <$> MonAPMC.scanSeq p toyModel
       p = Lenormand2012.P
-        { Lenormand2012.n = Algorithm.getN algo
-        , Lenormand2012.nAlpha = floor $ (Algorithm.getAlpha algo) 
-                                 * (fromIntegral $ Algorithm.getN algo)
-        , Lenormand2012.pAccMin = Algorithm.getPAccMin algo
+        { Lenormand2012.n = n
+        , Lenormand2012.nAlpha = floor $ alpha * (fromIntegral $ n)
+        , Lenormand2012.pAccMin = pAccMin
         , Lenormand2012.priorSample = toyPriorRandomSample
         , Lenormand2012.priorDensity = toyPrior
         , Lenormand2012.observed = V.singleton 0
         }
+      getRun (i, (MonAPMC.E)) = Run algo i mempty
       getRun (i, (MonAPMC.S s)) = Run
         { _algorithm = algo
         , _stepCount = i
         , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights s)
                           (V.fromList $ fmap V.fromList $ LA.toLists
                             $ Lenormand2012.thetas s) }
-  in return . Steps . fmap getRun <$> steps
+  in return . Steps . fmap getRun <$> steps'
 steps stepMax algo@SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
-  let steps :: RandT StdGen IO [(Int, SteadyState.S)]
-      steps = zip needSteps <$> SteadyState.scanIndices needSteps ssr
+  let steps' :: RandT StdGen IO [(Int, SteadyState.S)]
+      steps' = zip needSteps <$> SteadyState.scanIndices needSteps ssr
       needSteps = [n, n * 2 .. n * stepMax]
       ssr = SteadyState.runner p model
       model (seed, xs) = return $ evalRand (toyModel xs) (mkStdGen seed)
       p = SteadyState.P
         { SteadyState.n = getN algo
-        , SteadyState.nAlpha = floor $ (getAlpha algo) * (fromIntegral $ getN algo)
-        , SteadyState.pAccMin = getPAccMin algo
-        , SteadyState.parallel = getParallel algo
+        , SteadyState.nAlpha = floor $ alpha * (fromIntegral n)
+        , SteadyState.pAccMin = pAccMin
+        , SteadyState.parallel = par
         , SteadyState.priorSample = toyPriorRandomSample
         , SteadyState.priorDensity = toyPrior
         , SteadyState.distanceToData = absoluteError 0 . V.head
@@ -91,8 +89,8 @@ steps stepMax algo@SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getPa
         }
   in do
     g <- getSplit
-    return $ fmap Steps $ (fmap . fmap) getRun $ evalRandT steps g
-steps stepMax algo@Beaumont2009{} = undefined
+    return $ fmap Steps $ (fmap . fmap) getRun $ evalRandT steps' g
+steps _ Beaumont2009{} = return (return (Steps []))
 
 cachedSteps :: Int -> Algorithm -> Compose (Rand StdGen) Cached Steps
 cachedSteps stepMax algo =
@@ -131,9 +129,9 @@ easyABCLenormand2012Steps = fmap Steps $ traverse getRun (zip [1..] files)
   where getRun :: (Int, FilePath) -> Cached Run
         getRun (i,f) = source f (read i f)
         read :: Int -> FilePath -> Text -> Either Text Run
-        read i f = bimap show (run i) . read1DSample f
-        run :: Int -> (V.Vector (Weight, V.Vector Double)) -> Run
-        run i s = Run { _algorithm = Lenormand2012 5000 0.1 0.01
+        read i f = bimap show (run' i) . read1DSample f
+        run' :: Int -> (V.Vector (Weight, V.Vector Double)) -> Run
+        run' i s = Run { _algorithm = Lenormand2012 5000 0.1 0.01
                       , _stepCount = i
                       , _sample = s }
         files = [ "output/easyABC/simulationResult/5steps/"      
@@ -153,9 +151,9 @@ easyABCBeaumont2009Steps = fmap Steps $ traverse getRun (zip [1..] files)
   where getRun :: (Int, FilePath) -> Cached Run
         getRun (i,f) = source f (read i f)
         read :: Int -> FilePath -> Text -> Either Text Run
-        read i f = bimap show (run i) . read1DSample f
-        run :: Int -> (V.Vector (Weight, V.Vector Double)) -> Run
-        run i s = Run { _algorithm = Beaumont2009 5000 2.0 0.01
+        read i f = bimap show (run' i) . read1DSample f
+        run' :: Int -> (V.Vector (Weight, V.Vector Double)) -> Run
+        run' i s = Run { _algorithm = Beaumont2009 5000 2.0 0.01
                       , _stepCount = i
                       , _sample = s }
         files = [ "output/easyABC/simulationResult/5steps/"
@@ -188,10 +186,12 @@ histogramSteps algo =
 histogramStepsCachePath :: Algorithm -> FilePath
 histogramStepsCachePath SteadyState{} =
   "output/formulas/scaledHistogram/toy/steadyState"
-histogramStepsCachePath Lenormand2012{} =
-  "output/formulas/scaledHistogram/toy/lenormand2012"
 histogramStepsCachePath MonAPMCSeq{} =
   "output/formulas/scaledHistogram/toy/monAPMCSeq"
+histogramStepsCachePath Lenormand2012{} =
+  "output/formulas/scaledHistogram/toy/lenormand2012"
+histogramStepsCachePath Beaumont2009{} =
+  "output/formulas/scaledHistogram/toy/beaumont2009"
 
 histogramsEasyABCLenormand2012 :: Cached [[(Double, Double)]]
 histogramsEasyABCLenormand2012 = 

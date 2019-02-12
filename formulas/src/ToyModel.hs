@@ -6,25 +6,12 @@ module ToyModel where
 
 import Protolude 
 
-import qualified Control.Foldl as Fold
 import Control.Monad.Random.Lazy
 import Data.Cached as Cached
-import Data.Functor.Compose
-import Data.List (last)
-import Data.Text (Text, pack, unpack, unlines, intercalate)
-import qualified Data.Vector as V
-import Formatting
-import System.Random (StdGen, mkStdGen)
 import Util.CSV
 
-import qualified Algorithm
 import Figure
 import Model
-import Run
-import Statistics
-import qualified ABC.Lenormand2012 as Lenormand2012
-import qualified ABC.SteadyState as SteadyState
-import qualified Util.SteadyState as SteadyState 
 
 sample :: [Double]
 sample = [-5,-4.9..5]

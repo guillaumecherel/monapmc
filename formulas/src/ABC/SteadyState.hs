@@ -10,9 +10,9 @@ import Unsafe (unsafeHead)
 
 import Control.Monad.Random.Lazy (MonadRandom, weighted, getRandom)
 import Control.Monad.Zip (mzip)
+import qualified Data.List.NonEmpty as NonEmpty
 import Data.Monoid (Last(..), (<>))
 import qualified Data.IntMap as Map
-import qualified Data.Set as Set
 import qualified Data.Vector as V
 import qualified Numeric.LinearAlgebra as LA
 import qualified Statistics.Quantile as SQ
@@ -64,14 +64,17 @@ type Seed = Int
 
 runner :: (MonadRandom m, MonadIO m) => P m -> ((Seed, V.Vector Double) -> IO (V.Vector Double)) -> SteadyStateRunner m S Simulation
 runner p f =
-  let init = initialS p >>= \s -> initialThetas p s >>= \thetas -> return (s, thetas)
+  let init = do
+              s <- initialS p
+              thetas <- initialThetas p s
+              return (s, thetas)
       f' :: (Int, Seed, V.Vector Double) -> IO Simulation
       f' (i, seed, xs) = f (seed, xs) >>= \y -> return (Simulation xs y i seed)
   in steadyStateRunner f' init (update p)
 
 initialS :: (MonadRandom m) => P m -> m S
 initialS p = do
-  firstSeed <- getRandom
+  firstSeed' <- getRandom
   return $ S
     { curStep = 0
     , accepteds = V.empty
@@ -82,14 +85,15 @@ initialS p = do
     , epsilon = 0
     , curIndexReady = 0
     , curIndexPending = parallel p - 1
-    , firstSeed = firstSeed
+    , firstSeed = firstSeed'
     }
 
-initialThetas :: (Monad m) => P m -> S -> m [(Int, Seed, V.Vector Double)]
+initialThetas :: (Monad m) => P m -> S -> m (NonEmpty (Int, Seed, V.Vector Double))
 initialThetas p s = do
-  let ids = [0 .. curIndexPending s]
-  let seeds = [firstSeed s .. firstSeed s + curIndexPending s]
-  thetas <- replicateM (parallel p) (priorSample p)
+  -- TODO: remove all occurrences of unsafe NonEmpty.fromList
+  let ids = NonEmpty.fromList [0 .. curIndexPending s]
+  let seeds = NonEmpty.fromList [firstSeed s .. firstSeed s + curIndexPending s]
+  thetas <- NonEmpty.fromList <$> replicateM (parallel p) (priorSample p)
   return ((,,) <$> ids <*> seeds <*> thetas)
 
 update :: (MonadRandom m) => P m -> (S, Simulation) -> m (Maybe (S, (Int, Seed, V.Vector Double)))
@@ -103,7 +107,7 @@ update p (s, current) = do
   let lastContiguousIndex = getLast $ foldMap (Last . Just) $ takeWhile contiguous $ zip indicesStatePending indicesPending
   let curIndexReadyNew = case lastContiguousIndex of
         Nothing -> curIndexReady s
-        Just (i1, i2) -> i2
+        Just (_, i2) -> i2
   let (readyAdd, pendingNew) = Map.split (curIndexReadyNew + 1) pendingCur
   let readyNew = readys s
               <> fmap (\sim -> Ready sim (distanceToData p (getY sim)))
@@ -143,20 +147,20 @@ update p (s, current) = do
               ( LA.fromList $ replicate (V.length acceptedNew) 1.0 )
 
         -- Compute the new pAcc
-        let pAcc = 1.0
+        let newPAcc = 1.0
 
         let newS = s { curStep = curStep s + 1
                      , accepteds = acceptedNew
                      , readys = V.empty
                      , pendings = pendingNew
                      , epsilon = epsilonNew
-                     , pAcc = pAcc
+                     , pAcc = newPAcc
                      , sigmaSquared = sigmaSquaredNew
                      , curIndexReady = curIndexReadyNew
                      , curIndexPending = curIndexPendingNew
                      }
 
-        thetaNew <- newSample (n p) newS
+        thetaNew <- newSample newS
 
         return $ Just (newS, (curIndexPendingNew, seedNew, thetaNew))
 
@@ -164,8 +168,8 @@ update p (s, current) = do
       else do
         -- Compute the new pAcc
         let countReadyAccepted = getSum
-                               $ foldMap (Sum . bool 0 1 . (<= epsilon s))
-                               $ fmap getRho readyNew
+               $ foldMap (Sum . bool (0 :: Int) (1 :: Int) . (<= epsilon s))
+               $ fmap getRho readyNew
         let pAccNew = fromIntegral countReadyAccepted
                     / fromIntegral (V.length readyNew)
 
@@ -201,14 +205,14 @@ update p (s, current) = do
                      , curIndexPending = curIndexPendingNew
                      }
         
-        thetaNew <- newSample (n p) newS
+        thetaNew <- newSample newS
 
         if pAcc s < pAccMin p
           then return Nothing
           else return $ Just (newS, (curIndexPendingNew, seedNew, thetaNew))
 
-newSample :: (MonadRandom m) => Int -> S -> m (V.Vector Double)
-newSample n s = do
+newSample :: (MonadRandom m) => S -> m (V.Vector Double)
+newSample s = do
   resample <- weighted $ (mzip (fmap (getTheta . getSimulation . getReady) $ accepteds s) (fmap (toRational . getWeight) $ accepteds s))
   hmSeed <- getRandom
   let thetaNew = V.fromList $ unsafeHead $ LA.toLists $ LA.gaussianSample hmSeed 1 (LA.fromList $ V.toList resample) (sigmaSquared s)
@@ -231,7 +235,7 @@ weight p s theta =
 
 weightedCovariance :: LA.Matrix Double -> LA.Vector Double -> LA.Herm Double
 weightedCovariance sample weights =
-  let n = LA.rows sample
+  let n' = LA.rows sample
       weightsSum :: Double
       weightsSum = LA.sumElements weights
       weightsSumSquared = weightsSum ** 2
@@ -240,5 +244,5 @@ weightedCovariance sample weights =
       sampleMean = (LA.scale (1 / weightsSum) weights) LA.<# sample
       sampleCenteredWeighted = (sample - LA.asRow sampleMean) * (LA.asColumn $ sqrt weights)
       (_, covCenteredWeighted) = LA.meanCov sampleCenteredWeighted
-  in LA.scale ((fromIntegral n / weightsSum) * (weightsSumSquared / (weightsSumSquared - weightsSquaredSum))) covCenteredWeighted 
+  in LA.scale ((fromIntegral n' / weightsSum) * (weightsSumSquared / (weightsSumSquared - weightsSquaredSum))) covCenteredWeighted
 

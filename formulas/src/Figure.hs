@@ -10,7 +10,6 @@ import Data.String (String)
 import System.Process
 
 import Data.Cached
-import Util.CSV
 
 gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Cached ()
 gnuplot output script args = trigger output

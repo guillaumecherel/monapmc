@@ -7,18 +7,13 @@ module ABC.MonAPMC where
 
 import Protolude 
 
-import qualified Control.Foldl as Fold
 import Control.Monad.Random.Lazy
-import Data.Cached as Cached
-import Data.Functor.Compose
-import Data.List (last, zip3, unzip3)
-import Data.Text (Text, pack, unpack, unlines, intercalate)
+import Data.List (zip3, unzip3)
 import qualified Data.Vector as V
-import Formatting hiding ((%))
 import qualified Numeric.LinearAlgebra as LA
-import System.Random (StdGen, mkStdGen)
 
 import qualified ABC.Lenormand2012 as APMC
+import qualified MonPar
 import ABC.Lenormand2012 (P(..))
 
 data S = S {_s :: APMC.S}
@@ -86,26 +81,9 @@ stop p ms = do
     E -> return True
     S s' -> return $ APMC.stop p s'
 
--- Run the algorithm sequentially. This should be equivalent to
--- ABC.Lenormand2012.run
-runSeq
-  :: forall m. (MonadRandom m)
-  => P m
-  -> (V.Vector Double -> m (V.Vector Double))
-  -> m S
-runSeq p f = go (setup p f)
-  where go :: m S -> m S
-        go ms = ifM (stop p ms)
-                    ms
-                    (go (step p f ms))
-
 scanSeq
   :: forall m. (MonadRandom m)
   => P m
   -> (V.Vector Double -> m (V.Vector Double))
   -> m [S]
-scanSeq p f = go (setup p f)
-  where go :: m S -> m [S]
-        go ms = ifM (stop p ms)
-                    (fmap return ms)
-                    (liftM2 ((<>) . return) ms (go $ step p f ms))
+scanSeq p f = MonPar.scanSeq (setup p f) (step p f) (stop p)

@@ -1,0 +1,4 @@
+:set -fno-code
+:set -fwarn-unused-binds -fwarn-unused-imports
+:set -isrc
+:load Main

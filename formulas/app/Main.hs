@@ -7,7 +7,6 @@ import Protolude
 
 import Data.Cached
 import Control.Monad.Random.Lazy
-import Development.Shake
 
 import ToyModel
 import L2VSNSimus

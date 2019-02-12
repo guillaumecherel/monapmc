@@ -11,7 +11,6 @@ import qualified Statistics.Quantile as SQ
 import qualified Data.Vector as V
 import qualified Data.Text as T
 
-import Debug
 
 -- TODO. Dans Beaumont2009, le facteur 2 par lequel on multiplie la variance pondérée de l'échantillon pour calculer la nouvelle variance est fait composant par composant. Il faut peut-être considérer le noyau de transition composant par composant, plutôt que de le faire sur toutes les dimensions en utilisant une matrice de covariance comme c'est fait là. Ça veut dire qu'on utilise à la place un vecteur de variance et que les covariances entre les composants des thetas ne sont pas pris en compte pour les transitions. Ça peut accélerer le calcul et réduire l'emprunte mémoire.
 
@@ -64,20 +63,20 @@ stepOne :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) ->
 stepOne p f = do
   thetasV <- sequence $ replicate (n p) (priorSample p)
   xsV <- traverse f thetasV
-  let thetas = LA.fromLists $ fmap V.toList thetasV
+  let newThetas = LA.fromLists $ fmap V.toList thetasV
   let xs = LA.fromLists $ fmap V.toList xsV
-  let dim = LA.cols (thetas :: LA.Matrix Double)
+  let dim = LA.cols (newThetas :: LA.Matrix Double)
   let obs = LA.vector $ V.toList $ observed p
   -- TODO: euclidean distance
-  let rhos = LA.cmap sqrt $
+  let newRhos = LA.cmap sqrt $
                ((xs - LA.asRow obs) ** 2) LA.#> LA.konst 1 dim
-  let epsilon = SQ.weightedAvg (nAlpha p) (n p - 1) rhos
-  let select = LA.find (< epsilon) rhos
-  let thetaSelected = thetas LA.? select
-  let rhoSelected = LA.vector $ fmap (rhos LA.!) select
-  let pAcc = 1
+  let newEpsilon = SQ.weightedAvg (nAlpha p) (n p - 1) newRhos
+  let select = LA.find (< newEpsilon) newRhos
+  let thetaSelected = newThetas LA.? select
+  let rhoSelected = LA.vector $ fmap (newRhos LA.!) select
+  let newPAcc = 1
   let weightsSelected = LA.konst 1 (nAlpha p)
-  return $ S {thetas = thetaSelected, weights = weightsSelected, rhos = rhoSelected, pAcc = pAcc, epsilon = epsilon}
+  return $ S {thetas = thetaSelected, weights = weightsSelected, rhos = rhoSelected, pAcc = newPAcc, epsilon = newEpsilon}
 
 step :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> S -> m S
 step p f s = do
@@ -143,15 +142,15 @@ compWeights p s sigmaSquared newThetasSelected =
   in priors / normFactors
 
 weightedCovariance :: LA.Matrix Double -> LA.Vector Double -> LA.Herm Double
-weightedCovariance sample weights =
-  let n = LA.rows sample
+weightedCovariance sample weights' =
+  let n' = LA.rows sample
       weightsSum :: Double
-      weightsSum = LA.sumElements weights
+      weightsSum = LA.sumElements weights'
       weightsSumSquared = weightsSum ** 2
-      weightsSquaredSum = getSum $ foldMap (\x -> Sum (x ** 2)) $ LA.toList weights
+      weightsSquaredSum = getSum $ foldMap (\x -> Sum (x ** 2)) $ LA.toList weights'
       sampleMean :: LA.Vector Double
       -- MATRIX PRODUCT
-      sampleMean = (LA.scale (1 / weightsSum) weights) LA.<# sample
-      sampleCenteredWeighted = (sample - LA.asRow sampleMean) * (LA.asColumn $ sqrt weights)
+      sampleMean = (LA.scale (1 / weightsSum) weights') LA.<# sample
+      sampleCenteredWeighted = (sample - LA.asRow sampleMean) * (LA.asColumn $ sqrt weights')
       (_, covCenteredWeighted) = LA.meanCov sampleCenteredWeighted
-  in LA.scale ((fromIntegral n / weightsSum) * (weightsSumSquared / (weightsSumSquared - weightsSquaredSum))) covCenteredWeighted 
+  in LA.scale ((fromIntegral n' / weightsSum) * (weightsSumSquared / (weightsSumSquared - weightsSquaredSum))) covCenteredWeighted

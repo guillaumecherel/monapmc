@@ -12,14 +12,12 @@ import qualified Control.Foldl as L
 import Control.Monad.Random.Lazy
 import Data.Cached
 import qualified Data.Map as Map
-import Data.Text (intercalate, unpack)
-import qualified Data.Text.IO as TIO
+import Data.Text (unpack)
 import qualified Data.Vector as V
 import Formatting
 import qualified Numeric.LinearAlgebra as LA
 import qualified Text.Parsec as P
 import Util.Parser
-import System.Directory
 
 import Algorithm
 import Model
@@ -41,10 +39,9 @@ run stepMax algo@Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
   let steps :: Rand StdGen [(Int, Lenormand2012.S)]
       steps = zip [1..stepMax] <$> Lenormand2012.scan p toyModel 
       p = Lenormand2012.P
-        { Lenormand2012.n = Algorithm.getN algo
-        , Lenormand2012.nAlpha = floor $ (Algorithm.getAlpha algo) 
-                                 * (fromIntegral $ Algorithm.getN algo)
-        , Lenormand2012.pAccMin = Algorithm.getPAccMin algo
+        { Lenormand2012.n = n
+        , Lenormand2012.nAlpha = floor $ alpha * (fromIntegral n)
+        , Lenormand2012.pAccMin = pAccMin
         , Lenormand2012.priorSample = toyPriorRandomSample
         , Lenormand2012.priorDensity = toyPrior
         , Lenormand2012.observed = V.singleton 0
@@ -60,14 +57,15 @@ run stepMax algo@MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
   let steps :: Rand StdGen [(Int, MonAPMC.S)]
       steps = zip [1..stepMax] <$> MonAPMC.scanSeq p toyModel
       p = Lenormand2012.P
-        { Lenormand2012.n = Algorithm.getN algo
-        , Lenormand2012.nAlpha = floor $ (Algorithm.getAlpha algo) 
-                                 * (fromIntegral $ Algorithm.getN algo)
-        , Lenormand2012.pAccMin = Algorithm.getPAccMin algo
+        { Lenormand2012.n = n
+        , Lenormand2012.nAlpha = floor $ alpha
+                                 * (fromIntegral $ n)
+        , Lenormand2012.pAccMin = pAccMin
         , Lenormand2012.priorSample = toyPriorRandomSample
         , Lenormand2012.priorDensity = toyPrior
         , Lenormand2012.observed = V.singleton 0
         }
+      getRun (i, (MonAPMC.E)) = Run algo i mempty
       getRun (i, (MonAPMC.S s)) = Run
         { _algorithm = algo
         , _stepCount = i
@@ -82,10 +80,10 @@ run stepMax algo@SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getPara
       model (seed, xs) = return $ evalRand (toyModel xs) (mkStdGen seed)
       p :: SteadyState.P (RandT StdGen IO)
       p = SteadyState.P
-        { SteadyState.n = Algorithm.getN algo
-        , SteadyState.nAlpha = floor $ (Algorithm.getAlpha algo) * (fromIntegral $ Algorithm.getN algo)
-        , SteadyState.pAccMin = Algorithm.getPAccMin algo
-        , SteadyState.parallel = Algorithm.getParallel algo
+        { SteadyState.n = n
+        , SteadyState.nAlpha = floor $ alpha * (fromIntegral $ n)
+        , SteadyState.pAccMin = pAccMin
+        , SteadyState.parallel = par
         , SteadyState.priorSample = toyPriorRandomSample
         , SteadyState.priorDensity = toyPrior
         , SteadyState.distanceToData = absoluteError 0 . V.head
@@ -98,7 +96,7 @@ run stepMax algo@SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getPara
   in do
         g <- getSplit
         return $ fmap getRun $ evalRandT step g
-run stepMax algo@Beaumont2009{} = undefined
+run _ algo@Beaumont2009{} = return (return (Run algo 0 mempty))
 
 absoluteError :: Double -> Double -> Double
 absoluteError expected x = abs (x - expected)
@@ -110,6 +108,11 @@ cachedRun stepMax algo =
 cachedRunPath :: Algorithm -> FilePath
 cachedRunPath Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
   unpack $ "output/formulas/run/lenormand2012_"
+             <> sformat (fixed 2) n <> "_"
+             <> sformat (fixed 2) alpha <> "_"
+             <> sformat (fixed 2) pAccMin
+cachedRunPath MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
+  unpack $ "output/formulas/run/monAPMCSeq_"
              <> sformat (fixed 2) n <> "_"
              <> sformat (fixed 2) alpha <> "_"
              <> sformat (fixed 2) pAccMin

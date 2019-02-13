@@ -40,14 +40,24 @@ cachePath nRep stepMax
              <> show n <> "_"
              <> sformat (fixed 2) alpha <> "_"
              <> sformat (fixed 2) pAccMin
+-- cachePath nRep stepMax
+--   MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
+--    unpack $ "output/formulas/replications/monAPMCSeq_"
+--              <> show nRep <> "_"
+--              <> show stepMax <> "_"
+--              <> show n <> "_"
+--              <> sformat (fixed 2) alpha <> "_"
+--              <> sformat (fixed 2) pAccMin
 cachePath nRep stepMax
-  MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
-   unpack $ "output/formulas/replications/monAPMCSeq_"
+  MonAPMC{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getStepSize=stepSize, getParallel=parallel} =
+   unpack $ "output/formulas/replications/monAPMC_"
              <> show nRep <> "_"
              <> show stepMax <> "_"
              <> show n <> "_"
              <> sformat (fixed 2) alpha <> "_"
-             <> sformat (fixed 2) pAccMin
+             <> sformat (fixed 2) pAccMin <> "_"
+             <> show stepSize <> "_"
+             <> show parallel
 cachePath nRep stepMax
   SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
    unpack $ "output/formulas/replications/steadyState_"

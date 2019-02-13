@@ -11,10 +11,17 @@ data Algorithm =
     , getAlpha :: Double
     , getPAccMin :: Double
     }
-  | MonAPMCSeq
+--   | MonAPMCSeq
+--     { getN :: Int
+--     , getAlpha :: Double
+--     , getPAccMin :: Double
+--     }
+  | MonAPMC
     { getN :: Int
     , getAlpha :: Double
     , getPAccMin :: Double
+    , getStepSize :: Int
+    , getParallel :: Int
     }
   | Beaumont2009
     { getN :: Int

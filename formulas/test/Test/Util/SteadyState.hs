@@ -8,6 +8,7 @@ module Test.Util.SteadyState where
 import Protolude
 
 import Data.List (nub)
+import qualified Data.List.NonEmpty as NonEmpty
 
 import Test.QuickCheck
 import Test.QuickCheck.Assertions
@@ -25,8 +26,8 @@ ssr delay parallel max = steadyStateRunner f (return (s, xs)) update
         f x = threadDelay delay >> return x
         s :: Int
         s = 0
-        xs :: [Int]
-        xs = replicate parallel 1
+        xs :: NonEmpty Int
+        xs = NonEmpty.fromList $ replicate parallel 1
         update :: (Int, Int) -> IO (Maybe (Int, Int))
         update (s, y) = if s < max
                           then return $ Just (s + y, 1)

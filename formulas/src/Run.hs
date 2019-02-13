@@ -53,9 +53,29 @@ run stepMax algo@Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
                           (V.fromList $ fmap V.fromList $ LA.toLists
                             $ Lenormand2012.thetas r) }
   in return . getRun . last <$> steps
-run stepMax algo@MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
-  let steps :: Rand StdGen [(Int, MonAPMC.S)]
-      steps = zip [1..stepMax] <$> MonAPMC.scanSeq p toyModel
+-- run stepMax algo@MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
+--   let steps :: Rand StdGen [(Int, MonAPMC.S (RandT StdGen Identity))]
+--       steps = zip [1..stepMax] <$> MonAPMC.scanSeq p toyModel
+--       p = Lenormand2012.P
+--         { Lenormand2012.n = n
+--         , Lenormand2012.nAlpha = floor $ alpha
+--                                  * (fromIntegral $ n)
+--         , Lenormand2012.pAccMin = pAccMin
+--         , Lenormand2012.priorSample = toyPriorRandomSample
+--         , Lenormand2012.priorDensity = toyPrior
+--         , Lenormand2012.observed = V.singleton 0
+--         }
+--       getRun (i, (MonAPMC.E)) = Run algo i mempty
+--       getRun (i, (MonAPMC.S _ s)) = Run
+--         { _algorithm = algo
+--         , _stepCount = i
+--         , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights s)
+--                           (V.fromList $ fmap V.fromList $ LA.toLists
+--                             $ Lenormand2012.thetas s) }
+--   in return . getRun . last <$> steps
+run stepMax algo@MonAPMC{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getStepSize=stepSize, getParallel=parallel} =
+  let steps :: RandT StdGen IO [(Int, MonAPMC.S (RandT StdGen IO))]
+      steps = zip [1..stepMax] <$> MonAPMC.scanPar stepSize parallel p toyModel
       p = Lenormand2012.P
         { Lenormand2012.n = n
         , Lenormand2012.nAlpha = floor $ alpha
@@ -66,13 +86,15 @@ run stepMax algo@MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
         , Lenormand2012.observed = V.singleton 0
         }
       getRun (i, (MonAPMC.E)) = Run algo i mempty
-      getRun (i, (MonAPMC.S s)) = Run
+      getRun (i, (MonAPMC.S _ s)) = Run
         { _algorithm = algo
         , _stepCount = i
         , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights s)
                           (V.fromList $ fmap V.fromList $ LA.toLists
                             $ Lenormand2012.thetas s) }
-  in return . getRun . last <$> steps
+  in do
+    g <- getSplit
+    return $ getRun . last <$> evalRandT steps g
 run stepMax algo@SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
   let step :: RandT StdGen IO SteadyState.S
       step = SteadyState.runN (stepMax * n) ssr
@@ -111,11 +133,18 @@ cachedRunPath Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
              <> sformat (fixed 2) n <> "_"
              <> sformat (fixed 2) alpha <> "_"
              <> sformat (fixed 2) pAccMin
-cachedRunPath MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
-  unpack $ "output/formulas/run/monAPMCSeq_"
+-- cachedRunPath MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
+--   unpack $ "output/formulas/run/monAPMCSeq_"
+--              <> sformat (fixed 2) n <> "_"
+--              <> sformat (fixed 2) alpha <> "_"
+--              <> sformat (fixed 2) pAccMin
+cachedRunPath MonAPMC{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getStepSize=stepSize, getParallel=parallel} =
+  unpack $ "output/formulas/run/monAPMC_"
              <> sformat (fixed 2) n <> "_"
              <> sformat (fixed 2) alpha <> "_"
-             <> sformat (fixed 2) pAccMin
+             <> sformat (fixed 2) pAccMin <> "_"
+             <> show stepSize <> "_"
+             <> show parallel
 cachedRunPath Beaumont2009{getN=n, getEpsilonFrom=ef, getEpsilonTo=et} =
   unpack $ "output/formulas/run/beaumont2009_"
              <> sformat (fixed 2) n <> "_"
@@ -137,13 +166,13 @@ cachedRunPath SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParalle
  
 nSimus :: Run -> Int
 nSimus Run {_algorithm=Lenormand2012 {getN=n, getAlpha=alpha}, _stepCount=step} = numberSimusLenormand2012 n (floor $ fromIntegral n * alpha) step
-nSimus Run {_stepCount=step} = numberSimusSteadyState step
+-- nSimus Run {_algorithm=MonAPMCSeq {getN=n, getAlpha=alpha}, _stepCount=step} = numberSimusLenormand2012 n (floor $ fromIntegral n * alpha) step
+nSimus Run {_algorithm=MonAPMC {getN=n, getStepSize=stepSize, getAlpha=alpha}, _stepCount=step} = numberSimusLenormand2012 n (floor $ fromIntegral n * alpha) (step * stepSize)
+nSimus Run {_algorithm=SteadyState{}, _stepCount=step} = step
+nSimus Run {_algorithm=Beaumont2009{getN=n}, _stepCount=step} = n * step
 
 numberSimusLenormand2012 :: Int -> Int -> Int -> Int
 numberSimusLenormand2012 n nAlpha step = n + (n - nAlpha) * step
-
-numberSimusSteadyState :: Int -> Int
-numberSimusSteadyState step = step
 
 l2 :: Double -> Double -> Int -> (Double -> Double) -> Run -> Double
 l2 lowerBound upperBound bins cdf r = posteriorL2 lowerBound upperBound bins cdf sample

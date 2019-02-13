@@ -41,21 +41,22 @@ l2VSNSimus' nRep stepMax algo =
 fig :: Compose (Rand StdGen) Cached ()
 fig = 
   let nReplications = 10 -- 10
-      alphas = [1%10, 2%10..9%10] -- [0.1,0.2..0.9]
-      nAlpha = 5000
-      pAccMins = [0.01] -- [0.01, 0.05, 0.1, 0.2]
+      alphas = [1%10, 2%10 .. 9%10] -- [0.1,0.2..0.9]
+      nAlpha = 500
+      pAccMins = [0.01, 0.05, 0.1, 0.2]
       stepMax = 100
       lenPath = "output/formulas/l2VSNSimus/lenormand2012.csv"
-      stePath = "output/formulas/l2VSNSimus/steadyState.csv"
+      moaPath = "output/formulas/l2VSNSimus/monAPMC.csv"
       len pAccMin alpha = Lenormand2012
                             { getN = floor (nAlpha / alpha)
                             , getAlpha=fromRational alpha
                             , getPAccMin=pAccMin}
-      ste pAccMin alpha = SteadyState
+      moa pAccMin alpha = MonAPMC
                             { getN = floor (nAlpha / alpha)
                             , getAlpha = fromRational alpha
                             , getPAccMin = pAccMin
-                            , getParallel = 1}
+                            , getStepSize = 1
+                            , getParallel = 2}
       algos al = fmap (\pAccMin -> fmap (al pAccMin) alphas) pAccMins
       gnuplotData al =
         fmap (gnuplotData4 _nSimusMean _l2Mean _nSimusStd _l2Std)
@@ -67,11 +68,11 @@ fig =
       fig' :: Cached ()
       fig' = gnuplot "report/L2_vs_nsimus.png" "report/L2_vs_nsimus.gnuplot"
                         [("lenormand2012", lenPath),
-                         ("steadyState", stePath)]
+                         ("monAPMC", moaPath)]
 
   in foldr (liftC2 (<>))  (Compose (pure fig'))
                           [ gnuplotInputFile lenPath len
-                          , gnuplotInputFile stePath ste ]
+                          , gnuplotInputFile moaPath moa ]
 
 liftC :: (Cached a -> Cached b) 
       -> Compose (Rand StdGen) Cached a

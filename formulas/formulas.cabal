@@ -119,6 +119,7 @@ test-suite formulas-test
                        formulas
   other-modules:       Test.ABC.Lenormand2012,
                        Test.ABC.SteadyState,
+                       Test.MonPar,
                        Test.ToyModel,
                        Test.Util
                        Test.Util.SteadyState

@@ -29,10 +29,12 @@ library
                        MonPar,
                        Distribution,
                        ToyModel,
+                       Util,
                        Util.SteadyState,
                        Util.Parser,
                        Steps,
-                       L2VSNSimus
+                       L2VSNSimus,
+                       EpsilonVSTime
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5,
                        protolude >= 0.2.2,

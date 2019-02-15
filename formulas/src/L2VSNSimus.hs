@@ -17,6 +17,7 @@ import Figure
 import Replications
 import Run
 import Statistics
+import Util
 
 data L2VSNSimus = L2VSNSimus
   { _l2Mean :: Double
@@ -25,18 +26,20 @@ data L2VSNSimus = L2VSNSimus
   , _nSimusStd :: Double
   }
 
-l2VSNSimus :: Replications -> L2VSNSimus
-l2VSNSimus (Replications reps) = Fold.fold f reps
+l2VSNSimus :: Run -> [RunResult] -> L2VSNSimus
+l2VSNSimus r reps = Fold.fold f reps
   where f = L2VSNSimus <$> l2Mean <*> l2Std <*> nSimMean <*> nSimStd
         l2Mean = foldMeanWith l2Toy
         l2Std = foldStdWith l2Toy
-        nSimMean = foldMeanWith (fromIntegral . nSimus)
-        nSimStd = foldStdWith (fromIntegral . nSimus)
+        nSimMean = foldMeanWith (fromIntegral . nSimus r)
+        nSimStd = foldStdWith (fromIntegral . nSimus r)
 
-l2VSNSimus' :: Int -> Int -> Algorithm
-            -> Compose (Rand StdGen) Cached L2VSNSimus
+l2VSNSimus'
+  :: Int -> Int -> Algorithm
+  -> Compose (Rand StdGen) Cached L2VSNSimus
 l2VSNSimus' nRep stepMax algo =
-  l2VSNSimus <$> cachedReplications nRep stepMax algo
+  l2VSNSimus (Run algo stepMax) <$> cachedRepRuns "output/formulas"
+    (Replications algo stepMax nRep)
 
 fig :: Compose (Rand StdGen) Cached ()
 fig = 
@@ -63,27 +66,16 @@ fig =
         $ (traverse . traverse) (l2VSNSimus' nReplications stepMax)
         $ algos al
       gnuplotInputFile path al =
-        liftC (gnuplotDataSink path)
+        liftCR (gnuplotDataSink path)
         $ gnuplotData al
       fig' :: Cached ()
       fig' = gnuplot "report/L2_vs_nsimus.png" "report/L2_vs_nsimus.gnuplot"
                         [("lenormand2012", lenPath),
                          ("monAPMC", moaPath)]
 
-  in foldr (liftC2 (<>))  (Compose (pure fig'))
+  in foldr (liftCR2 (<>))  (Compose (pure fig'))
                           [ gnuplotInputFile lenPath len
                           , gnuplotInputFile moaPath moa ]
-
-liftC :: (Cached a -> Cached b) 
-      -> Compose (Rand StdGen) Cached a
-      -> Compose (Rand StdGen) Cached b
-liftC f = Compose . liftA f . getCompose
-
-liftC2 :: (Cached a -> Cached b -> Cached c)
-       -> Compose (Rand StdGen) Cached a
-       -> Compose (Rand StdGen) Cached b
-       -> Compose (Rand StdGen) Cached c
-liftC2 f a b = Compose $ liftA2 f (getCompose a) (getCompose b)
 
 buildL2VSNSimus :: Rand StdGen (Cached ())
 buildL2VSNSimus = getCompose fig

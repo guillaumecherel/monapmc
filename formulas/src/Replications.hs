@@ -9,69 +9,50 @@ import Data.Functor.Compose
 import Control.Monad.Random.Lazy
 import Data.Cached 
 import Data.Text (unpack)
-import Formatting
+import System.FilePath ((</>))
 
 import Algorithm
-import Run
+import Run (RunResult, runResult, run)
+import Steps (StepsResult, stepsResult, steps)
 
-newtype Replications = Replications {_replications :: [Run]}
+data Replications = Replications
+  { _algorithm :: Algorithm
+  , _stepMax :: Int
+  , _nReplications :: Int }
   deriving (Eq, Show, Read)
 
-replications :: Int -> Int -> Algorithm -> Rand StdGen (IO Replications)
-replications nRep stepMax algo =
-  (fmap . fmap) Replications
-   $ fmap sequence
+repRuns :: Replications -> Rand StdGen (IO [RunResult])
+repRuns r =
+   fmap sequence
    $ sequence
-   $ replicate nRep
-   $ run stepMax algo
+   $ replicate (_nReplications r)
+   $ runResult (run (_stepMax r) (_algorithm r))
 
-cachedReplications
-  :: Int -> Int -> Algorithm -> Compose (Rand StdGen) Cached Replications
-cachedReplications nRep stepMax algo =
-  Compose $ fmap (cache' (cachePath nRep stepMax algo) . fromIO mempty)
-          $ replications nRep stepMax algo
+repSteps :: Replications -> Rand StdGen (IO [StepsResult])
+repSteps r =
+   fmap sequence
+   $ sequence
+   $ replicate (_nReplications r)
+   $ stepsResult (steps (_stepMax r) (_algorithm r))
 
-cachePath :: Int -> Int -> Algorithm -> FilePath
-cachePath nRep stepMax
-  Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
-   unpack $ "output/formulas/replications/lenormand2012_"
-             <> show nRep <> "_"
-             <> show stepMax <> "_"
-             <> show n <> "_"
-             <> sformat (fixed 2) alpha <> "_"
-             <> sformat (fixed 2) pAccMin
--- cachePath nRep stepMax
---   MonAPMCSeq{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
---    unpack $ "output/formulas/replications/monAPMCSeq_"
---              <> show nRep <> "_"
---              <> show stepMax <> "_"
---              <> show n <> "_"
---              <> sformat (fixed 2) alpha <> "_"
---              <> sformat (fixed 2) pAccMin
-cachePath nRep stepMax
-  MonAPMC{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getStepSize=stepSize, getParallel=parallel} =
-   unpack $ "output/formulas/replications/monAPMC_"
-             <> show nRep <> "_"
-             <> show stepMax <> "_"
-             <> show n <> "_"
-             <> sformat (fixed 2) alpha <> "_"
-             <> sformat (fixed 2) pAccMin <> "_"
-             <> show stepSize <> "_"
-             <> show parallel
-cachePath nRep stepMax
-  SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
-   unpack $ "output/formulas/replications/steadyState_"
-             <> show nRep <> "_"
-             <> show stepMax <> "_"
-             <> show n <> "_"
-             <> sformat (fixed 2) alpha <> "_"
-             <> sformat (fixed 2) pAccMin <> "_"
-             <> show par
-cachePath nRep stepMax
-  Beaumont2009{getN=n, getEpsilonFrom=ef, getEpsilonTo=et} = 
-   unpack $ "output/formulas/replications/beaumont2009"
-             <> show nRep <> "_"
-             <> show stepMax <> "_"
-             <> show n <> "_"
-             <> sformat (fixed 2) ef <> "_"
-             <> sformat (fixed 2) et
+cachedRepRuns
+  :: FilePath -> Replications -> Compose (Rand StdGen) Cached ([RunResult])
+cachedRepRuns rootDir r =
+  Compose $ fmap (cache' (rootDir </> repRunsFilename r) . fromIO mempty)
+          $ repRuns r
+
+cachedRepSteps 
+  :: FilePath -> Replications -> Compose (Rand StdGen) Cached ([StepsResult])
+cachedRepSteps rootDir r =
+  Compose $ fmap (cache' (rootDir </> repStepsFilename r) . fromIO mempty)
+          $ repSteps r
+
+repRunsFilename :: Replications -> FilePath
+repRunsFilename Replications{_algorithm=algo, _stepMax=stepMax, _nReplications=nRep} =
+  ( unpack $ "replications_runs_" <> show nRep <> "_" <> show stepMax)
+    </> algoFilename algo
+
+repStepsFilename :: Replications -> FilePath
+repStepsFilename Replications{_algorithm=algo, _stepMax=stepMax, _nReplications=nRep} =
+  ( unpack $ "replications_steps_" <> show nRep <> "_" <> show stepMax)
+    </> algoFilename algo

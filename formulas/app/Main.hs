@@ -8,6 +8,7 @@ import Protolude
 import Data.Cached
 import Control.Monad.Random.Lazy
 
+import EpsilonVSTime
 import ToyModel
 import L2VSNSimus
 import Steps
@@ -17,7 +18,8 @@ main = do
   ran <- getStdGen
   putStrLn ("Constructing cache system." :: Text)
   let c = mconcat $ (flip evalRand ran $ sequence
-                    [ buildToyModel
+                    [ buildEpsilonVSTime
+                    , buildToyModel
                     , buildSteps
                     , buildL2VSNSimus
                     ])

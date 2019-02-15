@@ -5,17 +5,15 @@ module Algorithm where
 
 import Protolude
 
+import Data.Text (unpack)
+import Formatting
+
 data Algorithm =
   Lenormand2012
     { getN :: Int
     , getAlpha :: Double
     , getPAccMin :: Double
     }
---   | MonAPMCSeq
---     { getN :: Int
---     , getAlpha :: Double
---     , getPAccMin :: Double
---     }
   | MonAPMC
     { getN :: Int
     , getAlpha :: Double
@@ -36,26 +34,28 @@ data Algorithm =
     }
   deriving (Show, Read, Eq, Ord)
 
--- pprintAlgorithm :: Algorithm -> Text
--- pprintAlgorithm Lenormand2012
---   { getN = n
---   , getAlpha = alpha
---   , getPAccMin = pAccMin
---   } =
---   "Lenormand2012 n=" <> (show n)
---             <> " alpha=" <> (show alpha)
---             <> " pAccMin=" <> (show pAccMin)
--- pprintAlgorithm Beaumont2009
---   { getN=n
---   , getEpsilonTo=epsilonTo
---   , getEpsilonFrom=epsilonFrom
---   } =
---   "Beaumont2009 n=" <> (show n) <> " epsilonFrom=" <> (show epsilonFrom) <> " epsilonTo=" <> (show epsilonTo)
--- pprintAlgorithm SteadyState
---   { getN=n
---   , getAlpha=alpha
---   , getPAccMin=pAccMin
---   , getParallel=parallel
---   } =
---   "SteadyState n=" <> (show n) <> " alpha=" <> (show alpha) <> " pAccMin=" <> (show pAccMin) <> " parallel=" <> (show parallel)
--- 
+algoFilename :: Algorithm -> FilePath
+algoFilename Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
+   unpack $ "lenormand2012_"
+             <> show n <> "_"
+             <> sformat (fixed 2) alpha <> "_"
+             <> sformat (fixed 2) pAccMin
+algoFilename MonAPMC{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getStepSize=stepSize, getParallel=parallel} =
+   unpack $ "monAPMC_"
+             <> show n <> "_"
+             <> sformat (fixed 2) alpha <> "_"
+             <> sformat (fixed 2) pAccMin <> "_"
+             <> show stepSize <> "_"
+             <> show parallel
+algoFilename SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
+   unpack $ "steadyState_"
+             <> show n <> "_"
+             <> sformat (fixed 2) alpha <> "_"
+             <> sformat (fixed 2) pAccMin <> "_"
+             <> show par
+algoFilename Beaumont2009{getN=n, getEpsilonFrom=ef, getEpsilonTo=et} =
+   unpack $ "beaumont2009"
+             <> show n <> "_"
+             <> sformat (fixed 2) ef <> "_"
+             <> sformat (fixed 2) et
+

@@ -1,15 +1,65 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Figure where
 
 import Protolude
 
+-- import Control.Monad.Random.Lazy
+-- import Data.Functor.Compose
 import qualified Data.Set as Set
 import Data.String (String)
 import System.Process
 
 import Data.Cached
+
+-- import Util
+
+gnuplot1
+  :: FilePath -> FilePath
+  -> [(String, FilePath)]
+  -> [Cached [[Double]]]
+  -> Cached ()
+gnuplot1 = gnuplotCached (gnuplotData1 identity)
+
+gnuplot2
+  :: FilePath -> FilePath
+  -> [(String, FilePath)]
+  -> [Cached [[(Double, Double)]]]
+  -> Cached ()
+gnuplot2 = gnuplotCached (gnuplotData2 fst snd)
+
+gnuplot3
+  :: FilePath -> FilePath
+  -> [(String, FilePath)]
+  -> [Cached [[(Double, Double, Double)]]]
+  -> Cached ()
+gnuplot3 = gnuplotCached (gnuplotData3 (\(a,_,_) -> a)
+                                 (\(_,a,_) -> a)
+                                 (\(_,_,a) -> a))
+
+gnuplot4
+  :: FilePath -> FilePath
+  -> [(String, FilePath)]
+  -> [Cached [[(Double, Double, Double , Double)]]]
+  -> Cached ()
+gnuplot4 = gnuplotCached (gnuplotData4 (\(a,_,_,_) -> a)
+                                 (\(_,a,_,_) -> a)
+                                 (\(_,_,a,_) -> a)
+                                 (\(_,_,_,a) -> a))
+
+gnuplotCached :: forall a. ([[a]] -> GnuplotData)
+         -> FilePath -> FilePath
+         -> [(String, FilePath)]
+         -> [Cached [[a]]]
+         -> Cached ()
+gnuplotCached gpd output script args cachedData = mconcat (fig:gpData)
+  where fig = gnuplot output script args
+        gpData :: [Cached ()]
+        gpData = fmap sinkInputFile (zip (fmap snd args) cachedData)
+        sinkInputFile :: (FilePath, Cached [[a]]) -> Cached ()
+        sinkInputFile (f,c) = gnuplotDataSink f $ gpd <$> c
 
 gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Cached ()
 gnuplot output script args = trigger output

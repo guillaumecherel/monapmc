@@ -24,11 +24,12 @@ import ABC.Lenormand2012
 
 main :: IO ()
 main = do
-  replicateM 10 $ do
-    g <- newStdGen
-    res <- newStdGen >>= evalRand (Run.run 100 (Algorithm.Lenormand2012 5000 0.1 0.1))
-    putStrLn $ (show ( Run.nSimus res
-                     , Fold.fold Fold.mean $ fmap fst $ Run._sample res
-                     , Fold.fold Fold.mean $ fmap (V.head . snd) $ Run._sample res)
-                :: Text)
   return ()
+  -- replicateM 10 $ do
+    -- g <- newStdGen
+    -- res <- newStdGen >>= evalRand (Run.run 100 (Algorithm.Lenormand2012 5000 0.1 0.1))
+    -- putStrLn $ (show ( Run.nSimus res
+                     -- , Fold.fold Fold.mean $ fmap fst $ Run._sample res
+                     -- , Fold.fold Fold.mean $ fmap (V.head . snd) $ Run._sample res)
+                -- :: Text)
+  -- return ()

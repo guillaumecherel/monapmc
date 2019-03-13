@@ -38,14 +38,13 @@ do for [i = 1:columns] {
 
 do for [i = 1:columns] {
 set title "monAPMC step ".i."\nstepSize=1 parallel=2"
-plot formulas_monAPMC index (i - 1) w boxes t "" fs solid, \
+plot formulas_monAPMC1 index (i - 1) w boxes t "" fs solid, \
      posterior(x) t "" w l lc "black"
 }
 
 do for [i = 1:columns] {
-iSteadyState = 5000 * i
-set title "steadyState step ".iSteadyState
-plot formulas_steadyState index (i - 1) w boxes t "" fs solid, \
+set title "monAPMC step ".i."\nstepSize=2 parallel=1"
+plot formulas_monAPMC2 index (i - 1) w boxes t "" fs solid, \
      posterior(x) t "" w l lc "black"
 }
 

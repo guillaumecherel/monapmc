@@ -72,7 +72,7 @@ step
 step p f ms = do
   s <- ms
   case s of
-    E -> return E
+    E -> setup p f
     S{_s=s'} -> S p <$> APMC.stepGen p f s'
 
 -- Stop condition

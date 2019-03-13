@@ -193,16 +193,8 @@ histogramSteps algo =
   <$> cachedStepsResult "output/formulas" 100 algo
 
 histogramStepsCachePath :: Algorithm -> FilePath
-histogramStepsCachePath SteadyState{} =
-  "output/formulas/scaledHistogram/toy/steadyState"
--- histogramStepsCachePath MonAPMCSeq{} =
---   "output/formulas/scaledHistogram/toy/monAPMCSeq"
-histogramStepsCachePath MonAPMC{} =
-  "output/formulas/scaledHistogram/toy/monAPMC"
-histogramStepsCachePath Lenormand2012{} =
-  "output/formulas/scaledHistogram/toy/lenormand2012"
-histogramStepsCachePath Beaumont2009{} =
-  "output/formulas/scaledHistogram/toy/beaumont2009"
+histogramStepsCachePath algo =
+  "output/formulas/scaledHistogram/toy/" <> algoFilename algo
 
 histogramsEasyABCLenormand2012 :: Cached [[(Double, Double)]]
 histogramsEasyABCLenormand2012 = 
@@ -224,15 +216,16 @@ fig =
                                          getPAccMin=0.01}
 --       mas = histogramSteps MonAPMCSeq{getN=5000, getAlpha=0.1,
 --                                          getPAccMin=0.01}
-      moa = histogramSteps MonAPMC{ getN=5000
+      moa1 = histogramSteps MonAPMC{ getN=5000
                                   , getAlpha=0.1
                                   , getPAccMin=0.01
                                   , getStepSize = 1
                                   , getParallel = 2}
-      ste = histogramSteps SteadyState { getN = 5000
-                                       , getAlpha = 0.1
-                                       , getPAccMin = 0.01
-                                       , getParallel = 1}
+      moa2 = histogramSteps MonAPMC{ getN=5000
+                                  , getAlpha=0.5
+                                  , getPAccMin=0.01
+                                  , getStepSize = 2
+                                  , getParallel = 1}
       lenEasyABC = histogramsEasyABCLenormand2012
       beaEasyABC = histogramsEasyABCBeaumont2009
       gpData :: [[(Double, Double)]] -> GnuplotData
@@ -244,37 +237,23 @@ fig =
         Compose $ sink path (Right . gnuplotDataText . gpData)
           <$> getCompose hs
       lenHistPath = "output/formulas/scaledHistogram/toy/lenormand2012.csv"
---      masHistPath = "output/formulas/scaledHistogram/toy/monAPMCSeq.csv"
-      moaHistPath = "output/formulas/scaledHistogram/toy/monAPMC.csv"
-      steHistPath = "output/formulas/scaledHistogram/toy/steadyState.csv"
+      moa1HistPath = "output/formulas/scaledHistogram/toy/monAPMC_stepSize1_par2.csv"
+      moa2HistPath = "output/formulas/scaledHistogram/toy/monAPMC_stepSize2_par1.csv"
       lenEasyABCHistPath = "output/easyABC/scaledHistogram/toy/lenormand2012.csv"
       beaEasyABCHistPath = "output/easyABC/scaledHistogram/toy/beaumont2009.csv"
       gp :: Cached ()
       gp = gnuplot "report/5steps.png" "report/5steps.gnuplot"
-            [ ( "formulas_lenormand2012"
-              , "output/formulas/scaledHistogram/toy/"
-                   <>  "lenormand2012.csv")
---             , ( "formulas_monAPMCSeq"
---               , "output/formulas/scaledHistogram/toy/"
---                    <> "monAPMCSeq.csv")
-            , ( "formulas_monAPMC"
-              , "output/formulas/scaledHistogram/toy/"
-                   <> "monAPMC.csv")
-            , ( "formulas_steadyState"
-              , "output/formulas/scaledHistogram/toy/"
-                   <> "steadyState.csv")
-            , ( "easyABC_lenormand2012"
-              , "output/easyABC/scaledHistogram/toy/"
-                   <> "lenormand2012.csv")
-            , ( "easyABC_beaumont2009"
-              , "output/easyABC/scaledHistogram/toy/"
-                   <> "beaumont2009.csv")
+            [ ( "formulas_lenormand2012", lenHistPath )
+            , ( "formulas_monAPMC1", moa1HistPath )
+            , ( "formulas_monAPMC2", moa2HistPath )
+            , ( "easyABC_lenormand2012", lenEasyABCHistPath)
+            , ( "easyABC_beaumont2009", beaEasyABCHistPath)
             ]
   in foldr (liftCR2 (<>)) (Compose (pure gp))
        [ gpInputFile lenHistPath len
 --        , gpInputFile masHistPath mas
-       , gpInputFile moaHistPath moa
-       , gpInputFile steHistPath ste
+       , gpInputFile moa1HistPath moa1
+       , gpInputFile moa2HistPath moa2
        , gpInputFile lenEasyABCHistPath (Compose $ pure lenEasyABC)
        , gpInputFile beaEasyABCHistPath (Compose $ pure beaEasyABC)
        ]

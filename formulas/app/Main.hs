@@ -25,7 +25,7 @@ main = do
                     ])
   prettyCached c >>= putStrLn
   putStrLn ("Running cache system." :: Text)
-  runShake c
+  runShake ".shake" c
 
 -- Profiling            
 -- main :: IO ()

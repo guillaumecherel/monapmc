@@ -7,9 +7,10 @@ module ABC.MonAPMC where
 
 import Protolude 
 
-import Control.Monad.Random.Lazy
+import Control.Monad.Random.Lazy hiding (split)
 import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Vector as V
+import qualified Numeric.LinearAlgebra as LA
 
 import qualified ABC.Lenormand2012 as APMC
 import qualified MonPar
@@ -19,48 +20,62 @@ data S m = S {_p :: APMC.P m, _s :: APMC.S}
        | E
 
 -- The semigroup instance holds only for the states (values of type S) of the same algorithm, i.e. for any (S p s1) and (S p s2). States are created with the function `stepOne` and iterated over with the function `step` which take as argument a value of type P.
--- instance Semigroup S where
---   -- Trier les échantillons par rho croissant, prendre les n premiers éléments
---   -- et fixer epsilon à la valeur de rho du n-ieme.
---   a <> E = a
---   E <> b = b
---   (S a) <> (S b) =
---     let size = LA.rows (APMC.thetas a)
---         collect s = zip3 (LA.toRows $ APMC.thetas s)
---                          (LA.toList $ APMC.weights s)
---                          (LA.toList $ APMC.rhos s)
---         union = collect a <> collect b
---         keep = take size $ sortOn (\(_,_,r) -> r) union
---         (newThetas', newWeights', newRhos') = unzip3 keep
---         newThetas = LA.fromRows newThetas'
---         newWeights = LA.vector newWeights'
---         newRhos = LA.vector newRhos'
---         newEpsilon = newRhos `LA.atIndex` (size - 1)
---     in S $ APMC.S { APMC.thetas = newThetas
---          , APMC.weights = newWeights
---          , APMC.rhos = newRhos
---          -- If one states have pAcc < pAccMin, it means that the algorithm
---          -- has reached the end. We want to keep this information, so
---          -- we simply set the new pAcc as the minimum pAcc of the two
---          -- states being merged.
---          , APMC.pAcc = min (APMC.pAcc a) (APMC.pAcc b)
---          , APMC.epsilon = newEpsilon
---          }
 instance Semigroup (S m) where
   a <> E = a
   E <> a = a
-  S p a <> S _ b = S p (APMC.stepMerge p a b)
+  S p a <> S _ b = S p (stepMerge p a b)
+
+stepMerge :: P m -> APMC.S -> APMC.S -> APMC.S
+stepMerge p s s' = 
+  let (s1, s2) = if (APMC.t0 s <= APMC.t0 s') then (s, s') else (s', s)
+      indices2NoDup = fmap fst
+                     $ filter (\(_, t) -> t > APMC.t0 s2)
+                     $ zip [0..] $ V.toList $ APMC.ts s2
+      indicesNoDup = fmap (\i -> (1::Int,i)) [0..APMC.nAlpha p - 1]
+                  <> fmap (\i -> (2::Int,i)) indices2NoDup
+      selectBoth = V.fromList
+                   $ take (APMC.nAlpha p)
+                   $ sortOn (\(which, i) -> if which == 1
+                                             then APMC.rhos s1 LA.! i
+                                             else APMC.rhos s2 LA.! i)
+                   $ indicesNoDup
+      (select1, select2) = bimap (fmap snd) (fmap snd)
+                           $ V.partition (\(w,_) -> w == 1) selectBoth
+      rhosSelected = LA.vector $ V.toList (fmap (APMC.rhos s1 LA.!) select1
+                                 <> fmap (APMC.rhos s2 LA.!) select2)
+      tsSelected = fmap (APMC.ts s1 V.!) select1
+                   <> fmap (\i -> (APMC.ts s2 V.! i) - APMC.t0 s2 + APMC.t s1)
+                        select2
+      newEpsilon = let (which, i) = V.last selectBoth
+                   in if which == 1 then APMC.rhos s1 LA.! i
+                                    else APMC.rhos s2 LA.! i
+      thetasSelected = APMC.thetas s1 LA.? V.toList select1
+                       LA.=== APMC.thetas s2 LA.? V.toList select2
+      weightsSelected = LA.fromList $ V.toList
+                        ( fmap (APMC.weights s1 LA.!) select1
+                          <> fmap (APMC.weights s2 LA.!) select2 )
+  in  APMC.S { APMC.t0 = APMC.t0 s1
+             , APMC.t = APMC.t s2
+             , APMC.ts = tsSelected
+             , APMC.thetas = thetasSelected
+             , APMC.weights = weightsSelected
+             , APMC.rhos = rhosSelected
+             , APMC.pAcc = APMC.pAcc s2
+             , APMC.epsilon = newEpsilon
+             }
+
 
 instance Monoid (S m) where
   mempty = E
 
--- Create the initial step of the algorithm
-setup 
-  :: (Monad m)
-  => P m
-  -> (V.Vector Double -> m (V.Vector Double))
-  -> m (S m)
-setup p f = S p <$> APMC.stepOne p f
+-- Split the algorithm state
+split :: (MonadRandom m) => P m -> m (S m) -> m (S m, S m)
+split p ms = do
+  s <- ms
+  return $ case s of
+    E -> (E, E)
+    S{_s = s'} -> (s, s{_s = s'{APMC.t0 = APMC.t s'}})
+
 
 -- Run an iteration of the algorithm.
 step
@@ -72,40 +87,27 @@ step
 step p f ms = do
   s <- ms
   case s of
-    E -> setup p f
-    S{_s=s'} -> S p <$> APMC.stepGen p f s'
+    E -> S p <$> APMC.stepOne p f
+    S{_s=s'} -> S p <$> APMC.step p f s'
 
 -- Stop condition
-stop :: (Monad m) => P m -> m (S m) -> m Bool
+stop :: (MonadRandom m) => P m -> m (S m) -> m Bool
 stop p ms = do
   s <- ms
   case s of
     E -> return True
     S{_s=s'} -> return $ APMC.stop p s'
 
--- -- Sequential test for MonAPMC
--- scanSeq
---   :: forall m. (MonadRandom m)
---   => P m
---   -> (V.Vector Double -> m (V.Vector Double))
---   -> m [(S m)]
--- scanSeq p f = MonPar.scanSeq (setup p f) (step p f) (stop p)
-
 -- Parallel Monoid APMC
 scanPar
-  :: forall m. (MonadRandom m, MonadIO m)
+  :: forall m. (MonadIO m, MonadRandom m)
   => Int
   -> Int
   -> P m
   -> (V.Vector Double -> m (V.Vector Double))
   -> m [(S m)]
 scanPar stepSize parallel p f
-  | parallel < 1 = liftIO $ die "Error function scanPar: parallel argument must be strictly positive."
+  | parallel < 1 = panic "Error function MonAPMC.scanPar: parallel argument must be strictly positive."
   | otherwise =
-  MonPar.scanPlasticPar
-    (NonEmpty.fromList <$> (replicateM parallel (setup p f)))
-    (step p f)
-    (stop p)
-    stepSize
-        
+  MonPar.scanPlasticPar (split p) (step p f) (stop p) stepSize parallel 
 

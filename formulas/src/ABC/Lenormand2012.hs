@@ -1,6 +1,10 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TupleSections #-}
 module ABC.Lenormand2012 where
+
+import Protolude
 
 import qualified Data.List as List
 import Data.Monoid
@@ -31,8 +35,11 @@ data P m = P
 
 -- The algorithm's state.
 data S = S
-  { thetas:: LA.Matrix Double
+  { t0 :: Int
+  , t :: Int
+  , thetas:: LA.Matrix Double
   , weights:: LA.Vector Double
+  , ts :: V.Vector Int
   , rhos:: LA.Vector Double
   , pAcc:: Double
   , epsilon:: Double
@@ -68,25 +75,25 @@ stepOne p f = do
   let xs = LA.fromLists $ fmap V.toList xsV
   let dim = LA.cols (newThetas :: LA.Matrix Double)
   let obs = LA.vector $ V.toList $ observed p
-  -- TODO: euclidean distance
   let newRhos = LA.cmap sqrt $
                ((xs - LA.asRow obs) ** 2) LA.#> LA.konst 1 dim
-  let newEpsilon = SQ.weightedAvg (nAlpha p) (n p - 1) newRhos
-  let select = LA.find (< newEpsilon) newRhos
+  let (select, rhoSelected) = second LA.fromList $ unzip
+                              $ take (nAlpha p)
+                              $ sortOn snd
+                              $ zip [0..] (LA.toList newRhos)
+  let newEpsilon = rhoSelected LA.! (nAlpha p - 1)
+  -- let newEpsilon = SQ.weightedAvg (nAlpha p) (n p - 1) newRhos
+  -- let select = LA.find (< newEpsilon) newRhos
+  -- let rhoSelected = LA.vector $ fmap (newRhos LA.!) select
   let thetaSelected = newThetas LA.? select
-  let rhoSelected = LA.vector $ fmap (newRhos LA.!) select
   let newPAcc = 1
   let weightsSelected = LA.konst 1 (nAlpha p)
-  return $ S {thetas = thetaSelected, weights = weightsSelected, rhos = rhoSelected, pAcc = newPAcc, epsilon = newEpsilon}
+  let tsSelected = V.fromList $ replicate (nAlpha p) 1
+  return $ S {t0 = 0, t = 1, thetas = thetaSelected, weights = weightsSelected, ts = tsSelected ,rhos = rhoSelected, pAcc = newPAcc, epsilon = newEpsilon}
 
 step :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> S -> m S
-step p f s = stepMerge p s <$> stepGen p f s
-
--- Generate new particles
-stepGen :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> S -> m S
-stepGen p f s = do
-  let nMinusNAlpha = n p - nAlpha p
-  resampleIndices <- replicateM nMinusNAlpha $ weighted $ (mzip [0..] (fmap toRational $ LA.toList $ weights s))
+step p f s =  do
+  resampleIndices <- replicateM (n p - nAlpha p) $ weighted $ (mzip [0..] (fmap toRational $ LA.toList $ weights s))
   let resampleThetas = thetas s LA.? resampleIndices
   seed <- getRandom
   let dim = LA.cols (thetas s)
@@ -94,7 +101,7 @@ stepGen p f s = do
                          $ weightedCovariance (thetas s) (weights s)
   -- TODO: check that I can take the mean out of the sample generation
   let newThetas =  resampleThetas +
-                    LA.gaussianSample seed nMinusNAlpha
+                    LA.gaussianSample seed (n p - nAlpha p)
                       (LA.konst 0 dim)
                       sigmaSquared
   -- TODO: check performance wrapping/unwrapping
@@ -102,35 +109,37 @@ stepGen p f s = do
   let obs = LA.vector $ V.toList $ observed p
   let newRhos = LA.cmap sqrt $
                ((newXs - LA.asRow obs) ** 2) LA.#> LA.konst 1 dim
-  let newPAcc = (1 / fromIntegral nMinusNAlpha) *
-                  (LA.sumElements $ LA.step (LA.scalar (epsilon s) - newRhos))
-  let select = LA.find (<= epsilon s) newRhos
-  let thetaSelected = newThetas LA.? select
-  let rhoSelected = LA.vector $ fmap (newRhos LA.!) select
-  let weightsSelected = compWeights p s sigmaSquared thetaSelected
-  return $ S { thetas = thetaSelected
+  let ((selectPrev, prevRhosSelected), (selectNew, newRhosSelected)) =
+          bimap
+              (second LA.fromList . unzip . fmap snd)
+              (second LA.fromList . unzip . fmap snd)
+            $ List.partition (\(w,_) -> w == 1)
+            $ take (nAlpha p)
+            $ sortOn (snd . snd)
+            $ (fmap (1,) (zip [0..] $ LA.toList $ rhos s)
+               <> fmap (2,) (zip [0..] $ LA.toList $ newRhos))
+  let rhosSelected = LA.vjoin [prevRhosSelected, newRhosSelected]
+  let newEpsilon = rhosSelected LA.! (nAlpha p - 1)
+  -- let select = LA.find (< epsilon s) newRhos
+  -- let rhoSelected = LA.vector $ fmap (newRhos LA.!) select
+  let newPAcc = fromIntegral (LA.size newRhosSelected) / fromIntegral (n p - nAlpha p)
+  let prevThetasSelected = thetas s LA.? selectPrev
+  let newThetasSelected = newThetas LA.? selectNew
+  let thetasSelected = prevThetasSelected LA.=== newThetasSelected
+  let prevWeightsSelected = LA.fromList $ fmap (weights s LA.!) selectPrev
+  let newWeightsSelected = compWeights p s sigmaSquared newThetasSelected
+  let weightsSelected = LA.vjoin [prevWeightsSelected, newWeightsSelected]
+  let newT = t s + 1
+  let tsSelected = V.fromList $ take (nAlpha p) (fmap (ts s V.!) selectPrev <> repeat newT)
+  return $ S { t0 = t0 s
+             , t = newT
+             , thetas = thetasSelected
              , weights = weightsSelected
-             , rhos = rhoSelected
+             , ts = tsSelected
+             , rhos = rhosSelected
              , pAcc = newPAcc
-             , epsilon = epsilon s
+             , epsilon = newEpsilon
              }
-
-stepMerge :: P m -> S -> S -> S
-stepMerge p s s' = 
-  let allThetas = thetas s LA.=== thetas s'
-      allRhos = LA.vjoin [rhos s, rhos s']
-      allWeights = LA.vjoin [weights s, weights s']
-      newEpsilon = head $ drop (nAlpha p - 1) $ List.sort $ LA.toList allRhos
-      select = LA.find (<= newEpsilon) allRhos
-      thetaSelected = allThetas LA.? select
-      rhoSelected = LA.vector $ fmap (allRhos LA.!) select
-      weightsSelected = LA.vector $ fmap (allWeights LA.!) select
-  in  S { thetas = thetaSelected
-        , weights = weightsSelected
-        , rhos = rhoSelected
-        , pAcc = pAcc s'
-        , epsilon = newEpsilon
-        }
 
 compWeights :: P m -> S -> LA.Herm Double -> LA.Matrix Double
             -> LA.Vector Double

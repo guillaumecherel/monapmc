@@ -43,15 +43,15 @@ epsilonVSTimeRep
   -> Compose (Rand StdGen) Cached [EpsilonVSTime]
 epsilonVSTimeRep reps =
   (fmap . fmap) (epsilonVSTime (Replications._algorithm reps))
-    $ cachedRepSteps "output/formulas" reps
+    $ cachedRepSteps "output/formulas/cached" reps
 
 fig :: Rand StdGen (Cached ())
 fig = liftA2 (<>) (fmap mkFig cachedGPData)
                   (fmap mkFigReal cachedGPData)
   where
     parValues = [1,2,3,4]
-    lenPath = "output/formulas/epsilonVSTime/lenormand2012.csv"
-    moaPath par = unpack "output/formulas/epsilonVSTime/monAPMC_"
+    lenPath = "output/formulas/cached/epsilonVSTime/lenormand2012.csv"
+    moaPath par = unpack "output/formulas/cached/epsilonVSTime/monAPMC_"
                     <> show par <> ".csv"
     repsLen = Replications
                 { Replications._algorithm =
@@ -80,13 +80,13 @@ fig = liftA2 (<>) (fmap mkFig cachedGPData)
                          parValues
     mkFig :: [Cached [[(Double, Double, Double)]]]
           -> Cached ()
-    mkFig = gnuplot3 "report/epsilon_vs_time.png"
-                     "report/epsilon_vs_time.gnuplot"
+    mkFig = gnuplot3 "report/epsilon_vs_time.gnuplot"
+                     "report/epsilon_vs_time.png"
                      (fmap (first unpack) figArgs)
     mkFigReal :: [Cached [[(Double, Double, Double)]]]
           -> Cached ()
-    mkFigReal = gnuplot3 "report/epsilon_vs_realtime.png"
-                     "report/epsilon_vs_realtime.gnuplot"
+    mkFigReal = gnuplot3 "report/epsilon_vs_realtime.gnuplot"
+                         "report/epsilon_vs_realtime.png"
                      (fmap (first unpack) figArgs)
                    
 buildEpsilonVSTime :: Rand StdGen (Cached ())

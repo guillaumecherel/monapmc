@@ -14,7 +14,26 @@ import System.Process
 
 import Data.Cached
 
--- import Util
+-- vegalite :: FilePath -> Cached ()
+-- vegalite script output = trigger output command
+
+gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Cached ()
+gnuplot script output args = trigger output
+                                     (command)
+                                     (Set.fromList $ script:fmap snd args)
+  where command = do
+          (status, out, err) <- readProcessWithExitCode ("gnuplot" :: String) gpArgs []
+          hPutStrLn stderr err
+          hPutStrLn stdout out
+          case status of
+            ExitSuccess -> return ()
+            ExitFailure code -> panic (
+              "Error: command gnuplot exited with status " <> show code
+              <> "\nFailing command: " <> "gnuplot " <> show gpArgs)
+        gpArgs = [ ("-e" :: String), "outputPath='" <> output <> "'" ]
+              <> join ( fmap (\(arg,val) -> ["-e", arg <> "='" <> val <> "'"]) 
+                             args )
+              <> ["-c", script]
 
 gnuplot1
   :: FilePath -> FilePath
@@ -54,30 +73,12 @@ gnuplotCached :: forall a. ([[a]] -> GnuplotData)
          -> [(String, FilePath)]
          -> [Cached [[a]]]
          -> Cached ()
-gnuplotCached gpd output script args cachedData = mconcat (fig:gpData)
+gnuplotCached gpd script output args cachedData = mconcat (fig:gpData)
   where fig = gnuplot output script args
         gpData :: [Cached ()]
         gpData = fmap sinkInputFile (zip (fmap snd args) cachedData)
         sinkInputFile :: (FilePath, Cached [[a]]) -> Cached ()
         sinkInputFile (f,c) = gnuplotDataSink f $ gpd <$> c
-
-gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Cached ()
-gnuplot output script args = trigger output
-                                     (command)
-                                     (Set.fromList $ script:fmap snd args)
-  where command = do
-          (status, out, err) <- readProcessWithExitCode ("gnuplot" :: String) gpArgs []
-          hPutStrLn stderr err
-          hPutStrLn stdout out
-          case status of
-            ExitSuccess -> return $ Right ()
-            ExitFailure code -> return $ Left $
-              "Error: command gnuplot exited with status " <> show code
-              <> "\nFailing command: " <> "gnuplot " <> show gpArgs
-        gpArgs = [ ("-e" :: String), "outputPath='" <> output <> "'" ]
-              <> join ( fmap (\(arg,val) -> ["-e", arg <> "='" <> val <> "'"]) 
-                             args )
-              <> ["-c", script]
 
 data GnuplotRow = GnuplotRow1 Double
                    | GnuplotRow2 Double Double
@@ -130,5 +131,5 @@ gnuplotDataText (GnuplotData xss) =
         textSet xs = mconcat $ intersperse "\n" $ fmap gnuplotRowText xs
 
 gnuplotDataSink :: FilePath -> Cached GnuplotData -> Cached ()
-gnuplotDataSink path = sink path (pure . gnuplotDataText)
+gnuplotDataSink path = sink path gnuplotDataText
 

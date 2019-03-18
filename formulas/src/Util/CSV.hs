@@ -4,13 +4,19 @@
 module Util.CSV where
 
 import Protolude
+import qualified Data.ByteString.Lazy as BSL
+import Data.Cached
+import Data.Csv
+import Data.Text (pack, intercalate)
+import Data.Text.Encoding
+import qualified Data.Vector as V
 
-column :: Show a => [a] -> Text
-column xs = foldMap show xs
+encodeText :: ToRecord a => [Text]-> [a] -> Text
+encodeText colNames = mappend (Data.Text.intercalate "," colNames <> "\n")
+                    . decodeUtf8 . BSL.toStrict . encode
 
-columns2 :: (Show a, Show b) => Text -> [(a, b)] -> Text
-columns2 _ [] = ""
-columns2 sep ((a,b):xs) = show a <> sep <> show b <> "\n" <> columns2 sep xs
+decodeText :: FromRecord a => Text -> Either Text (V.Vector a)
+decodeText = first pack . decode HasHeader . BSL.fromStrict . encodeUtf8
 
-
-
+csvSink :: ToRecord a => FilePath -> [Text] -> Cached [a] -> Cached ()
+csvSink path colNames = sink path (encodeText colNames)

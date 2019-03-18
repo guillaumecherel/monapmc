@@ -38,7 +38,7 @@ l2VSNSimus'
   :: Int -> Int -> Algorithm
   -> Compose (Rand StdGen) Cached L2VSNSimus
 l2VSNSimus' nRep stepMax algo =
-  l2VSNSimus (Run algo stepMax) <$> cachedRepRuns "output/formulas"
+  l2VSNSimus (Run algo stepMax) <$> cachedRepRuns "output/formulas/cached"
     (Replications algo stepMax nRep)
 
 fig :: Compose (Rand StdGen) Cached ()
@@ -48,8 +48,8 @@ fig =
       nAlpha = 500
       pAccMins = [0.01, 0.05, 0.1, 0.2]
       stepMax = 100
-      lenPath = "output/formulas/l2VSNSimus/lenormand2012.csv"
-      moaPath = "output/formulas/l2VSNSimus/monAPMC.csv"
+      lenPath = "output/formulas/cached/l2VSNSimus/lenormand2012.csv"
+      moaPath = "output/formulas/cached/l2VSNSimus/monAPMC.csv"
       len pAccMin alpha = Lenormand2012
                             { getN = floor (nAlpha / alpha)
                             , getAlpha=fromRational alpha
@@ -69,7 +69,7 @@ fig =
         liftCR (gnuplotDataSink path)
         $ gnuplotData al
       fig' :: Cached ()
-      fig' = gnuplot "report/L2_vs_nsimus.png" "report/L2_vs_nsimus.gnuplot"
+      fig' = gnuplot "report/L2_vs_nsimus.gnuplot" "report/L2_vs_nsimus.png"
                         [("lenormand2012", lenPath),
                          ("monAPMC", moaPath)]
 

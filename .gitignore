@@ -1,6 +1,5 @@
 .#*
 **/.ensime*
-*.html
 .RData
 .Rhistory
 .projectile

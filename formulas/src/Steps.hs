@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Steps where
@@ -6,6 +7,7 @@ module Steps where
 import Protolude 
 
 import Data.Text (unpack)
+import Data.Csv
 import Data.Functor.Compose
 import Data.Cached as Cached
 import Control.Monad.Random.Lazy
@@ -23,6 +25,7 @@ import qualified ABC.Lenormand2012 as Lenormand2012
 import qualified ABC.MonAPMC as MonAPMC
 import qualified ABC.SteadyState as SteadyState
 import Util
+import Util.CSV
 import qualified Util.SteadyState as SteadyState 
 
 data Steps = Steps { _algorithm :: Algorithm
@@ -190,11 +193,11 @@ histogramSteps algo =
   $ fmap (cache' (histogramStepsCachePath algo))
   $ getCompose
   $ fmap histogramStep . _steps 
-  <$> cachedStepsResult "output/formulas" 100 algo
+  <$> cachedStepsResult "output/formulas/cached" 100 algo
 
 histogramStepsCachePath :: Algorithm -> FilePath
 histogramStepsCachePath algo =
-  "output/formulas/scaledHistogram/toy/" <> algoFilename algo
+  "output/formulas/cached/scaledHistogram/toy/" <> algoFilename algo
 
 histogramsEasyABCLenormand2012 :: Cached [[(Double, Double)]]
 histogramsEasyABCLenormand2012 = 
@@ -212,51 +215,44 @@ histogramsEasyABCBeaumont2009 =
 
 fig :: Compose (Rand StdGen) Cached ()
 fig =
-  let len = histogramSteps Lenormand2012{getN=5000, getAlpha=0.1,
-                                         getPAccMin=0.01}
---       mas = histogramSteps MonAPMCSeq{getN=5000, getAlpha=0.1,
---                                          getPAccMin=0.01}
-      moa1 = histogramSteps MonAPMC{ getN=5000
-                                  , getAlpha=0.1
-                                  , getPAccMin=0.01
-                                  , getStepSize = 1
-                                  , getParallel = 2}
-      moa2 = histogramSteps MonAPMC{ getN=5000
-                                  , getAlpha=0.5
-                                  , getPAccMin=0.01
-                                  , getStepSize = 2
-                                  , getParallel = 1}
-      lenEasyABC = histogramsEasyABCLenormand2012
-      beaEasyABC = histogramsEasyABCBeaumont2009
-      gpData :: [[(Double, Double)]] -> GnuplotData
-      gpData = gnuplotData2 fst snd
-      gpInputFile :: FilePath 
-                  -> Compose (Rand StdGen) Cached [[(Double, Double)]]
-                  -> Compose (Rand StdGen) Cached ()
-      gpInputFile path hs =
-        Compose $ sink path (Right . gnuplotDataText . gpData)
-          <$> getCompose hs
-      lenHistPath = "output/formulas/scaledHistogram/toy/lenormand2012.csv"
-      moa1HistPath = "output/formulas/scaledHistogram/toy/monAPMC_stepSize1_par2.csv"
-      moa2HistPath = "output/formulas/scaledHistogram/toy/monAPMC_stepSize2_par1.csv"
-      lenEasyABCHistPath = "output/easyABC/scaledHistogram/toy/lenormand2012.csv"
-      beaEasyABCHistPath = "output/easyABC/scaledHistogram/toy/beaumont2009.csv"
-      gp :: Cached ()
-      gp = gnuplot "report/5steps.png" "report/5steps.gnuplot"
-            [ ( "formulas_lenormand2012", lenHistPath )
-            , ( "formulas_monAPMC1", moa1HistPath )
-            , ( "formulas_monAPMC2", moa2HistPath )
-            , ( "easyABC_lenormand2012", lenEasyABCHistPath)
-            , ( "easyABC_beaumont2009", beaEasyABCHistPath)
-            ]
-  in foldr (liftCR2 (<>)) (Compose (pure gp))
-       [ gpInputFile lenHistPath len
---        , gpInputFile masHistPath mas
-       , gpInputFile moa1HistPath moa1
-       , gpInputFile moa2HistPath moa2
-       , gpInputFile lenEasyABCHistPath (Compose $ pure lenEasyABC)
-       , gpInputFile beaEasyABCHistPath (Compose $ pure beaEasyABC)
-       ]
+  let csvPath = "output/formulas/figures_data/steps.csv"
+      len = Lenormand2012{getN=5000, getAlpha=0.1,
+                          getPAccMin=0.01}
+      moa1 = MonAPMC{ getN=5000
+                    , getAlpha=0.1
+                    , getPAccMin=0.01
+                    , getStepSize = 1
+                    , getParallel = 2}
+      moa2 = MonAPMC{ getN=5000
+                    , getAlpha=0.5
+                    , getPAccMin=0.01
+                    , getStepSize = 2
+                    , getParallel = 1}
+      lenEasyABC = _algorithm $ fst easyABCLenormand2012Steps
+      beaEasyABC = _algorithm $ fst easyABCBeaumont2009Steps
+      csv :: Compose (Rand StdGen) Cached ()
+      csv = liftCR (csvSink csvPath ["algorithm", "step", "theta", "density", "theoretical"])
+              figData
+      figData :: Compose (Rand StdGen) Cached [(Text, Int, Double, Double, Double)]
+      figData = fmap concat
+                $ (fmap . fmap)
+                  (\(algoText, (step, hist)) -> fmap
+                      (\(theta,density) -> (algoText,step,theta,density,toyPosterior 0 theta))
+                      hist )
+                $ liftA2 (<>)
+                    (("APMC",) <<$>> (zip [1..] <$> histogramSteps len))
+                $ liftA2 (<>)
+                    (("MonAPMC\nStepSize 1\nParallel2",) <<$>> (zip [1..] <$> histogramSteps moa1))
+                $ liftA2 (<>)
+                    (("MonAPMC\nStepSize 2\nParallel1",) <<$>> (zip [1..] <$> histogramSteps moa2))
+                $ liftA2 (<>)
+                    (("EasyABC APMC",)
+                      <<$>> (zip [1..]
+                         <$> Compose (pure histogramsEasyABCLenormand2012)))
+                    (("EasyABC Beaumont2009",)
+                        <<$>> (zip [1..]
+                          <$> Compose (pure histogramsEasyABCBeaumont2009)))
+  in csv
 
 buildSteps :: Rand StdGen (Cached ())
 buildSteps = getCompose fig

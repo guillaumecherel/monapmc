@@ -24,13 +24,13 @@ cdf = fmap (toyPosteriorCDF 0) sample
 
 fig :: Cached ()
 fig = 
-  let pathDen = "output/formulas/toy_model/den.csv"
-      pathCDF = "output/formulas/toy_model/cdf.csv"
-      csv path cols = sink path (pure . columns2 " ") (pure cols)
+  let pathDen = "output/formulas/cached/toy_model/den.csv"
+      pathCDF = "output/formulas/cached/toy_model/cdf.csv"
+      csv path cols = sink path (encodeText ["x", "y"]) (pure cols)
       dataDen = zip sample density
       dataCDF = zip sample cdf
-  in  liftA2 (<>) (gnuplot "report/toy_model_distribution.png"
-                           "report/toy_model_distribution.gnuplot"
+  in  liftA2 (<>) (gnuplot "report/toy_model_distribution.gnuplot"
+                           "report/toy_model_distribution.png"
                            [("density", pathDen), ("cdf", pathCDF)])
       $ liftA2 (<>) (csv pathDen dataDen)
       (csv pathCDF dataCDF)

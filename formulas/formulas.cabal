@@ -39,6 +39,8 @@ library
   build-depends:       base >= 4.7 && < 5,
                        protolude >= 0.2.2,
                        statistics >= 0.14.0.2,
+                       bytestring >= 0.10.8.2,
+                       cassava >= 0.5.1,
                        text >= 1.2.3.0,
                        vector >= 0.12,
                        parsec >= 3.1.13,

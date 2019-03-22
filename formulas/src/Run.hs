@@ -82,8 +82,8 @@ runResult Run
         , Lenormand2012.priorDensity = toyPrior
         , Lenormand2012.observed = V.singleton 0
         }
-      getRun (i, (MonAPMC.E)) = RunResult i mempty
-      getRun (i, (MonAPMC.S _ s)) = RunResult
+      getRun (i, MonAPMC.E) = RunResult i mempty
+      getRun (i, MonAPMC.S{MonAPMC._s = s}) = RunResult
         { _stepCount = i
         , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights s)
                           (V.fromList $ fmap V.fromList $ LA.toLists

@@ -85,8 +85,8 @@ stepsResult Steps
         , Lenormand2012.priorDensity = toyPrior
         , Lenormand2012.observed = V.singleton 0
         }
-      getStep (MonAPMC.E) = StepResult 0 0 0 mempty
-      getStep (MonAPMC.S _ s) = StepResult
+      getStep MonAPMC.E = StepResult 0 0 0 mempty
+      getStep MonAPMC.S{MonAPMC._s = s} = StepResult
         { _t = Lenormand2012.t s
         , _epsilon = Lenormand2012.epsilon s
         , _pAcc = Lenormand2012.pAcc s

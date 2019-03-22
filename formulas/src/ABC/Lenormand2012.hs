@@ -35,8 +35,7 @@ data P m = P
 
 -- The algorithm's state.
 data S = S
-  { t0 :: Int
-  , t :: Int
+  { t :: Int
   , thetas:: LA.Matrix Double
   , weights:: LA.Vector Double
   , ts :: V.Vector Int
@@ -82,14 +81,11 @@ stepOne p f = do
                               $ sortOn snd
                               $ zip [0..] (LA.toList newRhos)
   let newEpsilon = rhoSelected LA.! (nAlpha p - 1)
-  -- let newEpsilon = SQ.weightedAvg (nAlpha p) (n p - 1) newRhos
-  -- let select = LA.find (< newEpsilon) newRhos
-  -- let rhoSelected = LA.vector $ fmap (newRhos LA.!) select
   let thetaSelected = newThetas LA.? select
   let newPAcc = 1
   let weightsSelected = LA.konst 1 (nAlpha p)
   let tsSelected = V.fromList $ replicate (nAlpha p) 1
-  return $ S {t0 = 0, t = 1, thetas = thetaSelected, weights = weightsSelected, ts = tsSelected ,rhos = rhoSelected, pAcc = newPAcc, epsilon = newEpsilon}
+  return $ S {t = 1, thetas = thetaSelected, weights = weightsSelected, ts = tsSelected ,rhos = rhoSelected, pAcc = newPAcc, epsilon = newEpsilon}
 
 step :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> S -> m S
 step p f s =  do
@@ -120,8 +116,6 @@ step p f s =  do
                <> fmap (2,) (zip [0..] $ LA.toList $ newRhos))
   let rhosSelected = LA.vjoin [prevRhosSelected, newRhosSelected]
   let newEpsilon = rhosSelected LA.! (nAlpha p - 1)
-  -- let select = LA.find (< epsilon s) newRhos
-  -- let rhoSelected = LA.vector $ fmap (newRhos LA.!) select
   let newPAcc = fromIntegral (LA.size newRhosSelected) / fromIntegral (n p - nAlpha p)
   let prevThetasSelected = thetas s LA.? selectPrev
   let newThetasSelected = newThetas LA.? selectNew
@@ -131,8 +125,7 @@ step p f s =  do
   let weightsSelected = LA.vjoin [prevWeightsSelected, newWeightsSelected]
   let newT = t s + 1
   let tsSelected = V.fromList $ take (nAlpha p) (fmap (ts s V.!) selectPrev <> repeat newT)
-  return $ S { t0 = t0 s
-             , t = newT
+  return $ S { t = newT
              , thetas = thetasSelected
              , weights = weightsSelected
              , ts = tsSelected
@@ -170,7 +163,6 @@ weightedCovariance sample weights' =
       weightsSumSquared = weightsSum ** 2
       weightsSquaredSum = getSum $ foldMap (\x -> Sum (x ** 2)) $ LA.toList weights'
       sampleMean :: LA.Vector Double
-      -- MATRIX PRODUCT
       sampleMean = (LA.scale (1 / weightsSum) weights') LA.<# sample
       sampleCenteredWeighted = (sample - LA.asRow sampleMean) * (LA.asColumn $ sqrt weights')
       (_, covCenteredWeighted) = LA.meanCov sampleCenteredWeighted

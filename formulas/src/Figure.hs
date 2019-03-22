@@ -10,12 +10,20 @@ import Protolude
 -- import Data.Functor.Compose
 import qualified Data.Set as Set
 import Data.String (String)
+import Data.Text (unpack)
 import System.Process
 
 import Data.Cached
 
--- vegalite :: FilePath -> Cached ()
--- vegalite script output = trigger output command
+gnuplotInline :: Maybe FilePath -> Text -> IO ()
+gnuplotInline mpath script = do
+  case mpath of
+    Nothing -> return ()
+    Just path -> writeFile path script
+  out <- readProcess ("gnuplot"::String) [] (unpack script)
+  putStrLn out
+  return ()
+  
 
 gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Cached ()
 gnuplot script output args = trigger output

@@ -6,7 +6,7 @@ module Steps where
 
 import Protolude 
 
-import Data.Text (unpack)
+import Data.Text (unpack, unlines)
 import Data.Csv
 import Data.Functor.Compose
 import Data.Cached as Cached
@@ -36,7 +36,9 @@ steps :: Int -> Algorithm -> Steps
 steps = flip Steps
 
 data StepResult = StepResult
-  { _epsilon :: Double
+  { _t :: Int
+  , _epsilon :: Double
+  , _pAcc :: Double
   , _sample :: V.Vector (Run.Weight, V.Vector Double) }
   deriving (Show, Read)
 
@@ -60,7 +62,9 @@ stepsResult Steps
         , Lenormand2012.observed = V.singleton 0
         }
       getStep r = StepResult
-         { _epsilon = Lenormand2012.epsilon r
+         { _t = Lenormand2012.t r
+         , _epsilon = Lenormand2012.epsilon r
+         , _pAcc = Lenormand2012.pAcc r
          , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights r)
                         (V.fromList $ fmap V.fromList $ LA.toLists
                           $ Lenormand2012.thetas r) }
@@ -81,9 +85,11 @@ stepsResult Steps
         , Lenormand2012.priorDensity = toyPrior
         , Lenormand2012.observed = V.singleton 0
         }
-      getStep (MonAPMC.E) = StepResult 0 mempty
+      getStep (MonAPMC.E) = StepResult 0 0 0 mempty
       getStep (MonAPMC.S _ s) = StepResult
-        { _epsilon = Lenormand2012.epsilon s
+        { _t = Lenormand2012.t s
+        , _epsilon = Lenormand2012.epsilon s
+        , _pAcc = Lenormand2012.pAcc s
         , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights s)
               (V.fromList $ fmap V.fromList $ LA.toLists
                  $ Lenormand2012.thetas s)  }
@@ -91,31 +97,7 @@ stepsResult Steps
     g <- getSplit
     return $ StepsResult . fmap getStep <$> evalRandT steps' g
 stepsResult Steps
-  { _stepMax=stepMax
-  , _algorithm=SteadyState{ getN=n
-                          , getAlpha=alpha
-                          , getPAccMin=pAccMin
-                          , getParallel=par}} =
-  let steps' :: RandT StdGen IO [SteadyState.S]
-      steps' = SteadyState.scanIndices needSteps ssr
-      needSteps = [n, n * 2 .. n * stepMax]
-      ssr = SteadyState.runner p model
-      model (seed, xs) = return $ evalRand (toyModel xs) (mkStdGen seed)
-      p = SteadyState.P
-        { SteadyState.n = n
-        , SteadyState.nAlpha = floor $ alpha * (fromIntegral n)
-        , SteadyState.pAccMin = pAccMin
-        , SteadyState.parallel = par
-        , SteadyState.priorSample = toyPriorRandomSample
-        , SteadyState.priorDensity = toyPrior
-        , SteadyState.distanceToData = Run.absoluteError 0 . V.head
-        }
-      getStep s = StepResult
-        { _epsilon = SteadyState.epsilon s
-        , _sample = fmap (\a -> (SteadyState.getWeight a, SteadyState.getTheta $ SteadyState.getSimulation $ SteadyState.getReady a)) (SteadyState.accepteds s) }
-  in do
-    g <- getSplit
-    return $ StepsResult . fmap getStep <$> evalRandT steps' g
+  { _algorithm=SteadyState{}} = return $ return $ StepsResult mempty
 stepsResult Steps
   { _algorithm=Beaumont2009{}} = return $ return $ StepsResult mempty
 
@@ -135,15 +117,15 @@ cachedStepsPath' stepMax algo =
 easyABCLenormand2012Steps :: (Steps, Cached StepsResult)
 easyABCLenormand2012Steps = (s,sr)
   where s = steps stepMax algo
-        sr = fmap StepsResult $ traverse getStep files
-        getStep :: FilePath
+        sr = fmap StepsResult $ traverse getStep (zip [1..] files)
+        getStep :: (Int, FilePath)
                 -> Cached StepResult
-        getStep f = source f (read f)
+        getStep (i,f) = source f (read i f)
         algo = Lenormand2012 5000 0.1 0.01
         stepMax = 0
-        read :: FilePath -> Text
+        read :: Int -> FilePath -> Text
              -> Either Text StepResult
-        read f = bimap show (StepResult 0) . Run.read1DSample f
+        read i f = bimap show (StepResult i 0 0) . Run.read1DSample f
         files = [ "output/easyABC/simulationResult/5steps/"      
                   <> "lenormand2012_5000_0.1_0.01_1_1.csv"
                 , "output/easyABC/simulationResult/5steps/"      
@@ -159,15 +141,15 @@ easyABCLenormand2012Steps = (s,sr)
 easyABCBeaumont2009Steps :: (Steps, Cached StepsResult)
 easyABCBeaumont2009Steps = (s,sr)
   where s = steps stepMax algo
-        sr = fmap StepsResult $ traverse getStep files
-        getStep :: FilePath
+        sr = fmap StepsResult $ traverse getStep (zip [1..] files)
+        getStep :: (Int, FilePath)
                 -> Cached StepResult
-        getStep f = source f (read f)
+        getStep (i, f) = source f (read i f)
         algo = Beaumont2009 5000 2.0 0.01
         stepMax = 0
-        read :: FilePath -> Text
+        read :: Int -> FilePath -> Text
              -> Either Text StepResult
-        read f = bimap show (StepResult 0) . Run.read1DSample f
+        read i f = bimap show (StepResult i 0 0) . Run.read1DSample f
         files = [ "output/easyABC/simulationResult/5steps/"
                   <> "beaumont2009_5000_2.00_0.01_1_1.csv"
                 , "output/easyABC/simulationResult/5steps/"
@@ -184,38 +166,45 @@ easyABCBeaumont2009Steps = (s,sr)
                   <> "beaumont2009_5000_2.00_0.01_7_1.csv"
                 ]
 
+---- Statistics over steps ----
+
+l2Toy :: StepResult -> Double
+l2Toy r = Statistics.l2Toy $ _sample r
+
 histogramStep :: StepResult -> [(Double, Double)]
 histogramStep = estPostDen (-10) 10 300 . fmap (second V.head) . V.toList . _sample
 
-histogramSteps :: Algorithm -> Compose (Rand StdGen) Cached [[(Double, Double)]]
+--------
+
+histogramSteps :: Algorithm -> Compose (Rand StdGen) Cached [(Int, [(Double, Double)])]
 histogramSteps algo =
   Compose
   $ fmap (cache' (histogramStepsCachePath algo))
   $ getCompose
-  $ fmap histogramStep . _steps 
+  $ fmap ((,) <$> _t <*> histogramStep) . _steps
   <$> cachedStepsResult "output/formulas/cached" 100 algo
 
 histogramStepsCachePath :: Algorithm -> FilePath
 histogramStepsCachePath algo =
   "output/formulas/cached/scaledHistogram/toy/" <> algoFilename algo
 
-histogramsEasyABCLenormand2012 :: Cached [[(Double, Double)]]
+histogramsEasyABCLenormand2012 :: Cached [(Int, [(Double, Double)])]
 histogramsEasyABCLenormand2012 = 
   snd easyABCLenormand2012Steps
   & fmap _steps
-  & (fmap . fmap) histogramStep
+  & (fmap . fmap) ((,) <$> _t <*> histogramStep)
   & cache' "output/easyABC/scaledHistogram/toy/lenormand2012" 
 
-histogramsEasyABCBeaumont2009 :: Cached [[(Double, Double)]]
+histogramsEasyABCBeaumont2009 :: Cached [(Int, [(Double, Double)])]
 histogramsEasyABCBeaumont2009 = 
   snd easyABCBeaumont2009Steps
   & fmap _steps
-  & (fmap . fmap) histogramStep
+  & (fmap . fmap) ((,) <$> _t <*> histogramStep)
   & cache' "output/easyABC/scaledHistogram/toy/beaumont2009"
 
 fig :: Compose (Rand StdGen) Cached ()
 fig =
-  let csvPath = "output/formulas/figures_data/steps.csv"
+  let outputPath = "report/5steps.png"
       len = Lenormand2012{getN=5000, getAlpha=0.1,
                           getPAccMin=0.01}
       moa1 = MonAPMC{ getN=5000
@@ -224,35 +213,63 @@ fig =
                     , getStepSize = 1
                     , getParallel = 2}
       moa2 = MonAPMC{ getN=5000
-                    , getAlpha=0.5
+                    , getAlpha=0.1
                     , getPAccMin=0.01
                     , getStepSize = 2
                     , getParallel = 1}
       lenEasyABC = _algorithm $ fst easyABCLenormand2012Steps
       beaEasyABC = _algorithm $ fst easyABCBeaumont2009Steps
-      csv :: Compose (Rand StdGen) Cached ()
-      csv = liftCR (csvSink csvPath ["algorithm", "step", "theta", "density", "theoretical"])
-              figData
-      figData :: Compose (Rand StdGen) Cached [(Text, Int, Double, Double, Double)]
-      figData = fmap concat
-                $ (fmap . fmap)
-                  (\(algoText, (step, hist)) -> fmap
-                      (\(theta,density) -> (algoText,step,theta,density,toyPosterior 0 theta))
-                      hist )
+      figData :: Compose (Rand StdGen) Cached [(Text, [(Int, [(Double, Double)])])]
+      figData = liftA2 (<>)
+                    (pure <$> ("APMC",) <$> histogramSteps len)
                 $ liftA2 (<>)
-                    (("APMC",) <<$>> (zip [1..] <$> histogramSteps len))
+                    (pure <$> ("MonAPMC StepSize 1 Parallel2",) <$>
+                      histogramSteps moa1)
                 $ liftA2 (<>)
-                    (("MonAPMC\nStepSize 1\nParallel2",) <<$>> (zip [1..] <$> histogramSteps moa1))
+                    (pure <$> ("MonAPMC StepSize 2 Parallel1",) <$>
+                      histogramSteps moa2)
                 $ liftA2 (<>)
-                    (("MonAPMC\nStepSize 2\nParallel1",) <<$>> (zip [1..] <$> histogramSteps moa2))
-                $ liftA2 (<>)
-                    (("EasyABC APMC",)
-                      <<$>> (zip [1..]
-                         <$> Compose (pure histogramsEasyABCLenormand2012)))
-                    (("EasyABC Beaumont2009",)
-                        <<$>> (zip [1..]
-                          <$> Compose (pure histogramsEasyABCBeaumont2009)))
-  in csv
+                    (pure <$> ("EasyABC APMC",)
+                          <$> Compose (pure histogramsEasyABCLenormand2012))
+                    (pure <$> ("EasyABC Beaumont2009",)
+                          <$> Compose (pure histogramsEasyABCBeaumont2009))
+      gnuplotScript :: [(Text, [(Int, [(Double, Double)])])] -> Text
+      gnuplotScript d =
+          let rows = length d
+              columns = maximum $ fmap (length . snd) d
+              width = fromIntegral columns * 1.4 * 72 * 2.54
+              height = fromIntegral rows * 1.4 * 72 * 2.54
+          in unlines $
+                [ "set terminal png truecolor size "
+                   <> show width <> "," <> show height <> " font ',12'"
+                , "set output '" <> outputPath <> "'"
+                , "set xrange [-4:4]"
+                , "set yrange [0:3]"
+                , "set samples 500"
+                , "set isosamples 500"
+                , "normal(x, mean, var) = exp(- ((x - mean) ** 2.0) / (2.0 * var)) / sqrt(2.0 * pi * var)"
+                , "posterior(x) = 0.5 * normal(x, 0.0, 1.0 / 100.0) + 0.5 * normal(x, 0.0, 1.0)"
+                , "set multiplot layout " <> show rows <> "," <> show columns <> " rowsfirst"
+                ]
+                <> mconcat
+                  (flip fmap d (\(algoLabel, d') ->
+                    mconcat $ take columns $
+                    flip fmap d' (\(step, hist) ->
+                      [ "set title '" <> algoLabel <> " "
+                        <> show step <> "'"
+                      , "plot '-' w boxes t '' fs solid, \\"
+                      , "       posterior(x) t '' w l lc 'black'"
+                      ]
+                      <> (flip fmap hist
+                        (\(x,y) -> show x <> " " <> show y))
+                      <> ["e"])
+                    <> repeat ["set multiplot next"]))
+                <> ["unset multiplot"]
+  in liftCR
+       (sinkIO (unpack outputPath)
+           (gnuplotInline (Just $ unpack "report/5steps.gnuplot.script")
+             . gnuplotScript))
+       figData
 
 buildSteps :: Rand StdGen (Cached ())
 buildSteps = getCompose fig

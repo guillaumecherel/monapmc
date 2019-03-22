@@ -151,15 +151,8 @@ nSimus Run {_algorithm=Beaumont2009{getN=n}}
 numberSimusLenormand2012 :: Int -> Int -> Int -> Int
 numberSimusLenormand2012 n nAlpha step = n + (n - nAlpha) * step
 
-l2 :: Double -> Double -> Int -> (Double -> Double) -> RunResult -> Double
-l2 lowerBound upperBound bins cdf r = posteriorL2 lowerBound upperBound bins cdf sample
-  where sample = fmap (second V.head) $ V.toList $ _sample r
-
 l2Toy :: RunResult -> Double
-l2Toy r = posteriorL2 (-10) 10 300 (toyPosteriorCDF 0)
-            (V.toList $ second V.head <$> _sample r)
-
-
+l2Toy r = Statistics.l2Toy $ _sample r
 
 
 --------

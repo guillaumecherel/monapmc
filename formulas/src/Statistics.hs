@@ -7,8 +7,11 @@ module Statistics where
 import Protolude
 import qualified Control.Foldl as Fold
 import qualified Data.Map as Map
+import qualified Data.Vector as Vector
 import qualified Text.Parsec as P
 import Util.Parser
+
+import Model (toyPosteriorCDF)
 
 -- Estimated posterior density given the posterior sample as list
 -- [(weight_i, theta_i) | i <= N]
@@ -42,6 +45,9 @@ posteriorL2 lowerBound upperBound bins targetCDF weightsXs =
                           weightsXs
   in  sqrt $ sum $ fmap (\(b, e) -> (e - theoPostBin b) ** 2) estPostBin
                               
+l2Toy :: Vector.Vector (Double, Vector.Vector Double) -> Double
+l2Toy sample = posteriorL2 (-10) 10 300 (toyPosteriorCDF 0)
+                 (Vector.toList $ second Vector.head <$> sample)
 
 toBin :: Double -> Double -> Int -> Double -> Double
 toBin lowerBound upperBound bins x = lowerBound + width * fromIntegral (floor ((x - lowerBound) / width) :: Int)

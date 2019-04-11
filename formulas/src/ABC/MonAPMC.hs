@@ -65,8 +65,10 @@ stepMerge s s' =
                       , APMC.thetas = thetasSelected
                       , APMC.weights = weightsSelected
                       , APMC.rhos = rhosSelected
-                      , APMC.pAcc = (fromIntegral $ V.length select2) /
-                                    (fromIntegral $ APMC.n p - APMC.nAlpha p)
+                      , APMC.pAcc = (fromIntegral $ V.length select2) *
+                                    (APMC.pAcc $ _s s2) /
+                                    (fromIntegral $ LA.rows $ APMC.thetas $
+                                      _s s2)
                       , APMC.epsilon = newEpsilon
                       }}
 

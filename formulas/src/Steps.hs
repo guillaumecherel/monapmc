@@ -207,16 +207,11 @@ fig =
   let outputPath = "report/5steps.png"
       len = Lenormand2012{getN=5000, getAlpha=0.1,
                           getPAccMin=0.01}
-      moa1 = MonAPMC{ getN=5000
+      moa stepSize par = MonAPMC{ getN=5000
                     , getAlpha=0.1
                     , getPAccMin=0.01
-                    , getStepSize = 1
-                    , getParallel = 2}
-      moa2 = MonAPMC{ getN=5000
-                    , getAlpha=0.1
-                    , getPAccMin=0.01
-                    , getStepSize = 2
-                    , getParallel = 1}
+                    , getStepSize = stepSize
+                    , getParallel = par}
       lenEasyABC = _algorithm $ fst easyABCLenormand2012Steps
       beaEasyABC = _algorithm $ fst easyABCBeaumont2009Steps
       figData :: Compose (Rand StdGen) Cached [(Text, [(Int, [(Double, Double)])])]
@@ -224,10 +219,10 @@ fig =
                     (pure <$> ("APMC",) <$> histogramSteps len)
                 $ liftA2 (<>)
                     (pure <$> ("MonAPMC StepSize 1 Parallel2",) <$>
-                      histogramSteps moa1)
+                      histogramSteps (moa 1 2))
                 $ liftA2 (<>)
                     (pure <$> ("MonAPMC StepSize 2 Parallel1",) <$>
-                      histogramSteps moa2)
+                      histogramSteps (moa 2 1))
                 $ liftA2 (<>)
                     (pure <$> ("EasyABC APMC",)
                           <$> Compose (pure histogramsEasyABCLenormand2012))

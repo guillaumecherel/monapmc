@@ -21,7 +21,7 @@ import Figure
 import Model
 import qualified Run
 import Statistics
-import qualified ABC.Lenormand2012 as Lenormand2012
+import qualified ABC.Lenormand2012 as APMC
 import qualified ABC.MonAPMC as MonAPMC
 import qualified ABC.SteadyState as SteadyState
 import Util
@@ -48,51 +48,55 @@ data StepsResult = StepsResult
 
 stepsResult :: Steps -> Rand StdGen (IO StepsResult)
 stepsResult Steps
-  { _algorithm=Lenormand2012{ getN=n
-                            , getAlpha=alpha
+  { _algorithm=APMC{ getN=n
+                            , getNAlpha=nAlpha
                             , getPAccMin=pAccMin}} =
-  let steps' :: Rand StdGen [Lenormand2012.S]
-      steps' = Lenormand2012.scan p toyModel
-      p = Lenormand2012.P
-        { Lenormand2012.n = n
-        , Lenormand2012.nAlpha = floor $ alpha * (fromIntegral $ n)
-        , Lenormand2012.pAccMin = pAccMin
-        , Lenormand2012.priorSample = toyPriorRandomSample
-        , Lenormand2012.priorDensity = toyPrior
-        , Lenormand2012.observed = V.singleton 0
+  let steps' :: Rand StdGen [APMC.S]
+      steps' = APMC.scan p toyModel
+      p = APMC.P
+        { APMC.n = n
+        , APMC.nAlpha = nAlpha
+        , APMC.pAccMin = pAccMin
+        , APMC.priorSample = toyPriorRandomSample
+        , APMC.priorDensity = toyPrior
+        , APMC.observed = V.singleton 0
         }
       getStep r = StepResult
-         { _t = Lenormand2012.t r
-         , _epsilon = Lenormand2012.epsilon r
-         , _pAcc = Lenormand2012.pAcc r
-         , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights r)
+         { _t = APMC.t r
+         , _epsilon = APMC.epsilon r
+         , _pAcc = APMC.pAcc r
+         , _sample = V.zip (V.fromList $ LA.toList $ APMC.weights r)
                         (V.fromList $ fmap V.fromList $ LA.toLists
-                          $ Lenormand2012.thetas r) }
+                          $ APMC.thetas r) }
   in return . StepsResult . fmap getStep <$> steps'
 stepsResult Steps
   { _algorithm=MonAPMC{ getN=n
-                      , getAlpha=alpha
+                      , getNAlpha=nAlpha
                       , getPAccMin=pAccMin
                       , getStepSize=stepSize
-                      , getParallel=parallel}} =
+                      , getParallel=parallel
+                      , getStopSampleSizeFactor=sf}} =
   let steps' :: RandT StdGen IO [MonAPMC.S (RandT StdGen IO)]
       steps' = MonAPMC.scanPar stepSize parallel p toyModel
-      p = Lenormand2012.P
-        { Lenormand2012.n = n
-        , Lenormand2012.nAlpha = floor $ alpha * (fromIntegral $ n)
-        , Lenormand2012.pAccMin = pAccMin
-        , Lenormand2012.priorSample = toyPriorRandomSample
-        , Lenormand2012.priorDensity = toyPrior
-        , Lenormand2012.observed = V.singleton 0
-        }
+      p = MonAPMC.P
+          { MonAPMC._apmcP=APMC.P
+              { APMC.n = n
+              , APMC.nAlpha = nAlpha
+              , APMC.pAccMin = pAccMin
+              , APMC.priorSample = toyPriorRandomSample
+              , APMC.priorDensity = toyPrior
+              , APMC.observed = V.singleton 0
+              }
+          , MonAPMC._stopSampleSizeFactor=sf
+          }
       getStep MonAPMC.E = StepResult 0 0 0 mempty
       getStep MonAPMC.S{MonAPMC._s = s} = StepResult
-        { _t = Lenormand2012.t s
-        , _epsilon = Lenormand2012.epsilon s
-        , _pAcc = Lenormand2012.pAcc s
-        , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights s)
+        { _t = APMC.t s
+        , _epsilon = APMC.epsilon s
+        , _pAcc = APMC.pAcc s
+        , _sample = V.zip (V.fromList $ LA.toList $ APMC.weights s)
               (V.fromList $ fmap V.fromList $ LA.toLists
-                 $ Lenormand2012.thetas s)  }
+                 $ APMC.thetas s)  }
   in do
     g <- getSplit
     return $ StepsResult . fmap getStep <$> evalRandT steps' g
@@ -114,14 +118,14 @@ cachedStepsPath' :: Int -> Algorithm -> FilePath
 cachedStepsPath' stepMax algo =
   (unpack $ "steps_" <> show stepMax <> "/" ) <> algoFilename algo
  
-easyABCLenormand2012Steps :: (Steps, Cached StepsResult)
-easyABCLenormand2012Steps = (s,sr)
+easyABCAPMCSteps :: (Steps, Cached StepsResult)
+easyABCAPMCSteps = (s,sr)
   where s = steps stepMax algo
         sr = fmap StepsResult $ traverse getStep (zip [1..] files)
         getStep :: (Int, FilePath)
                 -> Cached StepResult
         getStep (i,f) = source f (read i f)
-        algo = Lenormand2012 5000 0.1 0.01
+        algo = APMC 5000 500 0.01
         stepMax = 0
         read :: Int -> FilePath -> Text
              -> Either Text StepResult
@@ -188,9 +192,9 @@ histogramStepsCachePath :: Algorithm -> FilePath
 histogramStepsCachePath algo =
   "output/formulas/cached/scaledHistogram/toy/" <> algoFilename algo
 
-histogramsEasyABCLenormand2012 :: Cached [(Int, [(Double, Double)])]
-histogramsEasyABCLenormand2012 = 
-  snd easyABCLenormand2012Steps
+histogramsEasyABCAPMC :: Cached [(Int, [(Double, Double)])]
+histogramsEasyABCAPMC = 
+  snd easyABCAPMCSteps
   & fmap _steps
   & (fmap . fmap) ((,) <$> _t <*> histogramStep)
   & cache' "output/easyABC/scaledHistogram/toy/lenormand2012" 
@@ -205,14 +209,15 @@ histogramsEasyABCBeaumont2009 =
 fig :: Compose (Rand StdGen) Cached ()
 fig =
   let outputPath = "report/5steps.png"
-      len = Lenormand2012{getN=5000, getAlpha=0.1,
+      len = APMC{getN=5000, getNAlpha=500,
                           getPAccMin=0.01}
       moa stepSize par = MonAPMC{ getN=5000
-                    , getAlpha=0.1
+                    , getNAlpha=500
                     , getPAccMin=0.01
                     , getStepSize = stepSize
-                    , getParallel = par}
-      lenEasyABC = _algorithm $ fst easyABCLenormand2012Steps
+                    , getParallel = par
+                    , getStopSampleSizeFactor = 5}
+      lenEasyABC = _algorithm $ fst easyABCAPMCSteps
       beaEasyABC = _algorithm $ fst easyABCBeaumont2009Steps
       figData :: Compose (Rand StdGen) Cached [(Text, [(Int, [(Double, Double)])])]
       figData = liftA2 (<>)
@@ -225,7 +230,7 @@ fig =
                       histogramSteps (moa 2 1))
                 $ liftA2 (<>)
                     (pure <$> ("EasyABC APMC",)
-                          <$> Compose (pure histogramsEasyABCLenormand2012))
+                          <$> Compose (pure histogramsEasyABCAPMC))
                     (pure <$> ("EasyABC Beaumont2009",)
                           <$> Compose (pure histogramsEasyABCBeaumont2009))
       gnuplotScript :: [(Text, [(Int, [(Double, Double)])])] -> Text

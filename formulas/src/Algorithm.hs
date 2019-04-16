@@ -9,17 +9,18 @@ import Data.Text (unpack)
 import Formatting
 
 data Algorithm =
-  Lenormand2012
+  APMC
     { getN :: Int
-    , getAlpha :: Double
+    , getNAlpha :: Int
     , getPAccMin :: Double
     }
   | MonAPMC
     { getN :: Int
-    , getAlpha :: Double
+    , getNAlpha :: Int
     , getPAccMin :: Double
     , getStepSize :: Int
     , getParallel :: Int
+    , getStopSampleSizeFactor :: Int
     }
   | Beaumont2009
     { getN :: Int
@@ -35,18 +36,19 @@ data Algorithm =
   deriving (Show, Read, Eq, Ord)
 
 algoFilename :: Algorithm -> FilePath
-algoFilename Lenormand2012{getN=n, getAlpha=alpha, getPAccMin=pAccMin} =
-   unpack $ "lenormand2012_"
+algoFilename APMC{getN=n, getNAlpha=nAlpha, getPAccMin=pAccMin} =
+   unpack $ "apmc_"
              <> show n <> "_"
-             <> sformat (fixed 2) alpha <> "_"
+             <> sformat (fixed 2) nAlpha <> "_"
              <> sformat (fixed 2) pAccMin
-algoFilename MonAPMC{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getStepSize=stepSize, getParallel=parallel} =
+algoFilename MonAPMC{getN=n, getNAlpha=nAlpha, getPAccMin=pAccMin, getStepSize=stepSize, getParallel=parallel, getStopSampleSizeFactor=sf} =
    unpack $ "monAPMC_"
              <> show n <> "_"
-             <> sformat (fixed 2) alpha <> "_"
+             <> show nAlpha <> "_"
              <> sformat (fixed 2) pAccMin <> "_"
              <> show stepSize <> "_"
-             <> show parallel
+             <> show parallel <> "_"
+             <> show sf
 algoFilename SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par} =
    unpack $ "steadyState_"
              <> show n <> "_"

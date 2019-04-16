@@ -2,21 +2,24 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns #-}
 
 module ABC.MonAPMC where
 
 import Protolude 
 
 import Control.Monad.Random.Lazy hiding (split)
-import qualified Data.List.NonEmpty as NonEmpty
+-- import qualified Data.List.NonEmpty as NonEmpty
 import qualified Data.Vector as V
 import qualified Numeric.LinearAlgebra as LA
 
 import qualified ABC.Lenormand2012 as APMC
 import qualified MonPar
-import ABC.Lenormand2012 (P(..))
 
-data S m = S {_p :: APMC.P m, _t0 :: Int, _s :: APMC.S}
+data P m = P {_apmcP :: APMC.P m,
+              _stopSampleSizeFactor :: Int}
+
+data S m = S {_p :: !(P m), _t0 :: !Int, _s :: !(APMC.S)}
          | E
 
 -- The semigroup instance holds only for the states (values of type S) of the same algorithm, i.e. for any (S p s1) and (S p s2). States are created with the function `stepOne` and iterated over with the function `step` which take as argument a value of type P.
@@ -26,23 +29,24 @@ instance Semigroup (S m) where
   s <> s' = stepMerge s s'
 
 stepMerge :: S m -> S m -> S m
-stepMerge s s' = 
+stepMerge s s' =
   let (s1, s2) = if (_t0 s <= _t0 s') then (s, s') else (s', s)
       p = _p s1
       indices2NoDup = fmap fst
                      $ filter (\(_, t) -> t > _t0 s2)
                      $ zip [0..] $ V.toList $ APMC.ts (_s s2)
-      indicesNoDup = fmap (\i -> (1::Int,i)) [0..APMC.nAlpha p - 1]
+      indicesNoDup = fmap (\i -> (1::Int,i))
+                       [0..LA.rows (APMC.thetas (_s s1)) - 1]
                   <> fmap (\i -> (2::Int,i)) indices2NoDup
       selectBoth = V.fromList
-                   $ take (APMC.nAlpha p)
+                   $ take (APMC.nAlpha $ _apmcP p)
                    $ sortOn (\(which, i) -> if which == 1
                                              then APMC.rhos (_s s1) LA.! i
                                              else APMC.rhos (_s s2) LA.! i)
                    $ indicesNoDup
       (select1, select2) = bimap (fmap snd) (fmap snd)
                            $ V.partition (\(w,_) -> w == 1) selectBoth
-      -- TODO: le calcule du quantile devrait être pondéré (idem dans APMC.hs)
+      -- TODO: le calcule du quantile devrait être pondéré? (idem dans APMC.hs)
       rhosSelected = LA.vector $ V.toList
         (fmap (APMC.rhos (_s s1) LA.!) select1 <>
          fmap (APMC.rhos (_s s2) LA.!) select2)
@@ -93,19 +97,49 @@ step
   -> m (S m)
 step p f ms = do
   s <- ms
+  -- If s is empty or the number of particles it contains hasn't reach nAlpha -- yet, keep generating particles (n - nAlpha by n - nAlpha) from the prior -- using the function APMC.stepOne and setting the parameter n to
+  -- (n - nAlpha)
+  let reducedN = (_apmcP p){APMC.n = APMC.n (_apmcP p) - APMC.nAlpha (_apmcP p)}
   case s of
-    E -> (\s' -> S {_p = p, _t0 = 0, _s = s'}) <$> APMC.stepOne p f
-    s -> (\s' -> s{_s = s'}) <$> APMC.step p f (_s s)
+    E -> (\s' -> S { _p = p, _t0 = 0, _s = s'}) <$>
+                 APMC.stepOne reducedN f
+    S{_s=s'} ->
+      if LA.rows (APMC.thetas s') < APMC.nAlpha (_apmcP p)
+        then (\s'' ->  s <> S { _p = p, _t0 = 0, _s = s''}) <$> APMC.stepOne reducedN f
+        else (\s'' -> s{_s = s''}) <$> APMC.step (_apmcP p) f s'
 
 -- Stop condition
 stop :: (MonadRandom m) => P m -> m (S m) -> m Bool
-stop p ms = do
+stop P{_apmcP=apmcP, _stopSampleSizeFactor=sf} ms = do
   s <- ms
   case s of
-    E -> return True
-    S{_s=s'} -> return $ APMC.stop p s'
+    E -> return False
+    S{_s=s'} ->
+      let tSpan :: Int
+          tSpan = ceiling (fromIntegral (sf * APMC.nAlpha apmcP) /
+                   fromIntegral (APMC.n apmcP - APMC.nAlpha apmcP) :: Double)
+          count :: Int
+          count = getSum $ foldMap
+                             (\t -> if t > APMC.t s' - tSpan then Sum 1 else Sum 0)
+                             (APMC.ts s')
+          pAcc :: Double
+          pAcc = (fromIntegral count) / (fromIntegral (tSpan * (APMC.n apmcP - APMC.nAlpha apmcP)))
+      in return (APMC.t s' >= tSpan &&
+                  (APMC.pAccMin apmcP :: Double) >= (pAcc :: Double) )
 
 -- Parallel Monoid APMC
+runPar
+  :: forall m. (MonadIO m, MonadRandom m)
+  => Int
+  -> Int
+  -> P m
+  -> (V.Vector Double -> m (V.Vector Double))
+  -> m (S m)
+runPar stepSize parallel p f
+  | parallel < 1 = panic "Error function MonAPMC.runPar: parallel argument must be strictly positive."
+  | otherwise =
+  MonPar.runPlasticPar split (step p f) (stop p) stepSize parallel
+
 scanPar
   :: forall m. (MonadIO m, MonadRandom m)
   => Int

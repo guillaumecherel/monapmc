@@ -23,7 +23,7 @@ import Util.Parser
 import Algorithm
 import Model
 import Statistics
-import qualified ABC.Lenormand2012 as Lenormand2012
+import qualified ABC.Lenormand2012 as APMC
 import qualified ABC.MonAPMC as MonAPMC
 import qualified ABC.SteadyState as SteadyState
 import qualified Util.SteadyState as SteadyState 
@@ -45,52 +45,55 @@ run stepMax algo = Run algo stepMax
 runResult :: Run -> Rand StdGen (IO RunResult)
 runResult Run
   { _stepMax=stepMax
-  , _algorithm=Lenormand2012{ getN=n
-                            , getAlpha=alpha
+  , _algorithm=APMC{ getN=n
+                            , getNAlpha=nAlpha
                             , getPAccMin=pAccMin}} =
-  let steps :: Rand StdGen [(Int, Lenormand2012.S)]
-      steps = zip [1..stepMax] <$> Lenormand2012.scan p toyModel 
-      p = Lenormand2012.P
-        { Lenormand2012.n = n
-        , Lenormand2012.nAlpha = floor $ alpha * (fromIntegral n)
-        , Lenormand2012.pAccMin = pAccMin
-        , Lenormand2012.priorSample = toyPriorRandomSample
-        , Lenormand2012.priorDensity = toyPrior
-        , Lenormand2012.observed = V.singleton 0
+  let steps :: Rand StdGen [(Int, APMC.S)]
+      steps = zip [1..stepMax] <$> APMC.scan p toyModel 
+      p = APMC.P
+        { APMC.n = n
+        , APMC.nAlpha = nAlpha
+        , APMC.pAccMin = pAccMin
+        , APMC.priorSample = toyPriorRandomSample
+        , APMC.priorDensity = toyPrior
+        , APMC.observed = V.singleton 0
         }
       getRun (i, r) = RunResult
         { _stepCount = i
-        , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights r)
+        , _sample = V.zip (V.fromList $ LA.toList $ APMC.weights r)
                           (V.fromList $ fmap V.fromList $ LA.toLists
-                            $ Lenormand2012.thetas r) }
+                            $ APMC.thetas r) }
   in return . getRun . last <$> steps
 runResult Run
   { _stepMax=stepMax
   , _algorithm=MonAPMC{ getN=n
-                           , getAlpha=alpha
-                           , getPAccMin=pAccMin
-                           , getStepSize=stepSize
-                           , getParallel=parallel}} =
-  let steps :: RandT StdGen IO [(Int, MonAPMC.S (RandT StdGen IO))]
-      steps = zip [1..stepMax] <$> MonAPMC.scanPar stepSize parallel p toyModel
-      p = Lenormand2012.P
-        { Lenormand2012.n = n
-        , Lenormand2012.nAlpha = floor $ alpha
-                                 * (fromIntegral $ n)
-        , Lenormand2012.pAccMin = pAccMin
-        , Lenormand2012.priorSample = toyPriorRandomSample
-        , Lenormand2012.priorDensity = toyPrior
-        , Lenormand2012.observed = V.singleton 0
-        }
-      getRun (i, MonAPMC.E) = RunResult i mempty
-      getRun (i, MonAPMC.S{MonAPMC._s = s}) = RunResult
-        { _stepCount = i
-        , _sample = V.zip (V.fromList $ LA.toList $ Lenormand2012.weights s)
+                       , getNAlpha=nAlpha
+                       , getPAccMin=pAccMin
+                       , getStepSize=stepSize
+                       , getParallel=parallel
+                       , getStopSampleSizeFactor=sf}} =
+  let result :: RandT StdGen IO (MonAPMC.S (RandT StdGen IO))
+      result = MonAPMC.runPar stepSize parallel p toyModel
+      p = MonAPMC.P
+          { MonAPMC._apmcP=APMC.P
+              { APMC.n = n
+              , APMC.nAlpha = nAlpha
+              , APMC.pAccMin = pAccMin
+              , APMC.priorSample = toyPriorRandomSample
+              , APMC.priorDensity = toyPrior
+              , APMC.observed = V.singleton 0
+              }
+          , MonAPMC._stopSampleSizeFactor=sf
+          }
+      getRun MonAPMC.E = RunResult 0 mempty
+      getRun MonAPMC.S{MonAPMC._s = s} = RunResult
+        { _stepCount = APMC.t s
+        , _sample = V.zip (V.fromList $ LA.toList $ APMC.weights s)
                           (V.fromList $ fmap V.fromList $ LA.toLists
-                            $ Lenormand2012.thetas s) }
+                            $ APMC.thetas s) }
   in do
     g <- getSplit
-    return $ getRun . last <$> evalRandT steps g
+    return $ getRun <$> evalRandT result g
 runResult Run {_stepMax=stepMax, _algorithm=SteadyState{getN=n, getAlpha=alpha, getPAccMin=pAccMin, getParallel=par}} =
   let step :: RandT StdGen IO SteadyState.S
       step = SteadyState.runN (stepMax * n) ssr
@@ -136,13 +139,13 @@ cachedRunPath Run {_stepMax = stepMax, _algorithm = algo} =
 --------
  
 nSimus :: Run -> RunResult -> Int
-nSimus Run {_algorithm=Lenormand2012 {getN=n, getAlpha=alpha}}
+nSimus Run {_algorithm=APMC {getN=n, getNAlpha=nAlpha}}
        RunResult {_stepCount=step} =
-  numberSimusLenormand2012 n (floor $ fromIntegral n * alpha) step
+  numberSimusLenormand2012 n nAlpha step
 -- nSimus Run {_algorithm=MonAPMCSeq {getN=n, getAlpha=alpha}, _stepCount=step} = numberSimusLenormand2012 n (floor $ fromIntegral n * alpha) step
-nSimus Run {_algorithm=MonAPMC {getN=n, getStepSize=stepSize, getAlpha=alpha}}
+nSimus Run {_algorithm=MonAPMC {getN=n, getStepSize=stepSize, getNAlpha=nAlpha}}
        RunResult {_stepCount=step} =
-  numberSimusLenormand2012 n (floor $ fromIntegral n * alpha) (step * stepSize)
+  numberSimusLenormand2012 n nAlpha (step * stepSize)
 nSimus Run {_algorithm=SteadyState{}}
        RunResult {_stepCount=step} = step
 nSimus Run {_algorithm=Beaumont2009{getN=n}}

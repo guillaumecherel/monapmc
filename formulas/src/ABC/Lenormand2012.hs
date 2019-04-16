@@ -2,6 +2,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE BangPatterns #-}
+
 module ABC.Lenormand2012 where
 
 import Protolude
@@ -35,13 +37,13 @@ data P m = P
 
 -- The algorithm's state.
 data S = S
-  { t :: Int
-  , thetas:: LA.Matrix Double
-  , weights:: LA.Vector Double
-  , ts :: V.Vector Int
-  , rhos:: LA.Vector Double
-  , pAcc:: Double
-  , epsilon:: Double
+  { t :: !Int
+  , thetas:: !(LA.Matrix Double)
+  , weights:: !(LA.Vector Double)
+  , ts :: !(V.Vector Int)
+  , rhos:: !(LA.Vector Double)
+  , pAcc:: !Double
+  , epsilon:: !Double
   } deriving (Show)
   
 pprintS :: S -> T.Text
@@ -80,11 +82,11 @@ stepOne p f = do
                               $ take (nAlpha p)
                               $ sortOn snd
                               $ zip [0..] (LA.toList newRhos)
-  let newEpsilon = rhoSelected LA.! (nAlpha p - 1)
+  let newEpsilon = rhoSelected LA.! (LA.size rhoSelected - 1)
   let thetaSelected = newThetas LA.? select
   let newPAcc = 1
-  let weightsSelected = LA.konst 1 (nAlpha p)
-  let tsSelected = V.fromList $ replicate (nAlpha p) 1
+  let weightsSelected = LA.konst 1 (LA.size rhoSelected)
+  let tsSelected = V.fromList $ replicate (LA.size rhoSelected) 1
   return $ S {t = 1, thetas = thetaSelected, weights = weightsSelected, ts = tsSelected ,rhos = rhoSelected, pAcc = newPAcc, epsilon = newEpsilon}
 
 step :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> S -> m S
@@ -95,7 +97,6 @@ step p f s =  do
   let dim = LA.cols (thetas s)
   let sigmaSquared = LA.scale 2
                          $ weightedCovariance (thetas s) (weights s)
-  -- TODO: check that I can take the mean out of the sample generation
   let newThetas =  resampleThetas +
                     LA.gaussianSample seed (n p - nAlpha p)
                       (LA.konst 0 dim)

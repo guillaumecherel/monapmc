@@ -45,23 +45,26 @@ l2VSNSimus' nRep stepMax algo =
 fig :: Compose (Rand StdGen) Cached ()
 fig = 
   let nReplications = 10
-      alphas = [1%10, 2%10 .. 9%10]
       nAlpha = 500
+      --alphas = [1%10, 2%10 .. 9%10]
+      --ns = fmap (\a -> floor (fromIntegral nAlpha/ a) alphas
+      ns = [501, 555, 625, 1000, 5000]
       pAccMins = [0.01, 0.05, 0.1, 0.2]
       stepMax = 100
       outputPath = "report/L2_vs_nsimus.png"
-      len pAccMin alpha = Lenormand2012
-                            { getN = floor (nAlpha / alpha)
-                            , getAlpha=fromRational alpha
+      len n nAlpha pAccMin = APMC
+                            { getN = n
+                            , getNAlpha = nAlpha
                             , getPAccMin=pAccMin}
-      moa stepSize parallel pAccMin alpha = MonAPMC
-                            { getN = floor (nAlpha / alpha)
-                            , getAlpha = fromRational alpha
+      moa stepSize parallel n nAlpha pAccMin = MonAPMC
+                            { getN = n
+                            , getNAlpha = nAlpha
                             , getPAccMin = pAccMin
                             , getStepSize = stepSize
-                            , getParallel = parallel}
+                            , getParallel = parallel
+                            , getStopSampleSizeFactor = 5}
       figData :: Compose (Rand StdGen) Cached
-                 [(Text, [(Double, [(Ratio Integer, L2VSNSimus)])])]
+                 [(Text, [(Double, [(Int, L2VSNSimus)])])]
       figData = (traverse . traverse .
                  traverse . traverse .
                  traverse . traverse)
@@ -69,9 +72,9 @@ fig =
                 ([("APMC", len), ("MonAPMC", moa 1 1)] &
                  fmap (\(label, algo) ->
                    (label, pAccMins & fmap (\pAccMin ->
-                     (pAccMin, alphas & fmap (\alpha ->
-                       (alpha, algo pAccMin alpha)))))))
-      gnuplotScript :: [(Text, [(Double, [(Ratio Integer, L2VSNSimus)])])]
+                     (pAccMin, ns & fmap (\n ->
+                       (n, algo n nAlpha pAccMin)))))))
+      gnuplotScript :: [(Text, [(Double, [(Int, L2VSNSimus)])])]
                     -> Text
       gnuplotScript ds = unlines $
             [ "set terminal png truecolor" :: Text
@@ -79,7 +82,7 @@ fig =
             , "set grid"
             , "set key on inside horizontal"
             , "# set yrange [0:.25]"
-            , "set ytics 0,.05,.2"
+            , "set ytics 0,.05"
             , "# set xrange [0.2e5:33e5]"
             , "set logscale x 2"
             , "# set xtics (0.125e5, 0.25e5, 0.5e5, 1e5, 2e5, 4e5, 8e5, 16e5, 32e5)"
@@ -103,9 +106,14 @@ fig =
               -- Map over pAccMin
               (intercalate ["e"] $
                flip fmap d (\(pAccMin, d') ->
-                 -- Map over alpha
-                 flip fmap d' (\(alpha, lvns) ->
-                     show (_nSimusMean lvns) <> " "
+                 -- Map over ns
+                 flip fmap d' (\(n, lvns) ->
+                     "#" <>
+                     "algo=" <> label <> " " <>
+                     "n=" <> show n <> " " <>
+                     "pAccMin=" <> show pAccMin
+                     <> "\n"
+                     <> show (_nSimusMean lvns) <> " "
                      <> show (_l2Mean lvns) <> " "
                      <> show (_nSimusStd lvns) <> " "
                      <> show (_l2Std lvns)))) <> 

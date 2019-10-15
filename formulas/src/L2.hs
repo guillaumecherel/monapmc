@@ -17,7 +17,7 @@ import Formatting
 import System.Random (StdGen, mkStdGen)
 import Util.CSV
 
-import Figure
+import Util.Figure
 import Statistics
 
 sample :: [Double]

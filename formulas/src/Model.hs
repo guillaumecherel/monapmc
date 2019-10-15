@@ -11,7 +11,7 @@ import qualified Data.Random as R
 import qualified Data.Vector as V
 import qualified Text.Parsec as P
 
-import Distribution
+import Util.Distribution as Distribution
 
 --------
 -- Toy Model

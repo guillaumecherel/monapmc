@@ -3,7 +3,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Distribution where
+module Util.Distribution where
 
 import Protolude
 import Control.Monad.Random.Lazy

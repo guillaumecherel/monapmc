@@ -14,7 +14,7 @@ import qualified Data.Vector as V
 import qualified Numeric.LinearAlgebra as LA
 
 import qualified ABC.Lenormand2012 as APMC
-import qualified MonPar
+import qualified Util.MonPar as MonPar
 
 data P m = P {_apmcP :: APMC.P m,
               _stopSampleSizeFactor :: Int}

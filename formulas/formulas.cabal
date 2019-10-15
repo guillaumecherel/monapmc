@@ -17,8 +17,6 @@ library
   hs-source-dirs:      src
   ghc-options:         -Wall
   exposed-modules:     Algorithm,
-                       Util.CSV,
-                       Figure,
                        Model,
                        Run,
                        Replications,
@@ -26,13 +24,16 @@ library
                        ABC.Lenormand2012,
                        ABC.SteadyState,
                        ABC.MonAPMC,
-                       MonPar,
-                       Distribution,
                        ToyModel,
                        Util,
-                       Util.SteadyState,
+                       Util.CSV,
+                       Util.Distribution,
+                       Util.Figure,
+                       Util.MonPar,
                        Util.Parser,
+                       Util.SteadyState,
                        Steps,
+                       Report,
                        L2VSNSimus,
                        VSTime
   default-language:    Haskell2010

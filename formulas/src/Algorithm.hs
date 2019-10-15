@@ -61,3 +61,13 @@ algoFilename Beaumont2009{getN=n, getEpsilonFrom=ef, getEpsilonTo=et} =
              <> sformat (fixed 2) ef <> "_"
              <> sformat (fixed 2) et
 
+
+cpuTime :: Int -> Double
+cpuTime step = fromIntegral step
+
+realTime :: Algorithm -> Int -> Double
+realTime algo step = case algo of
+  APMC{} -> cpuTime step
+  MonAPMC{getStepSize=stepSize, getParallel=par} ->
+   fromIntegral $ stepSize * (ceiling $ cpuTime step / fromIntegral (par * stepSize))
+  _ -> panic "Algorithm.realTime Not implemented."

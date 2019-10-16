@@ -5,7 +5,6 @@ module Util.CSV where
 
 import Protolude
 import qualified Data.ByteString.Lazy as BSL
-import Data.Cached
 import Data.Csv
 import Data.Text (pack, intercalate)
 import Data.Text.Encoding
@@ -18,5 +17,3 @@ encodeText colNames = mappend (Data.Text.intercalate "," colNames <> "\n")
 decodeText :: FromRecord a => Text -> Either Text (V.Vector a)
 decodeText = first pack . decode HasHeader . BSL.fromStrict . encodeUtf8
 
-csvSink :: ToRecord a => FilePath -> [Text] -> Cached [a] -> Cached ()
-csvSink path colNames = sink path (encodeText colNames)

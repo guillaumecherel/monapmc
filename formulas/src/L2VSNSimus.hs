@@ -9,7 +9,6 @@ import Protolude
 
 import qualified Control.Foldl as Fold
 import Control.Monad.Random.Lazy
-import Data.Cached as Cached
 import Data.Functor.Compose
 import Data.Text (unlines, unpack)
 
@@ -36,11 +35,4 @@ l2VSNSimus algo reps = Fold.fold f reps
           foldMeanWith (fromIntegral . nSimus algo . _stepCount)
         nSimStd =
           foldStdWith (fromIntegral . nSimus algo . _stepCount)
-
--- l2VSNSimus'
---   :: Int -> Int -> Algorithm
---   -> Compose (Rand StdGen) Cached L2VSNSimus
--- l2VSNSimus' nRep stepMax algo =
---   l2VSNSimus (Run algo stepMax) <$> cachedRepRuns "output/formulas/cached"
---     (Replications algo stepMax nRep)
 

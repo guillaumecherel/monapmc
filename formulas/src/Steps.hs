@@ -9,7 +9,6 @@ import Protolude
 import Data.Text (unpack, unlines)
 import Data.Csv
 import Data.Functor.Compose
-import Data.Cached as Cached
 import Control.Monad.Random.Lazy
 import qualified Data.Vector as V
 import qualified Numeric.LinearAlgebra as LA

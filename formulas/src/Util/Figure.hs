@@ -6,15 +6,11 @@ module Util.Figure where
 
 import Protolude
 
--- import Control.Monad.Random.Lazy
--- import Data.Functor.Compose
 import qualified Data.Set as Set
 import Data.String (String)
 import Data.Text (unpack)
 import qualified Data.Text as Text
 import System.Process
-
-import Data.Cached
 
 data Datasets
   = DataLine Text (Maybe Int) (Maybe Int) [(Text, [Maybe (Double, Double)])]
@@ -162,22 +158,20 @@ gnuplotInline fig@(Figure path _ _) = do
   where script = scriptFigure fig
  
 -- Run gnuplot reading script from path, passing given args with gnuplot option "-e" and writing figure to output path.
-gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> Cached ()
-gnuplot script output args = trigger output
-                                     (command)
-                                     (Set.fromList $ script:fmap snd args)
-  where command = do
-          (status, out, err) <- readProcessWithExitCode ("gnuplot" :: String) gpArgs []
-          hPutStrLn stderr err
-          hPutStrLn stdout out
-          case status of
-            ExitSuccess -> return ()
-            ExitFailure code -> panic (
-              "Error: command gnuplot exited with status " <> show code
-              <> "\nFailing command: " <> "gnuplot " <> show gpArgs)
-        gpArgs = [ ("-e" :: String), "outputPath='" <> output <> "'" ]
+gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> IO ()
+gnuplot script output args =
+  let gpArgs = [ ("-e" :: String), "outputPath='" <> output <> "'" ]
               <> join ( fmap (\(arg,val) -> ["-e", arg <> "='" <> val <> "'"]) 
                              args )
               <> ["-c", script]
+  in do
+    (status, out, err) <- readProcessWithExitCode ("gnuplot" :: String) gpArgs []
+    hPutStrLn stderr err
+    hPutStrLn stdout out
+    case status of
+      ExitSuccess -> return ()
+      ExitFailure code -> panic (
+        "Error: command gnuplot exited with status " <> show code
+        <> "\nFailing command: " <> "gnuplot " <> show gpArgs)
 
 

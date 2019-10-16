@@ -8,7 +8,6 @@ import Protolude
 
 import qualified Control.Foldl as Fold
 import Control.Monad.Random.Lazy
-import Data.Cached as Cached
 import Data.Functor.Compose
 import Data.List (last)
 import Data.Text (Text, pack, unpack, unlines, intercalate)

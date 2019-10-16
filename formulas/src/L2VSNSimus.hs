@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-
+{-# LANGUAGE NamedFieldPuns #-}
 
 module L2VSNSimus where
 
@@ -27,18 +27,20 @@ data L2VSNSimus = L2VSNSimus
   , _nSimusStd :: Double
   }
 
-l2VSNSimus :: Run -> [RunResult] -> L2VSNSimus
-l2VSNSimus r reps = Fold.fold f reps
+l2VSNSimus :: Algorithm -> [RunResult] -> L2VSNSimus
+l2VSNSimus algo reps = Fold.fold f reps
   where f = L2VSNSimus <$> l2Mean <*> l2Std <*> nSimMean <*> nSimStd
         l2Mean = foldMeanWith Run.l2Toy
         l2Std = foldStdWith Run.l2Toy
-        nSimMean = foldMeanWith (fromIntegral . nSimus r)
-        nSimStd = foldStdWith (fromIntegral . nSimus r)
+        nSimMean =
+          foldMeanWith (fromIntegral . nSimus algo . _stepCount)
+        nSimStd =
+          foldStdWith (fromIntegral . nSimus algo . _stepCount)
 
-l2VSNSimus'
-  :: Int -> Int -> Algorithm
-  -> Compose (Rand StdGen) Cached L2VSNSimus
-l2VSNSimus' nRep stepMax algo =
-  l2VSNSimus (Run algo stepMax) <$> cachedRepRuns "output/formulas/cached"
-    (Replications algo stepMax nRep)
+-- l2VSNSimus'
+--   :: Int -> Int -> Algorithm
+--   -> Compose (Rand StdGen) Cached L2VSNSimus
+-- l2VSNSimus' nRep stepMax algo =
+--   l2VSNSimus (Run algo stepMax) <$> cachedRepRuns "output/formulas/cached"
+--     (Replications algo stepMax nRep)
 

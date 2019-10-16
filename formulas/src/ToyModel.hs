@@ -7,7 +7,6 @@ module ToyModel where
 import Protolude 
 
 import Control.Monad.Random.Lazy
-import Data.Cached as Cached
 import Data.Functor.Compose
 import Data.Text (unpack, unlines)
 import Util.CSV

@@ -19,14 +19,15 @@ import qualified L2VSNSimus
 import           L2VSNSimus (L2VSNSimus)
 import qualified Util.Figure as Figure
 import           Util.Figure (Figure(..))
-import           Replications
+import qualified Replications
+import           Replications (Replications(..))
 import qualified Run
+import           Run (RunResult)
 import qualified Steps
 import           Steps (Steps(..), StepResult(..), StepsResult(..))
 import           System.FilePath ((</>))
 import qualified ToyModel
 import           Util
-import qualified VSTime
 
 cacheRootDir :: FilePath
 cacheRootDir = "output/formulas/cached"
@@ -59,26 +60,42 @@ repliMonAPMC stepSize par = Replications
 
 ---- Simulation results
 
+repRun
+  :: Replications -> Compose (Rand StdGen) Cached [RunResult]
+repRun r@Replications
+  { Replications._algorithm
+  , Replications._stepMax
+  , Replications._nReplications} =
+  let cachePath = cacheRootDir
+        </> (Text.unpack $ "replications_runs_" <> show _nReplications
+             <> "_" <> show _stepMax)
+        </> algoFilename _algorithm
+  in liftC (cache' cachePath . fromIO mempty)
+    (Compose $ Replications.repRuns r)
+
+repSteps
+  :: Replications -> Compose (Rand StdGen) Cached [StepsResult]
+repSteps r@Replications
+  { Replications._algorithm
+  , Replications._stepMax
+  , Replications._nReplications} =
+  let cachePath = cacheRootDir
+        </> (Text.unpack $ "replications_steps_" <> show _nReplications <> "_" <> show _stepMax)
+        </> algoFilename _algorithm
+  in liftC (cache' cachePath . fromIO mempty)
+    (Compose $ Replications.repSteps r)
+
 replicationsStepsAPMC :: Compose (Rand StdGen) Cached [StepsResult]
-replicationsStepsAPMC =
-  let cachePath = cacheRootDir </> repStepsFilename repliAPMC
-      simulations = repSteps repliAPMC
-  in  liftC (cache' cachePath . fromIO mempty)
-    $ Compose simulations
+replicationsStepsAPMC = repSteps repliAPMC
 
 replicationsStepsMonAPMC
   :: Compose (Rand StdGen) Cached [(Int, Int, [StepsResult])]
 replicationsStepsMonAPMC =
-  let cachePath r = cacheRootDir </> repStepsFilename r
-      stepSizes = [1,2]
+  let stepSizes = [1,2]
       pars = [1,2,3,4]
-      replis = repliMonAPMC <$> stepSizes <*> pars
-      simulations :: [Rand StdGen (IO [StepsResult])]
-      simulations = fmap repSteps replis
-  in  fmap (zipWith (\(s,p) r -> (s, p, r)) ((,) <$> stepSizes <*> pars))
-    $ traverse (\(r, c) -> liftC (cache' (cachePath r) . fromIO mempty) c)
-    $ zip replis
-    $ fmap Compose simulations
+  in traverse
+        (\(s, p) -> (s, p,) <$> repSteps (repliMonAPMC s p))
+        ((,) <$> stepSizes <*> pars)
 
 easyABCAPMCSteps :: (Steps, Cached StepsResult)
 easyABCAPMCSteps = (s,sr)
@@ -283,7 +300,7 @@ histogramSteps algo =
                      </> algoFilename algo
   in  liftC (cache' (histogramStepsCachePath))
     $ fmap (fmap ((,) <$> _t <*> Steps.histogramStep) . _steps)
-    $ liftC ( cache' (cacheRootDir </> cachedStepsPath)
+    $ liftC ( cache' (cachedStepsPath)
             . fromIO mempty )
     $ Compose $ Steps.stepsResult (Steps.steps stepMax algo)
 
@@ -383,17 +400,25 @@ l2VsNSimus =
                             , getStepSize = stepSize
                             , getParallel = parallel
                             , getStopSampleSizeFactor = 5}
-      figData :: Compose (Rand StdGen) Cached
-                 [(Text, [(Double, [(Int, L2VSNSimus)])])]
-      figData = (traverse . traverse .
-                 traverse . traverse .
-                 traverse . traverse)
-                  (L2VSNSimus.l2VSNSimus' nReplications stepMax) $
-                ([("APMC", len), ("MonAPMC", moa 1 1)] &
-                 fmap (\(label, algo) ->
-                   (label, pAccMins & fmap (\pAccMin ->
-                     (pAccMin, ns & fmap (\n ->
-                       (n, algo n nAlpha pAccMin)))))))
+      algos :: [(Text, [(Double, [(Int, Algorithm)])])]
+      algos =
+        [("APMC", len), ("MonAPMC", moa 1 1)] &
+          fmap (\(label, algo) ->
+            (label, pAccMins & fmap (\pAccMin ->
+              (pAccMin, ns & fmap (\n ->
+                (n, algo n nAlpha pAccMin))))))
+      l2VsNSimus :: Algorithm -> [RunResult] -> L2VSNSimus
+      l2VsNSimus algo runResults =
+        L2VSNSimus.l2VSNSimus algo runResults
+      figData
+        :: [(Text, [(Double, [(Int, Algorithm)])])]
+        -> Compose (Rand StdGen) Cached
+          [(Text, [(Double, [(Int, L2VSNSimus)])])]
+      figData algos =
+        (traverse . traverse . traverse . traverse . traverse . traverse)
+          (\algo -> l2VsNSimus algo <<$>> repRun
+            $ Replications algo stepMax nReplications)
+          algos
       fig :: [(Text, [(Double, [(Int, L2VSNSimus)])])] -> Figure
       fig x =
         Figure figPath prelude
@@ -417,7 +442,7 @@ l2VsNSimus =
                             )
                           ]
                         ))))
-  in liftC (sinkIO figPath (Figure.gnuplotInline . fig)) figData
+  in liftC (sinkIO figPath (Figure.gnuplotInline . fig)) (figData algos)
 
 
 report :: Compose (Rand StdGen) Cached ()

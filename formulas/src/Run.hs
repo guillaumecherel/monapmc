@@ -10,7 +10,6 @@ import Data.List (last)
 import Data.Functor.Compose
 import qualified Control.Foldl as L
 import Control.Monad.Random.Lazy
-import Data.Cached
 import qualified Data.Map as Map
 import Data.Text (unpack)
 import qualified Data.Vector as V
@@ -121,35 +120,19 @@ runResult Run {_algorithm=Beaumont2009{}} = return (return (RunResult 0 mempty))
 absoluteError :: Double -> Double -> Double
 absoluteError expected x = abs (x - expected)
 
-cachedRun :: FilePath -> Int -> Algorithm
-          -> Compose (Rand StdGen) Cached RunResult
-cachedRun rootDir stepMax algo =
-  let r = Run algo stepMax
-  in Compose $ (cache' (rootDir </> cachedRunPath r) . fromIO mempty)
-           <$> (runResult r)
-
-cachedRunPath :: Run -> FilePath
-cachedRunPath Run {_stepMax = stepMax, _algorithm = algo} =
-  (unpack $ "run_" <> show stepMax) </> algoFilename algo
-
-
 
 --------
 -- Descriptive statistics and quantities over a single simulation result
 --------
  
-nSimus :: Run -> RunResult -> Int
-nSimus Run {_algorithm=APMC {getN=n, getNAlpha=nAlpha}}
-       RunResult {_stepCount=step} =
+nSimus :: Algorithm -> Int -> Int
+nSimus APMC{getN=n, getNAlpha=nAlpha} step =
   numberSimusLenormand2012 n nAlpha step
 -- nSimus Run {_algorithm=MonAPMCSeq {getN=n, getAlpha=alpha}, _stepCount=step} = numberSimusLenormand2012 n (floor $ fromIntegral n * alpha) step
-nSimus Run {_algorithm=MonAPMC {getN=n, getStepSize=stepSize, getNAlpha=nAlpha}}
-       RunResult {_stepCount=step} =
+nSimus MonAPMC{getN=n, getStepSize=stepSize, getNAlpha=nAlpha} step =
   numberSimusLenormand2012 n nAlpha (step * stepSize)
-nSimus Run {_algorithm=SteadyState{}}
-       RunResult {_stepCount=step} = step
-nSimus Run {_algorithm=Beaumont2009{getN=n}}
-       RunResult {_stepCount=step} = n * step
+nSimus SteadyState{} step = step
+nSimus Beaumont2009{getN=n} step = n * step
 
 numberSimusLenormand2012 :: Int -> Int -> Int -> Int
 numberSimusLenormand2012 n nAlpha step = n + (n - nAlpha) * step

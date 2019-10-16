@@ -12,7 +12,7 @@ import Protolude
 
 import           Algorithm
 import           Control.Monad.Random.Lazy
-import           Data.Cached (Cached, sinkIO, cache', fromIO, source)
+import           Data.Cached (Cached, cache', fromIO, source)
 import           Data.Functor.Compose
 import qualified Data.Text as Text
 import qualified L2VSNSimus
@@ -155,8 +155,7 @@ easyABCBeaumont2009Steps = (s,sr)
 toyModelDistribution :: Compose (Rand StdGen) Cached ()
 toyModelDistribution =
   let figPath = "report/toy_model_distribution.png"
-  in 
-     liftC (sinkIO figPath Figure.gnuplotInline)
+  in Util.makeFigure figPath 
    $ pure $ Figure
        figPath
        [ "set terminal png" ]
@@ -198,14 +197,14 @@ stepStatVSTime figPath title ylabel stat time =
         -> [(Text, Maybe Int, [(Text, [Maybe (Double, Double)])])]
       figInput dataAPMC dataMonAPMC =
              [( "APMC", Just 0
-              ,   zip [1..] dataAPMC
+              ,   zip [1 :: Int  ..] dataAPMC
                 & fmap (\(i, dataset) ->
                     ("APMC replication " <> show i, Just <$> dataset)))]
           <> (  dataMonAPMC
               & fmap (\(stepSize, par, datasets) ->
                   let legend = "MonAPMC " <> show stepSize <> " " <> show par
                       linestyle = Just $ stepSize + 2
-                      datasets' = zip [1..] datasets
+                      datasets' = zip [1 :: Int ..] datasets
                         & fmap (\(i, dataset) ->
                             ( legend <> " replication " <> show i
                             , Just <$> dataset))
@@ -221,15 +220,12 @@ stepStatVSTime figPath title ylabel stat time =
       fig 
         :: [[(Double, Double)]]
         -> [(Int, Int, [[(Double, Double)]])]
-        -> IO ()
-      fig a b = Figure.gnuplotInline
-            $ Figure figPath gnuplotPrelude
+        -> Figure
+      fig a b =
+          Figure figPath gnuplotPrelude
             $ Figure.SinglePlot $ Figure.Plot title
             $ (\(t,c,d) -> Figure.DataLine t c c d) <$> figInput a b
-  in liftC (sinkIO figPath identity)
-   $ liftA2 fig
-     linesAPMC
-     linesMonAPMC
+  in Util.makeFigure figPath (fig <$> linesAPMC <*> linesMonAPMC)
 
 epsilonVSCPUTime :: Compose (Rand StdGen) Cached ()
 epsilonVSCPUTime =
@@ -345,8 +341,8 @@ steps =
       fig x =
         let rows = length x
             columns = maximum $ fmap (length . snd) x
-            figWidth = fromIntegral columns * 1.4 * 72 * 2.54
-            figHeight = fromIntegral rows * 1.4 * 72 * 2.54
+            figWidth = fromIntegral columns * 1.4 * 72 * 2.54 :: Double
+            figHeight = fromIntegral rows * 1.4 * 72 * 2.54 :: Double
             prelude =
               [ "set terminal png truecolor size "
                 <> show figWidth <> "," <> show figHeight <> " font ',12'"
@@ -364,7 +360,7 @@ steps =
                  -> Figure.Plot (algoLabel <> " " <> show step)
                    $ [Figure.DataBar "" Nothing Nothing
                      [(algoLabel <> " " <> show step, hist)]]))
-  in liftC (sinkIO figPath (Figure.gnuplotInline . fig)) figData
+  in Util.makeFigure figPath (fig <$> figData)
 
 
 l2VsNSimus :: Compose (Rand StdGen) Cached ()
@@ -389,13 +385,13 @@ l2VsNSimus =
         , "# set xtics (0.125e5, 0.25e5, 0.5e5, 1e5, 2e5, 4e5, 8e5, 16e5, 32e5)"
         , "set xtics 3125, 2"
         ]
-      len n nAlpha pAccMin = APMC
+      len n nAlpha' pAccMin = APMC
                             { getN = n
-                            , getNAlpha = nAlpha
+                            , getNAlpha = nAlpha'
                             , getPAccMin=pAccMin}
-      moa stepSize parallel n nAlpha pAccMin = MonAPMC
+      moa stepSize parallel n nAlpha' pAccMin = MonAPMC
                             { getN = n
-                            , getNAlpha = nAlpha
+                            , getNAlpha = nAlpha'
                             , getPAccMin = pAccMin
                             , getStepSize = stepSize
                             , getParallel = parallel
@@ -407,16 +403,12 @@ l2VsNSimus =
             (label, pAccMins & fmap (\pAccMin ->
               (pAccMin, ns & fmap (\n ->
                 (n, algo n nAlpha pAccMin))))))
-      l2VsNSimus :: Algorithm -> [RunResult] -> L2VSNSimus
-      l2VsNSimus algo runResults =
-        L2VSNSimus.l2VSNSimus algo runResults
       figData
-        :: [(Text, [(Double, [(Int, Algorithm)])])]
-        -> Compose (Rand StdGen) Cached
+        :: Compose (Rand StdGen) Cached
           [(Text, [(Double, [(Int, L2VSNSimus)])])]
-      figData algos =
+      figData  =
         (traverse . traverse . traverse . traverse . traverse . traverse)
-          (\algo -> l2VsNSimus algo <<$>> repRun
+          (\algo -> L2VSNSimus.l2VSNSimus algo <<$>> repRun
             $ Replications algo stepMax nReplications)
           algos
       fig :: [(Text, [(Double, [(Int, L2VSNSimus)])])] -> Figure
@@ -442,7 +434,7 @@ l2VsNSimus =
                             )
                           ]
                         ))))
-  in liftC (sinkIO figPath (Figure.gnuplotInline . fig)) (figData algos)
+  in Util.makeFigure figPath (fig <$> figData)
 
 
 report :: Compose (Rand StdGen) Cached ()

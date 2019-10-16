@@ -8,6 +8,10 @@ import Protolude
 
 import Control.Monad.Random.Lazy
 import Data.Functor.Compose
+import qualified Util.Figure as Figure
+import           Util.Figure (Figure(..))
+import qualified Data.Cached as Cached
+import           Data.Cached (Cached)
 
 type Weight = Double
 
@@ -22,15 +26,9 @@ liftC2 :: (Applicative g)
   -> Compose g f3 c
 liftC2 f a b = Compose $ liftA2 f (getCompose a) (getCompose b)
 
-liftCR :: (Applicative f) => (f a -> f b) 
-      -> Compose (Rand StdGen) f a
-      -> Compose (Rand StdGen) f b
-liftCR f = Compose . liftA f . getCompose
-
-liftCR2 :: (Applicative f) => (f a -> f b -> f c)
-       -> Compose (Rand StdGen) f a
-       -> Compose (Rand StdGen) f b
-       -> Compose (Rand StdGen) f c
-liftCR2 f a b = Compose $ liftA2 f (getCompose a) (getCompose b)
-
-
+makeFigure
+  :: (Applicative f)
+  => FilePath
+  -> Compose f Cached Figure
+  -> Compose f Cached ()
+makeFigure figPath fig = liftC (Cached.sinkIO figPath Figure.gnuplotInline) fig

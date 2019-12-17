@@ -14,10 +14,10 @@ import qualified Data.Vector as V
 import qualified Numeric.LinearAlgebra as LA
 
 import qualified ABC.Lenormand2012 as APMC
-import qualified Util.MonPar as MonPar
+import qualified Util.Execution as Execution
 
 data P m = P {_apmcP :: APMC.P m,
-              _stopSampleSizeFactor :: Int}
+              _stopSampleSize :: Int}
 
 data S m = S {_p :: !(P m), _t0 :: !Int, _s :: !(APMC.S)}
          | E
@@ -32,20 +32,28 @@ stepMerge :: S m -> S m -> S m
 stepMerge s s' =
   let (s1, s2) = if (_t0 s <= _t0 s') then (s, s') else (s', s)
       p = _p s1
+      -- Select particles from both states filtering out those from s2 that are
+      -- duplicates from particles in s1, i.e. those which creation predate
+      -- s2's creation time.
       indices2NoDup = fmap fst
                      $ filter (\(_, t) -> t > _t0 s2)
                      $ zip [0..] $ V.toList $ APMC.ts (_s s2)
       indicesNoDup = fmap (\i -> (1::Int,i))
                        [0..LA.rows (APMC.thetas (_s s1)) - 1]
                   <> fmap (\i -> (2::Int,i)) indices2NoDup
+      -- While filtering the particles, sort them by their rho values and keep
+      -- only those with lower rho.
       selectBoth = V.fromList
                    $ take (APMC.nAlpha $ _apmcP p)
                    $ sortOn (\(which, i) -> if which == 1
                                              then APMC.rhos (_s s1) LA.! i
                                              else APMC.rhos (_s s2) LA.! i)
                    $ indicesNoDup
+      -- Split particle indices belonging to s1 and s2.
       (select1, select2) = bimap (fmap snd) (fmap snd)
                            $ V.partition (\(w,_) -> w == 1) selectBoth
+      -- Compute the values for the new algorithm state from the selected
+      -- particles.
       -- TODO: le calcule du quantile devrait être pondéré? (idem dans APMC.hs)
       rhosSelected = LA.vector $ V.toList
         (fmap (APMC.rhos (_s s1) LA.!) select1 <>
@@ -97,12 +105,13 @@ step
   -> m (S m)
 step p f ms = do
   s <- ms
-  -- If s is empty or the number of particles it contains hasn't reach nAlpha -- yet, keep generating particles (n - nAlpha by n - nAlpha) from the prior -- using the function APMC.stepOne and setting the parameter n to
+  -- If s is empty or the number of particles it contains hasn't reach nAlpha
+  -- yet, keep generating particles (n - nAlpha by n - nAlpha) from the prior
+  -- using the function APMC.stepOne and setting the parameter n to
   -- (n - nAlpha)
   let reducedN = (_apmcP p){APMC.n = APMC.n (_apmcP p) - APMC.nAlpha (_apmcP p)}
   case s of
-    E -> (\s' -> S { _p = p, _t0 = 0, _s = s'}) <$>
-                 APMC.stepOne reducedN f
+    E -> (\s' -> S { _p = p, _t0 = 0, _s = s'}) <$> APMC.stepOne reducedN f
     S{_s=s'} ->
       if LA.rows (APMC.thetas s') < APMC.nAlpha (_apmcP p)
         then (\s'' ->  s <> S { _p = p, _t0 = 0, _s = s''}) <$> APMC.stepOne reducedN f
@@ -110,13 +119,13 @@ step p f ms = do
 
 -- Stop condition
 stop :: (MonadRandom m) => P m -> m (S m) -> m Bool
-stop P{_apmcP=apmcP, _stopSampleSizeFactor=sf} ms = do
+stop P{_apmcP=apmcP, _stopSampleSize=sf} ms = do
   s <- ms
   case s of
     E -> return False
     S{_s=s'} ->
       let tSpan :: Int
-          tSpan = ceiling (fromIntegral (sf * APMC.nAlpha apmcP) /
+          tSpan = ceiling (fromIntegral sf /
                    fromIntegral (APMC.n apmcP - APMC.nAlpha apmcP) :: Double)
           count :: Int
           count = getSum $ foldMap
@@ -138,7 +147,7 @@ runPar
 runPar stepSize parallel p f
   | parallel < 1 = panic "Error function MonAPMC.runPar: parallel argument must be strictly positive."
   | otherwise =
-  MonPar.runPlasticPar split (step p f) (stop p) stepSize parallel
+  Execution.runPlasticPar split (step p f) (stop p) stepSize parallel
 
 scanPar
   :: forall m. (MonadIO m, MonadRandom m)
@@ -150,5 +159,5 @@ scanPar
 scanPar stepSize parallel p f
   | parallel < 1 = panic "Error function MonAPMC.scanPar: parallel argument must be strictly positive."
   | otherwise =
-  MonPar.scanPlasticPar split (step p f) (stop p) stepSize parallel 
+  Execution.scanPlasticPar split (step p f) (stop p) stepSize parallel 
 

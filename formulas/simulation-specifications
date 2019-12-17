@@ -1,0 +1,8 @@
+Simulation 
+    ( APMC 
+        { n = 5000
+        , nAlpha = 500
+        , pAccMin = 0.2
+        , parallel = 1
+        } 
+    ) Toy 100

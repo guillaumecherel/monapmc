@@ -9,12 +9,9 @@ module ABC.Lenormand2012 where
 import Protolude
 
 import qualified Data.List as List
-import Data.Monoid
-import Control.Monad
 import Control.Monad.Random.Lazy
 import Control.Monad.Zip
 import qualified Numeric.LinearAlgebra as LA
-import qualified Statistics.Quantile as SQ
 import qualified Data.Vector as V
 import qualified Data.Text as T
 
@@ -110,7 +107,7 @@ step p f s =  do
           bimap
               (second LA.fromList . unzip . fmap snd)
               (second LA.fromList . unzip . fmap snd)
-            $ List.partition (\(w,_) -> w == 1)
+            $ List.partition (\(w,_) -> w == (1::Int))
             $ take (nAlpha p)
             $ sortOn (snd . snd)
             $ (fmap (1,) (zip [0..] $ LA.toList $ rhos s)

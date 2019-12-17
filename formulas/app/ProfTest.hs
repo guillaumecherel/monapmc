@@ -4,23 +4,23 @@
 module Main where
 
 import Protolude
-import Unsafe (unsafeHead)
+-- import Unsafe (unsafeHead)
+-- 
+-- import Data.List (last)
+-- import Data.Cached
+-- import qualified Data.Vector as V
+-- import Control.Parallel
+-- import Control.Monad.Random.Lazy
+-- import qualified Numeric.LinearAlgebra as LA
+-- import Development.Shake hiding (par)
+-- import qualified Control.Foldl as Fold
 
-import Data.List (last)
-import Data.Cached
-import qualified Data.Vector as V
-import Control.Parallel
-import Control.Monad.Random.Lazy
-import qualified Numeric.LinearAlgebra as LA
-import Development.Shake hiding (par)
-import qualified Control.Foldl as Fold
-
-import qualified Algorithm
-import Model
-import L2VSNSimus
-import Steps
-import qualified Run
-import ABC.Lenormand2012
+-- import qualified Algorithm
+-- import Model
+-- import L2VSNSimus
+-- import Steps
+-- import qualified Run
+-- import ABC.Lenormand2012
 
 main :: IO ()
 main = do

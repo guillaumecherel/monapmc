@@ -6,42 +6,119 @@ module Util.Figure where
 
 import Protolude
 
-import qualified Data.Set as Set
 import Data.String (String)
 import Data.Text (unpack)
 import qualified Data.Text as Text
 import System.Process
 
-data Datasets
-  = DataLine Text (Maybe Int) (Maybe Int) [(Text, [Maybe (Double, Double)])]
-    -- DataLine legend color pointtype [(dataset comment, data)]
-  | DataBar Text (Maybe Int) (Maybe Text) [(Text, [(Double, Double)])]
-    -- DataBar legend color fillstyle [(dataset comment, data)]
-  | DataPoint Text (Maybe Int) (Maybe Int) [(Text, [(Double, Double)])]
-    -- DataPoint legend color pointtype [(dataset comment, data)]
-  | DataPointErrDelta Text (Maybe Int) (Maybe Int)
-    [(Text, [(Double, Double, Double, Double)])]
-    -- DataPointErrDelta legend color pointtype [(dataset comment, data)]
+
+---- Plot data types
+data PlotLine =
+  PlotLine (Maybe Text) (Maybe Int) (Maybe Int)
+    [(Maybe Text, [Maybe (Double, Double)])]
+  -- PlotLine legend color dash [(dataset comment, data)]
   deriving (Show, Eq)
 
-data Plot = Plot Text [Datasets]
+emptyPlotLine :: PlotLine
+emptyPlotLine = PlotLine Nothing Nothing Nothing []
+
+appendPlotLine :: PlotLine -> PlotLine -> PlotLine
+appendPlotLine
+  (PlotLine legend color dash datasets)
+  (PlotLine legend' color' dash' datasets')
+  = PlotLine
+    (legend <|> legend')
+    (color <|> color')
+    (dash <|> dash')
+    (datasets <> datasets')
+
+data PlotBar =
+  PlotBar (Maybe Text) (Maybe Int) (Maybe Text)
+    [(Maybe Text, [Maybe (Double, Double)])]
+  -- PlotBar legend color fillstyle [(dataset comment, data)]
   deriving (Show, Eq)
-  -- Plot title [(legend, color, datasets)]
+
+emptyPlotBar :: PlotBar
+emptyPlotBar = PlotBar Nothing Nothing Nothing []
+
+appendPlotBar :: PlotBar -> PlotBar -> PlotBar
+appendPlotBar
+  (PlotBar legend color style datasets)
+  (PlotBar legend' color' style' datasets')
+  = PlotBar
+    (legend <|> legend')
+    (color <|> color')
+    (style <|> style')
+    (datasets <> datasets')
+
+data PlotPoint =
+  PlotPoint (Maybe Text) (Maybe Int) (Maybe Int)
+    [(Maybe Text, [Maybe (Double, Double)])]
+  -- PlotPoint legend color pointtype [(dataset comment, data)]
+  deriving (Show, Eq)
+
+emptyPlotPoint :: PlotPoint
+emptyPlotPoint = PlotPoint Nothing Nothing Nothing []
+
+appendPlotPoint :: PlotPoint -> PlotPoint -> PlotPoint
+appendPlotPoint
+  (PlotPoint legend color style datasets)
+  (PlotPoint legend' color' style' datasets')
+  = PlotPoint
+    (legend <|> legend')
+    (color <|> color')
+    (style <|> style')
+    (datasets <> datasets')
+
+data PlotPointErrDelta =
+  PlotPointErrDelta (Maybe Text) (Maybe Int) (Maybe Int)
+    [(Maybe Text, [Maybe (Double, Double, Double, Double)])]
+  -- PlotPointErrDelta legend color pointtype [(dataset comment, data)]
+  deriving (Show, Eq)
+
+emptyPlotPointErrDelta :: PlotPointErrDelta
+emptyPlotPointErrDelta = PlotPointErrDelta Nothing Nothing Nothing []
+
+appendPlotPointErrDelta
+  :: PlotPointErrDelta
+  -> PlotPointErrDelta
+  -> PlotPointErrDelta
+appendPlotPointErrDelta
+  (PlotPointErrDelta legend color style datasets)
+  (PlotPointErrDelta legend' color' style' datasets')
+  = PlotPointErrDelta
+    (legend <|> legend')
+    (color <|> color')
+    (style <|> style')
+    (datasets <> datasets')
+
+data PlotCmd
+  = PlotCmdLine PlotLine
+  | PlotCmdBar PlotBar
+  | PlotCmdPoint PlotPoint
+  | PlotCmdPointErrDelta PlotPointErrDelta
+  deriving (Show, Eq)
+
+data Plot = Plot [PlotCmd]
+  -- Plot [datasets]
+  deriving (Show, Eq)
 
 instance Semigroup Plot where
-  Plot t1 d1 <> Plot t2 d2 = Plot (t1 <> t2) (d1 <> d2)
+  Plot d1 <> Plot d2 = Plot (d1 <> d2)
 
 data PlotLayout
-  = SinglePlot Plot
-    -- SinglePlot plot_command
-  | Multiplot Orientation Text [[Plot]]
-    -- Multiplot orientation title plot_commands
+  = SinglePlot (Maybe Text) Plot
+    -- SinglePlot title plot_command
+  | Multiplot Orientation (Maybe Text) [[(Text, Plot)]]
+    -- Multiplot orientation title [[(plot_title, plot_command)]]
   deriving (Show, Eq)
 
 data Orientation = Row | Column deriving (Show, Eq)
 
 data Figure = Figure FilePath [Text] PlotLayout
-  -- Figure path prelude plot_layout
+  -- Figure prelude plot_layout
+
+
 
 
 ---- Build scripts ----
@@ -49,13 +126,12 @@ data Figure = Figure FilePath [Text] PlotLayout
 scriptFigure :: Figure -> Text
 scriptFigure (Figure figPath prelude layout) =
      Text.unlines prelude <> "\n\n"
-  <> "set output '" <> Text.pack figPath <> "'\n"
+  <> "set output \"" <> Text.pack figPath <> "\"\n"
   <> scriptPlotLayout layout
 
 scriptPlot :: Plot -> Text
-scriptPlot (Plot title xs) =
-         "set title '" <> title <> "'\n"
-      <> "plot \\\n"
+scriptPlot (Plot xs) =
+         "plot \\\n"
       <> (mconcat $ intersperse ", \\\n" $
            flip fmap (zip xs [1..]) (\(datasets, i) -> formatDs datasets i))
          <> "\n"
@@ -64,87 +140,103 @@ scriptPlot (Plot title xs) =
          -- "e"
       <> mconcat (fmap dataInline xs)
   where
-    formatDs (DataLine legend color pointType _) i =
+    formatDs (PlotCmdLine (PlotLine legend color dashType _)) i =
                 "     '-'"
              <> " linecolor " <> show (fromMaybe i color)
-             <> " pointtype " <> show (fromMaybe i pointType)
+             <> " dashtype " <> show (fromMaybe i dashType)
              <> " with line"
-             <> " title '" <> legend <> "'"
-    formatDs (DataBar legend color fillstyle _) i =
+             <> maybe mempty (\l -> " title \"" <> l <> "\"") legend
+    formatDs (PlotCmdBar (PlotBar legend color fillstyle _)) i =
                 "     '-'"
              <> " linecolor " <> show (fromMaybe i color)
              <> " with boxes fillstyle " <> fromMaybe "solid 1.0" fillstyle
-             <> " title '" <> legend <> "'"
-    formatDs (DataPoint legend color pointType _) i =
+             <> maybe mempty (\l -> " title \"" <> l <> "\"") legend
+    formatDs (PlotCmdPoint (PlotPoint legend color pointType _)) i =
                 "     '-'"
              <> " linecolor " <> show (fromMaybe i color)
              <> " pointtype " <> show (fromMaybe i pointType)
              <> " with points"
-             <> " title '" <> legend <> "'"
-    formatDs (DataPointErrDelta legend color pointType _) i =
+             <> maybe mempty (\l -> " title \"" <> l <> "\"") legend
+    formatDs (PlotCmdPointErrDelta (PlotPointErrDelta legend color pointType _)) i =
                 "     '-'"
              <> " linecolor " <> show (fromMaybe i color)
              <> " pointtype " <> show (fromMaybe i pointType)
              <> " with xyerrorbars"
-             <> " title '" <> legend <> "'"
+             <> maybe mempty (\l -> " title \"" <> l <> "\"") legend
 
 scriptPlotLayout :: PlotLayout -> Text
-scriptPlotLayout (SinglePlot x) = scriptPlot x
-scriptPlotLayout (Multiplot orientation title xss) =
+scriptPlotLayout (SinglePlot mbTitle x) =
+     maybe mempty (\title -> "set title \"" <> title <> "\"\n") mbTitle
+  <> scriptPlot x
+scriptPlotLayout (Multiplot orientation mbTitle xss) =
   let (nRows, nColumns) = case orientation of
         Row -> (length xss, maximum $ fmap length xss)
         Column -> (maximum $ fmap length xss, length xss)
       orientationKW = case orientation of
         Row -> "rowsfirst"
         Column -> "columnsfirst"
-  in  "set title '" <> title <> "'\n"
+  in  maybe mempty (\title -> "set title \"" <> title <> "\"\n") mbTitle
    <> "set multiplot layout " <> show nRows <> "," <> show nColumns
      <> " " <> orientationKW <> "\n"
    <> (Text.intercalate "\n"
       $ flip fmap xss (\ xs
        -> Text.intercalate "\n"
         $ take (case orientation of Row -> nColumns; Column -> nRows)
-        $ fmap scriptPlot xs <> repeat "set multiplot next\n"))
+        $ flip fmap xs (\ (plotTitle, plotCmd)
+          -> "set title \"" <> plotTitle <> "\"\n"
+          <> scriptPlot plotCmd)
+       <> repeat "set multiplot next\n"))
    <> "unset multiplot"
 
-dataInline :: Datasets -> Text
-dataInline (DataLine _ _ _ dss) =
+dataInline :: PlotCmd -> Text
+dataInline (PlotCmdLine (PlotLine _ _ _ dss)) =
    -- Separate different data sets by two blank lines
    Text.intercalate "\n\n"
    ( flip fmap dss (\ (comment,ds)
-    -> "#" <> comment <> "\n"
-    <> (Text.unlines $ flip fmap ds (\row ->
-           case row of
-             Just (x, y) -> show x <> " " <> show y
-             Nothing -> ""))))
+    -> "#" <> fromMaybe mempty comment <> "\n"
+    <> (Text.unlines $ fmap row2Inline ds )))
   <> "e\n"
-dataInline (DataBar _ _ _ dss) =
+dataInline (PlotCmdBar (PlotBar _ _ _ dss)) =
      Text.intercalate "\n\n"
      ( flip fmap dss (\ (comment,ds)
-     -> "#" <> comment <> "\n"
-     <> (Text.unlines $ flip fmap ds (\(x,y) ->
-           show x <> " " <> show y))))
+     -> "#" <> fromMaybe mempty comment <> "\n"
+     <> (Text.unlines $ fmap row2Inline ds )))
   <> "e\n"
-dataInline (DataPoint _ _ _ dss) =
+dataInline (PlotCmdPoint (PlotPoint _ _ _ dss)) =
      Text.intercalate "\n\n"
      ( flip fmap dss (\ (comment,ds)
-     -> "#" <> comment <> "\n"
-     <> (Text.unlines $ flip fmap ds (\(x,y) ->
-           show x <> " " <> show y))))
+     -> "#" <> fromMaybe mempty comment <> "\n"
+     <> (Text.unlines $ fmap row2Inline ds )))
   <> "e\n"
-dataInline (DataPointErrDelta _ _ _ dss) =
+dataInline (PlotCmdPointErrDelta (PlotPointErrDelta _ _ _ dss)) =
      Text.intercalate "\n\n"
      ( flip fmap dss (\ (comment,ds)
-     -> "#" <> comment <> "\n"
-     <> (Text.unlines $ flip fmap ds
-         (\ (x, y, xdelta, ydelta) ->
-                  show x <> " " <> show y <> " "
-               <> show xdelta <> " " <> show ydelta))))
+     -> "#" <> fromMaybe mempty comment <> "\n"
+     <> (Text.unlines $ fmap row4Inline ds )))
   <> "e\n"
 
 
+row2Inline :: Maybe (Double, Double) -> Text
+row2Inline Nothing = mempty
+row2Inline (Just (x, y)) = show x <> " " <> show y
 
+row4Inline :: Maybe (Double, Double, Double, Double) -> Text
+row4Inline Nothing = mempty
+row4Inline (Just (x, y, xdelta, ydelta)) =
+  show x <> " " <> show y <> " " <> show xdelta <> " " <> show ydelta
 
+formatData :: (a -> Text) -> [(Maybe Text, [a])] -> Text
+formatData formatRecord dataSets =
+     Text.intercalate "\n\n"
+     ( flip fmap dataSets (\ (comment,ds)
+     -> "#" <> fromMaybe mempty comment <> "\n"
+     <> (Text.unlines $ fmap formatRecord ds )))
+
+formatData2 :: [(Maybe Text, [Maybe (Double, Double)])] -> Text
+formatData2 = formatData row2Inline
+
+formatData4 :: [(Maybe Text, [Maybe (Double, Double, Double, Double)])] -> Text
+formatData4 = formatData row4Inline
 
 ---- Make plots ----
 
@@ -160,8 +252,8 @@ gnuplotInline fig@(Figure path _ _) = do
 -- Run gnuplot reading script from path, passing given args with gnuplot option "-e" and writing figure to output path.
 gnuplot :: FilePath -> FilePath -> [(String,FilePath)] -> IO ()
 gnuplot script output args =
-  let gpArgs = [ ("-e" :: String), "outputPath='" <> output <> "'" ]
-              <> join ( fmap (\(arg,val) -> ["-e", arg <> "='" <> val <> "'"]) 
+  let gpArgs = [ ("-e" :: String), "outputPath=\"" <> output <> "\"" ]
+              <> join ( fmap (\(arg,val) -> ["-e", arg <> "=\"" <> val <> "\""]) 
                              args )
               <> ["-c", script]
   in do

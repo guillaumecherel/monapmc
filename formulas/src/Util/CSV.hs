@@ -7,7 +7,7 @@ import Protolude
 import qualified Data.ByteString.Lazy as BSL
 import Data.Csv
 import Data.Text (pack, intercalate)
-import Data.Text.Encoding
+-- import Data.Text.Encoding
 import qualified Data.Vector as V
 
 encodeText :: ToRecord a => [Text]-> [a] -> Text

@@ -6,21 +6,14 @@ module ToyModel where
 
 import Protolude 
 
-import Control.Monad.Random.Lazy
-import Data.Functor.Compose
-import Data.Text (unpack, unlines)
-import Util.CSV
-import Util
-
-import Util.Figure
-import Model
+import qualified Model
 
 sample :: [Double]
 sample = [-5,-4.9..5]
 
 density :: [Double]
-density = fmap (toyPosterior 0) sample
+density = fmap (Model.toyPosterior 0) sample
 
 cdf :: [Double]
-cdf = fmap (toyPosteriorCDF 0) sample
+cdf = fmap (Model.toyPosteriorCDF 0) sample
 

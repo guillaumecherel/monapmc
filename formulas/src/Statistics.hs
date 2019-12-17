@@ -13,6 +13,9 @@ import Util.Parser
 
 import Model (toyPosteriorCDF)
 
+absoluteError :: Double -> Double -> Double
+absoluteError expected x = abs (x - expected)
+
 -- Estimated posterior density given the posterior sample as list
 -- [(weight_i, theta_i) | i <= N]
 estPostDen

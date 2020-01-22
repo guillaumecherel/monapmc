@@ -13,7 +13,7 @@ import qualified Data.List.NonEmpty as NonEmpty
 import Test.QuickCheck
 import Test.QuickCheck.Assertions
 
-import Distribution
+import Util.Distribution
 import Test.Util
 
 import Util.SteadyState

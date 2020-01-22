@@ -5,11 +5,9 @@ module Main where
 
 import Protolude 
 
-import qualified Data.Cached as Cached
 import Data.Functor.Compose
 import Control.Monad.Random.Lazy
 
-import qualified Report
 import qualified Util.Figure as Figure
 
 main :: IO ()

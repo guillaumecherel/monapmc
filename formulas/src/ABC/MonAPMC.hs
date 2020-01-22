@@ -119,13 +119,13 @@ step p f ms = do
 
 -- Stop condition
 stop :: (MonadRandom m) => P m -> m (S m) -> m Bool
-stop P{_apmcP=apmcP, _stopSampleSize=sf} ms = do
+stop P{_apmcP=apmcP, _stopSampleSize=sss} ms = do
   s <- ms
   case s of
     E -> return False
     S{_s=s'} ->
       let tSpan :: Int
-          tSpan = ceiling (fromIntegral sf /
+          tSpan = ceiling (fromIntegral sss /
                    fromIntegral (APMC.n apmcP - APMC.nAlpha apmcP) :: Double)
           count :: Int
           count = getSum $ foldMap

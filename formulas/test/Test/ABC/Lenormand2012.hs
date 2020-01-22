@@ -19,7 +19,7 @@ import Test.QuickCheck.Assertions
 import System.Random
 
 import ABC.Lenormand2012
-import Distribution
+import Util.Distribution
 import Statistics
 import Model
 import Test.Util
@@ -103,13 +103,15 @@ instance Arbitrary S1D where
 
 arbitraryS1D :: Int -> Gen S1D
 arbitraryS1D nAlpha = do
+  (NonNegative t) <- arbitrary
   thetas <- fmap LA.fromLists $ vectorOf nAlpha $ vectorOf 1 arbitrary
+  ts <- fmap V.fromList $ vectorOf nAlpha $ fmap getNonNegative (arbitrary :: Gen (NonNegative Int))
   weights <- fmap LA.fromList $ vectorOf nAlpha $ fmap getNonNegative (arbitrary :: Gen (NonNegative Double))
   let rhos = LA.fromList $ fmap (\x -> sqrt ((head x - 0.5) ** 2))
                          $ LA.toLists thetas
   pAcc <- choose (0, 1)
   (NonNegative epsilon) <- arbitrary
-  return $ S1D $ S thetas weights rhos pAcc epsilon
+  return $ S1D $ S t thetas weights ts rhos pAcc epsilon
 
 instance Show S1D where
   show (S1D s) = "S1D (S { thetas = " ++ show (thetas s)
@@ -119,14 +121,16 @@ instance Show S1D where
                      ++ ", epsilon = " ++ show (epsilon s) ++ " })"
 
 exampleS1D =
-  let thetas = LA.matrix 1 [fromIntegral x / 100.0 | x <- [0..9]]
+  let t = 1
+      thetas = LA.matrix 1 [fromIntegral x / 100.0 | x <- [0..9]]
       weights = LA.vector $ replicate 10 1
+      ts = V.fromList $ replicate 10 1
       rhos = sqrt (((head $ LA.toColumns thetas) - LA.scalar 0.5) ** 2)
       thetaMean = LA.sumElements thetas / 10.0
       thetaVar = LA.sumElements ((thetas - LA.scalar thetaMean) ** 2) / 9.0
       pAcc = 0.1
       epsilon = LA.maxElement rhos
-  in S1D (S thetas weights rhos pAcc epsilon)
+  in S1D (S t thetas weights ts rhos pAcc epsilon)
 
 data PS1D m = PS1D (P m) String S
 

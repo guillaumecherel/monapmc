@@ -9,11 +9,10 @@ import Protolude
 
 import qualified Control.Foldl as Fold
 import           Control.Foldl (Fold(..))
+import           Control.Monad.Random.Lazy
 import           Data.Functor.Compose
 import qualified Util.Figure as Figure
 import           Util.Figure (Figure(..))
-import qualified Data.Cached as Cached
-import           Data.Cached (Cached)
 import qualified Data.Vector as Vector
 import           Data.Vector (Vector)
 import qualified Text.Parsec as P
@@ -37,13 +36,8 @@ liftC2 :: (Applicative g)
   -> Compose g f3 c
 liftC2 f a b = Compose $ liftA2 f (getCompose a) (getCompose b)
 
--- makeFigure
---   :: (Applicative f)
---   => FilePath
---   -> Compose f Cached Figure
---   -> Compose f Cached ()
--- makeFigure figPath fig = liftC (Cached.sinkIO figPath (Figure.gnuplotInline figPath)) fig
--- 
+generalizeRand :: (Monad m) => Rand g a -> RandT g m a
+generalizeRand = liftRandT . fmap return . runRand
 
 read1DSample :: FilePath -> Text -> Either P.ParseError (Vector (Weight, Vector Double))
 read1DSample = --mapM ((fmap fst) . TR.double) (T.lines text)

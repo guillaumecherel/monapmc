@@ -1,6 +1,58 @@
+# mercredi 22 janvier 2020, 11:59:54 (UTC+0100)
+
+À vérifier: est-ce qu'il est important de conserver l'ordre des xs et ys avant et après le scheduler? Si oui, revoir les simulateurs. 
+
+J'ai changé l'algorithme d'execution dans simPlasticPar pour qu'on puisse passer un état initial et que celui-ci soit mieux divisé pour créer les premiers runners. Tester et reporter à l'algo d'execution runPlasticPar, scanPlasticPar et éventuellement l'implém scala.
+
+Fini d'implémenter et de tester le simulateur simPlasticPar.
+
+Prochaine étape: 
+
+- vérifier le problème de conservation de l'ordre des simulations dans simEasyPar.
+- adapter la gestion de l'état initial dans run/scanPlasticPar et dans mgo.
+
+# mardi 21 janvier 2020, 10:44:30 (UTC+0100)
+
+Implémenter le simulateur de parallelisme puis tester la fonction `simEasyPar`.
+
+Simulateur EasyPar implémenté et testé.
+
+En cours: implémentation du simulateur pour PlasticPar
+
+
+# lundi 20 janvier 2020, 15:49:18 (UTC+0100)
+
+Implémenté une manière de mesurer le temps d'execution dans le module `Execution` avec les fonctions `evaluate` et `force`. À tester.
+
+Il reste aussi à implémenter le simulateur de parallelisme `simScheduler` dans le même module. 
+
+
+# mercredi 15 janvier 2020, 11:14:48 (UTC+0100)
+
+Avant l'échantillonnage LHS, faire des tests plus petits: cas uniques pour illustrer les hypothèses sur l'efficacités de MonAPMC en choisissant les valeurs de paramètres (voir README). Pour réaliser ces expériences, il faut coder un simulateur d'execution d'algo en parallelisme pour mesurer le temps que prendrait un algo lancé en parallèle mais sans parallélisme. Ça me permettra de simuler l'execution d'un algo de 1 à 100 cœurs ou plus, pour pouvoir notamment mieux tester les cas ou le nombre de simulations de modèle par iteration est proche du nombre de cœurs (pour 1000 cœurs).
+
+
+# jeudi 2 janvier 2020, 10:54:21 (UTC+0100)
+
+Traduire MonAPMC en pseudo code dans README.md.
+
+Première ébauche de traduction terminée. Il faudra plus tard uniformiser la notation et écrire les formules en latex.
+
+Reprendre implémentation échantillonnage LHS des valeurs par (parallelisme), N / K (N correspond au nombre de simulation par iteration, ), V (la variance du temps de simulation).
+
+
+# vendredi 20 décembre 2019, 11:24:53 (UTC+0100)
+
+Implementer echantillonnage LHS des valeurs par (parallelisme), N / K (N correspond au nombre de simulation par iteration, ), V (la variance du temps de simulation).
+
+En cours, traduction de MonAPMC en pseudo code dans README.md. Reprendre au calcul des poids dans la fonction step
+
+
 # mardi 17 décembre 2019, 15:07:25 (UTC+0100)
 
 Utilisation de fichiers sentinels dans le makefile pour éviter de tomber en enfer quand on execute make en parallèle.
+
+Prochaine étape: réfléchir aux autres figures à générer, nettoyer le dossier report/.
 
 
 # lundi 16 décembre 2019, 15:08:21 (UTC+0100)

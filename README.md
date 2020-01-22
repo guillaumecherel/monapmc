@@ -1,14 +1,180 @@
-# Directories
+This repository contains the numerical experiments to test the algorithm MonAPMC. This algorithm is an attempt to implement an APMC algorithm that scales well with the number of computing cores available to perform simulations and the complexity of the simulation model. It is essentially the algorithm APMC equipped with a specific parallelization scheme.
+
+The initial problem is that a straightforward parallelization scheme like map-reduce is that at each iterations, as the simulations terminate one after an other, some computing cores become idle while we wait for the remaining simulation to complete before we can proceed to the next iteration of the algorithm and run a new batch of simulations. This induces a waste of computing power.
+
+The potential loss grows with the number of computing cores available. The more core we have, the more we can leave some idle. With only one core, there is no loss possible: simulations are simply run one after another without any gap. With two cores, if we have only 2 simulations to run, the one that finishes first leaves its core idle until the other finishes. The problem keeps going as the number of cores grows.
+
+The loss is potentially dampened if there are more simulations to run at each iteration than computing units. For example, if there are 10 cores and a 100 simulations, as the first 10 simulations terminate, the released core can be filled with the remaining simulations. The loss appears only at the 10 last simulations. Thus, the potential loss is not only affected by the number of cores, but by the ratio of the number of simulations and the number of cores. The worse case is when the number of simulation is equal to the number of cores and both are high.
+
+The loss is also aggravated when some simulations take longer than others. An extreme case is when we have thousands of computing cores, most simulations run very quickly and a few take very long. The algorithm will have to wait for the longer simulations and the computing power not properly be harnessed.
+
+We designed the algorithm MonAPMC to answer to this loss problem. We thus need to test that it is effectively more efficient than an easy to implement parallelisation scheme as the number of computing cores grows, as the ratio of number of simulations over the number of cores shrinks, and as the variance of simulation duration grows.
+
+For a first check of these three claims, we plot the evolution L2 against time for a single run of both APMC and MonAPMC. We make several plots varying the number of computing cores (K), the ratio of the number of simulations over the number of cores (N / K) and the variance of simulation duration (V). For each figure, the parameters that don't vary take the following default values: n=5000, nAlpha=500, pAccMin=0.01, parallel=1, stepSize=1, stopSampleSize=4500.
+
+These series of figures illustrate that:
+
+- MonAPMC and APMC are comparable with a single core, 
+- MonAPMC is more efficient than APMC with more cores, 
+- The advantage of MonAPMC is not considerable with few (4) cores
+- The advantage of MonAPMC is significant when the number of simulations per iteration is close to the number of cores. (On the grid with K = 100)
+
+At the core of MonAPMC's design is that we don't have to wait for the longer simulations to finish before going on with the algorithm. This is likely to introdue a bias in the posterior sample where the faster simulations will be more represented. We check for this bias by plotting a histogram of the posterior sample with the toy model where the higher values of theta lead to a higher simulation time.
+
+The previous results gave us a first check that MonAPMC is more efficient than APMC with a simple parallelisation scheme with some default parameter values but we would like to build up a more comprehensive understanding of the conditions in which it is more efficient. 
+
+To measure the efficiency of the parallelization scheme, we compare the algorithm to APMC with a simple parallelisation scheme and measure the ratio of the time required for each algorithm to reach an inferred posterior distribution is considered close enough to the theoretical posterior: 
+
+```
+T(ParApmc, ParMonApmc) = Ta(ParApmc) / Tm(ParMonApmc)
+```
+
+We want to check that this quantity 
+
+- grows with the number of computing cores,
+- shrinks with the ratio of the number of simulations over the number of cores,
+- grows with the variance of simulation duration
+- is greater than 1 for a reasonnable set of these values (realized in practice, corresponding to needs that exist, check with a few examples)
+
+For a first check of the first three claims, we will plot the evolution of `T(ParApmc, ParMonApmc)` against the number of computing cores (K), the ratio of the number of simulations over the number of cores (N / K) and the variance of simulation duration (V)., for a fixed set of default settings parameter values.
+We will sample the parameters K, N and V and with a latin hypercube sampling.
+
+
+
+# Algorithm MonAPMC
+
+```
+split: S -> (S, S)
+split empty = (empty, empty)
+split s = (s, s with t0 is given the value of t)
+
+merge (S, S) -> S
+merge (s, s') = 
+  let
+    (s1, s2) = if (t0(s) <= s0(s')) 
+      then (s, s') 
+      else (s', s)
+    -- Eliminate from s2 the particles that are duplicates from s1
+    selected = particles from s1 and s2, filtering out from s2 those whose t value is <= t0(s2), meaning that they are duplicates from s1. Keep only the nAlpha resulting particles with the lowest rho values.
+  in 
+    S with p = p(s1)
+           t0 = t0(s1)
+           t = t(s1) + t(s2) - t0(s2)
+           particles = selected
+           epsilon = max rho(p) over all p in selected
+           pAcc = number of particles kept from s2 * pAcc(s2) / number of particles in s2
+
+step: S -> S
+step empty = 
+  let 
+    thetas = sample (n - nAlpha) from prior sample
+    xs = f(theta) for each theta in thetas
+    rhos = euclidean distance between each x in xs and the observed data
+    particles = (theta, x, rho, weight, ts) where theta, x and rho correspond to the values in the previous arrays and weight = 1 and ts = 1
+    selected = the nAlpha particles with the lowest rho values 
+  in
+    S with t0 = 0
+           t = 1
+           particles = selected
+           epsilon = max rho value from selected
+           pAcc = 1
+step s =
+  if the number of particles in s < nAlpha
+    then 
+      merge s (step empty)
+    else 
+      let 
+        thetas' = sample (n - nAlpha) particles from the weighted sample of particles in s
+        sigmaSquared = 2 * weightedCovariance thetas(s)
+        newThetas(i) = thetas'(i) + sample from normal(mean=0, var=sigmaSquared)
+        newXs = f(theta) for all theta in newThetas
+        newRhos = euclidean distance between each x in newXs and the observed data
+        weight(theta) = sum over all theta' in thetas(s) of
+          weight(theta')
+          / (sum of weight(theta'') over all theta'' in thetas(s)) 
+          * 1 / sqrt(det(2 * Pi * inverse(sigmaSquared)))
+          * exp(-0.5 * transpose(theta - theta') * inverse(sigmaSquared) * (theta - thtea'))
+        newParticles = (theta, x, rho, weight(theta), ts) where theta, x, rho correspond to the values in the previous arrays and ts = t(s) + 1
+        selected = the nAlpha particles from s and newParticles with the lowest rho values 
+      in
+        S with t0 = t0(s)
+               t = t(s) + 1
+               particles = selected
+               epsilon = max rho value from selected
+               pAcc = number of particles kept from newParticles / (n - nAlpha)
+
+stop: S -> Boolean
+stop(s) = 
+  -- if the state is empty or if the number of simulations performed is smaller than sss
+  if s == empty or t * (n - nAlpha) < sss 
+    then False
+  else 
+    pAccMin >= proportion the sss most recent simulations that were accepted
+
+stepSize: Int
+parallel: Int
+
+start: [Job]
+start = [runStep(s1), runStep(s2), ..., runStep(s_parallel)]
+  where (s1, s1') = split empty
+        (s2, s2') = split s1'
+        ...
+        (s_(parallel - 1), s_parallel') = split s_(parallel - 2)'
+
+runStep : Int -> S -> Job
+runStep stepSize s = step . step . ... . step 
+// (compose the function step stepSize times)
+
+waitForNext: [Job] -> (S, [Job])
+waitForNext jobs = wait for the next job to finish and return its result along with the remaining jobs.
+
+go: S -> [S] -> S
+go current running = 
+  let 
+    (newest, stillRunning) = waitForNext(running)
+    newState = merge current newest
+  in
+    if stop(newState)
+      then newState
+      else 
+        let 
+          -- split newState, keep the left part as the current state and add the right part to the list of running simulations and recurse.
+          (new1, new2) = split newState
+          go new1 (stillRunning ++ runStep(new2))
+
+run :: S
+run = go empty start
+```
+
+
+# Usage:
+
+First, run `make setup` to populate the simultaion specification directory `input/simu/` with the simulations defined in `util/populate_simu_specs.sh` and create the required directories.
+
+Then, run `make` to run the simulations, compute statistics and generate the figures automatically.
+
+
+# Directory structure
 
 - input/
   - simu: simulation specifications for all the experiments
-- output/formulas/
-  - figure_data: input data for figures
-  - run: simulation results
-  - steps: simulation steps
-  - repli/ 
-    - run: replicated simulation results
-    - run: replicated simulation steps
+- output/
+  - blocks/: results of the simulation implemented in scala.
+  - easyABC/: results of the simulations from the R package EasyABC.
+  - formulas/: results of the simulations and statistics implemented in haskell.
+    - figure_data: input data for figures
+    - run: simulation results
+    - steps: simulation steps
+    - repli/ 
+      - run: replicated simulation results
+      - steps: replicated simulation steps
+  - report/: generated figures.
+- report/: scripts generating the figures.
+- sentinel/: sentinel files (used in the makefile).
+- formulas/: haskell code implementing the algorithms, simulations and statistics.
+- blocks/: scala implementation of the algorithms and simulations (currently not used).
+- util/: utility scripts.
+
 
 # Targets: 
 

@@ -67,8 +67,17 @@ stop p s = pAcc s <= pAccMin p
 
 stepOne :: (Monad m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
 stepOne p f = do
-  thetasV <- sequence $ replicate (n p) (priorSample p)
+  thetasV <- stepOnePre p
   xsV <- traverse f thetasV
+  stepOnePost p thetasV xsV
+
+
+stepOnePre :: (Monad m) => P m -> m [V.Vector Double]
+stepOnePre p = sequence $ replicate (n p) (priorSample p)
+
+stepOnePost
+  :: (Monad m) => P m -> [V.Vector Double] -> [V.Vector Double] -> m S
+stepOnePost p thetasV xsV = do
   let newThetas = LA.fromLists $ fmap V.toList thetasV
   let xs = LA.fromLists $ fmap V.toList xsV
   let dim = LA.cols (newThetas :: LA.Matrix Double)
@@ -86,8 +95,24 @@ stepOne p f = do
   let tsSelected = V.fromList $ replicate (LA.size rhoSelected) 1
   return $ S {t = 1, thetas = thetaSelected, weights = weightsSelected, ts = tsSelected ,rhos = rhoSelected, pAcc = newPAcc, epsilon = newEpsilon}
 
-step :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> S -> m S
-step p f s =  do
+step
+  :: (MonadRandom m)
+  => P m
+  -> (V.Vector Double -> m (V.Vector Double))
+  -> S
+  -> m S
+step p f s = do
+  (sigmaSquared, newThetas) <- stepPre p s
+  -- TODO: check performance wrapping/unwrapping
+  newXs <- LA.fromRows . fmap (LA.fromList . V.toList) <$> traverse (f . V.fromList . LA.toList) (LA.toRows newThetas)
+  stepPost p s (sigmaSquared, newThetas) newXs
+
+stepPre
+  :: (MonadRandom m)
+  => P m
+  -> S
+  -> m (LA.Herm Double, LA.Matrix Double)
+stepPre p s = do
   resampleIndices <- replicateM (n p - nAlpha p) $ weighted $ (mzip [0..] (fmap toRational $ LA.toList $ weights s))
   let resampleThetas = thetas s LA.? resampleIndices
   seed <- getRandom
@@ -98,9 +123,18 @@ step p f s =  do
                     LA.gaussianSample seed (n p - nAlpha p)
                       (LA.konst 0 dim)
                       sigmaSquared
-  -- TODO: check performance wrapping/unwrapping
-  newXs <- LA.fromRows . fmap (LA.fromList . V.toList) <$> traverse (f . V.fromList . LA.toList) (LA.toRows newThetas)
+  return (sigmaSquared, newThetas)
+
+stepPost
+  :: (MonadRandom m)
+  => P m
+  -> S
+  -> (LA.Herm Double, LA.Matrix Double)
+  -> LA.Matrix Double
+  -> m S
+stepPost p s (sigmaSquared, newThetas) newXs = do
   let obs = LA.vector $ V.toList $ observed p
+  let dim = LA.cols (thetas s)
   let newRhos = LA.cmap sqrt $
                ((newXs - LA.asRow obs) ** 2) LA.#> LA.konst 1 dim
   let ((selectPrev, prevRhosSelected), (selectNew, newRhosSelected)) =

@@ -47,6 +47,7 @@ library
                        random >= 1.1,
                        MonadRandom >= 0.5,
                        mtl >= 2.2.2,
+                       mmorph >= 1.1.2,
                        formatting >= 6.3,
                        hmatrix >= 0.18,
                        random-fu >= 0.2.7,

@@ -162,7 +162,7 @@ stepsResult
   stepMax
   MonAPMC {n, nAlpha, pAccMin, stepSize, parallel , stopSampleSize}
   model =
-  let steps' :: RandT StdGen IO [MonAPMC.S (RandT StdGen IO)]
+  let steps' :: RandT StdGen IO [MonAPMC.S (Rand StdGen)]
       steps' = take stepMax
         <$> MonAPMC.scanPar stepSize parallel p (Model.model model)
       p = MonAPMC.P
@@ -224,7 +224,7 @@ runResult
   stepMax
   MonAPMC{n ,nAlpha ,pAccMin ,stepSize ,parallel ,stopSampleSize}
   model =
-  let result :: RandT StdGen IO (MonAPMC.S (RandT StdGen IO))
+  let result :: RandT StdGen IO (MonAPMC.S (Rand StdGen))
       result = List.last . take stepMax
         <$> MonAPMC.scanPar stepSize parallel p (Model.model model)
       p = MonAPMC.P

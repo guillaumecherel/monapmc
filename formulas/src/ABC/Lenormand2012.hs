@@ -9,6 +9,7 @@ module ABC.Lenormand2012 where
 import Protolude
 
 import qualified Data.List as List
+import Control.DeepSeq (rwhnf)
 import Control.Monad.Random.Lazy
 import Control.Monad.Zip
 import qualified Numeric.LinearAlgebra as LA
@@ -32,6 +33,15 @@ data P m = P
   , observed :: V.Vector Double
   }
 
+instance NFData (P m) where
+  rnf p =
+          rnf (n p)
+    `seq` rnf (nAlpha p)
+    `seq` rnf (pAccMin p)
+    `seq` rwhnf (priorSample p)
+    `seq` rnf (priorDensity p)
+    `seq` rnf (observed p)
+
 -- The algorithm's state.
 data S = S
   { t :: !Int
@@ -42,6 +52,16 @@ data S = S
   , pAcc:: !Double
   , epsilon:: !Double
   } deriving (Show)
+
+instance NFData S where
+  rnf s =
+          rnf (t s)
+    `seq` rnf (thetas s)
+    `seq` rnf (weights s)
+    `seq` rnf (ts s)
+    `seq` rnf (rhos s)
+    `seq` rnf (pAcc s)
+    `seq` rnf (epsilon s)
   
 pprintS :: S -> T.Text
 pprintS s = T.pack $ show $ thetas s

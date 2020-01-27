@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -19,8 +20,15 @@ import qualified Util.Execution as Execution
 data P m = P {_apmcP :: APMC.P m,
               _stopSampleSize :: Int}
 
+instance NFData (P m) where
+  rnf (P p sss) = rnf p `seq` rnf sss
+
 data S m = S {_p :: !(P m), _t0 :: !Int, _s :: !(APMC.S)}
          | E
+
+instance NFData (S m) where
+  rnf (S p t0 s) = rnf p `seq` rnf t0 `seq` rnf s
+  rnf E = ()
 
 -- The semigroup instance holds only for the states (values of type S) of the same algorithm, i.e. for any (S p s1) and (S p s2). States are created with the function `stepOne` and iterated over with the function `step` which take as argument a value of type P.
 instance Semigroup (S m) where
@@ -147,18 +155,23 @@ stop P{_apmcP=apmcP, _stopSampleSize=sss} ms = do
 -- runPar stepSize parallel p f
 --   | parallel < 1 = panic "Error function MonAPMC.runPar: parallel argument must be strictly positive."
 --   | otherwise =
---   fmap fst
---   $ Execution.runPlasticPar split (step p f) (stop p) stepSize parallel
+--   Execution.runPlasticPar split (step p f) (stop p) stepSize parallel
 
 scanPar
-  :: forall m. (MonadIO m, MonadRandom m)
-  => Int
+  :: Int
   -> Int
-  -> P m
-  -> (V.Vector Double -> m (V.Vector Double))
-  -> m [(S m)]
+  -> P (Rand StdGen)
+  -> (V.Vector Double -> Rand StdGen (V.Vector Double))
+  -> RandT StdGen IO [S (Rand StdGen)]
 scanPar stepSize parallel p f
   | parallel < 1 = panic "Error function MonAPMC.scanPar: parallel argument must be strictly positive."
   | otherwise =
-  Execution.scanPlasticPar split (step p f) (stop p) stepSize parallel 
+  (fmap . fmap) snd
+  $ Execution.simPlasticPar
+      split
+      ((0,) <<$>> step p f)
+      (stop p)
+      stepSize
+      parallel
+      mempty
 

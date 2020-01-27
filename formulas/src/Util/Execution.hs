@@ -13,6 +13,7 @@ import Protolude
 import Control.Exception (evaluate)
 import Control.DeepSeq (force)
 import Control.Monad.Random.Lazy hiding (split)
+import Control.Monad.Morph (hoist, generalize)
 import           Data.Vector (Vector)
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
@@ -104,11 +105,12 @@ simPlasticPar !split !step !stop !stepSize !parallel !init
   | parallel < 1 = panic "Error, function Execution.simPlasticPar: argument parallel must be strictly positive."
   | otherwise = do
       startTime <- liftIO getCPUTime
-      (startState, runners) <- generalizeRand $ simStartRunnersSorted init parallel
+      (startState, runners) <-
+        generalizeRand $ simStartRunnersSorted init parallel
       go startTime 0 startState runners
   where
     go :: Integer -> Duration -> s -> (NonEmpty (Duration, s)) -> RandT StdGen IO [(Duration, s)]
-    go !startTime !accSimTime !curState !running = do
+    go !startTime !accSimTime !curState !running =
       ifM (generalizeRand $ stop $ return curState)
         (do
           (accSimTimeNF, curStateNF) <-
@@ -199,6 +201,8 @@ simPlasticPar !split !step !stop !stepSize !parallel !init
 --     fullStep = stepAsync stepSize step
 
 -- Scan the algorithm with the monoid parallel scheme.
+-- ! The following function isn't used for the moment, it has diverged from the
+-- ! algorithm implemented in simPlasticPar and needs tu be updated.
 scanPlasticPar
   :: forall m s. (MonadIO m, Monoid s)
   => (m s -> m (s, s))

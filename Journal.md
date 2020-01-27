@@ -1,3 +1,7 @@
+# lundi 27 janvier 2020, 11:20:15 (UTC+0100)
+
+Corrigé simEasyPar pour conserver l'ordre entre les entrées et les sorties du scheduler.
+
 # mercredi 22 janvier 2020, 11:59:54 (UTC+0100)
 
 À vérifier: est-ce qu'il est important de conserver l'ordre des xs et ys avant et après le scheduler? Si oui, revoir les simulateurs. 
@@ -10,6 +14,7 @@ Prochaine étape:
 
 - vérifier le problème de conservation de l'ordre des simulations dans simEasyPar.
 - adapter la gestion de l'état initial dans run/scanPlasticPar et dans mgo.
+
 
 # mardi 21 janvier 2020, 10:44:30 (UTC+0100)
 

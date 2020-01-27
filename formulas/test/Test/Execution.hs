@@ -57,17 +57,18 @@ prop_simEasyPar =
       stop :: (Integer, [Int]) -> Bool
       stop (iter, _) = iter >= 2
       parallel = 2
+      gen = mkStdGen 1
   in ioProperty $ do
      (duration, (iter, ys)) <- evalRandT
           (List.last <$> simEasyPar stepPre f stepPost stop parallel init)
-          (mkStdGen 1)
+          gen
      -- Test passes if the reported duration is greater than 21 * 2 (21 per
      -- step) and less than 22 * 2, implying that the actual run time taken by
      -- the algorithm for each step (and not by the simulated model run) takes
      -- less than 1 second.
-     return $ duration > 21 * 2 * 10^9 && duration <= 22 * 2 * 10^9
-           && iter == 2
-           && ys == sort xs
+     return $ duration ?> (21 * 2 * 10^9) .&&. duration ?<= (22 * 2 * 10^9)
+         .&&. iter ?== 2
+         .&&. ys ?== xs
 
 -- Simple test of the monoid parallel simulator.
 
@@ -94,12 +95,12 @@ prop_simPlasticPar =
       init = TestState 0 (durations ++ fill)
       -- The right part of the split contains the next simulation to run (its duration), while the left parts contains all the rest.
       split :: (Rand StdGen TestState -> Rand StdGen (TestState, TestState))
-      split rs = trace ("SPLIT " ++ show (evalRand rs (mkStdGen 0))) $ do
+      split rs = do
         (TestState n ds) <- rs
         return (TestState n (tailSafe ds), TestState 0 (toList $ headMay ds))
       -- The step simply returns the duration as is and removes the current simulation from the list.
       step :: Rand StdGen TestState -> Rand StdGen (Duration, TestState)
-      step rs = trace ("STEP " ++ show (evalRand rs (mkStdGen 0))) $ do
+      step rs = do
         (TestState n ds) <- rs
         return (headDef 0 ds, TestState (n + 1) (tailSafe ds))
       stop :: Rand StdGen TestState -> Rand StdGen Bool
@@ -114,9 +115,6 @@ prop_simPlasticPar =
      -- (simulated) and less than 21 seconds, implying that the actual
      -- run time taken by the algorithm for each step (and not by the
      -- simulated model run) takes less than 1 second.
-     traceShow "TRACE PLASTIC" (return ())
-     traceShow duration (return ())
-     traceShow finalState (return ())
      return $ duration > 20 * 10^9 && duration <= 21 * 10^9
            -- The final state should contain the "fill" list with the first two elements dropped, because they have been sent to run.
            && finalState == TestState (length durations) (drop 2 fill)

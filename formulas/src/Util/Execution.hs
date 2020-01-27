@@ -73,19 +73,21 @@ simEasyPar !stepPre !f !stepPost !stop !parallel !init
       (simElapsed, ys) <- simScheduler xs
       s' <- stepPost s (z, xs) ys
       return (simElapsed, s')
+    -- Preserve order of input and output!
     simScheduler :: [x] -> Rand StdGen (Duration, [y])
     simScheduler xs = do
       ys <- traverse f xs
-      return $ simRunTimeSorted $ List.sortOn fst ys
-    simRunTimeSorted :: [(Duration, y)] -> (Duration, [y])
-    simRunTimeSorted [] = (0, [])
-    simRunTimeSorted ((shortestDuration, newY):rest) =
+      let durationsSorted = List.sort $ fmap fst ys
+      return (simRunTimeSorted durationsSorted, fmap snd ys)
+    simRunTimeSorted :: [Duration] -> Duration
+    simRunTimeSorted [] = 0
+    simRunTimeSorted (shortestDuration:rest) =
       let (running, waiting) = List.splitAt (parallel - 1) rest
-          (duration, ys) = simRunTimeSorted
-               ( (fmap . first) (subtract shortestDuration) running
+          duration = simRunTimeSorted
+               ( fmap (subtract shortestDuration) running
               ++ waiting
                )
-      in  (duration + shortestDuration, newY : ys)
+      in  duration + shortestDuration
 
 
 simPlasticPar
@@ -102,23 +104,18 @@ simPlasticPar !split !step !stop !stepSize !parallel !init
   | parallel < 1 = panic "Error, function Execution.simPlasticPar: argument parallel must be strictly positive."
   | otherwise = do
       startTime <- liftIO getCPUTime
-      traceShow "simPlasticPar" (return ())
       (startState, runners) <- generalizeRand $ simStartRunnersSorted init parallel
       go startTime 0 startState runners
   where
     go :: Integer -> Duration -> s -> (NonEmpty (Duration, s)) -> RandT StdGen IO [(Duration, s)]
     go !startTime !accSimTime !curState !running = do
-      trace ("GO " ++ show accSimTime) (return ())
-      traceShow "simPlasticPar.go" (return ())
       ifM (generalizeRand $ stop $ return curState)
         (do
-          traceShow "simPlasticPar stop" (return ())
           (accSimTimeNF, curStateNF) <-
             liftIO $ evaluate $ force (accSimTime, curState)
           now <- liftIO getCPUTime
           return [(accSimTimeNF + now - startTime, curStateNF)])
         (do
-          traceShow "simPlasticPar no stop" (return ())
           let (simElapsed, (res, left)) = simWaitForNextSorted running
           let newState = curState <> res
           (new1, new2) <- generalizeRand $ split (pure newState)
@@ -150,10 +147,7 @@ simPlasticPar !split !step !stop !stepSize !parallel !init
     simWaitForNextSorted running =
       let ((duration, s), rest) = NonEmpty.uncons running
           rest' = (fmap . fmap . first) (subtract duration) rest
-      in trace ("WAITING FOR " ++ show (fmap fst running)) $
-         trace ("SUBTRACTING " ++ show duration) $
-         trace ("STILL RUNNING " ++ show ((fmap . fmap) fst rest'))
-         (duration, (s, rest'))
+      in (duration, (s, rest'))
     simFullStep :: s -> Rand StdGen (Duration, s)
     simFullStep curState = simFullStepGo stepSize 0 curState
     simFullStepGo :: Int -> Integer -> s -> Rand StdGen (Duration, s)

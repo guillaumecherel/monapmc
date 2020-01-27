@@ -166,36 +166,37 @@ simPlasticPar !split !step !stop !stepSize !parallel !init
 
 
 
+-- !TO BE REMOVED!
 -- Run the algorithm with the monoid parallel scheme.
-runPlasticPar
-  :: forall m s. (MonadIO m, Monoid s)
-  => (m s -> m (s, s))
-  -> (m s -> m s)
-  -> (m s -> m Bool)
-  -> Int
-  -> Int
-  -> m s
-runPlasticPar split step stop stepSize parallel
-  | stepSize < 1 = panic "Error, function Execution.runPlasticPar: argument stepSize must be strictly positive."
-  | parallel < 1 = panic "Error, function Execution.runPlasticPar: argument parallel must be strictly positive."
-  | otherwise = go (return mempty) (startRunners split fullStep (pure mempty) parallel)
-  where
-    go :: m s -> m (NonEmpty (Async s)) -> m s
-    go curState running = do
-      (res, left) <- waitForNext running
-      let newState = liftM2 (<>) curState (return res)
-      ifM (stop newState)
-        (do
-          maybe (return ()) (interrupt . return) left
-          newState)
-        (do
-          (new1, new2) <- split newState
-          let running' = case left of
-                Nothing -> pure <$> fullStep (pure new2)
-                Just l -> liftM2 (<>) (return l) (fmap pure (fullStep (pure new2)))
-          go (pure new1) running')
-    fullStep :: m s -> m (Async s)
-    fullStep = stepAsync stepSize step
+-- runPlasticPar
+--   :: forall m s. (MonadIO m, Monoid s)
+--   => (m s -> m (s, s))
+--   -> (m s -> m s)
+--   -> (m s -> m Bool)
+--   -> Int
+--   -> Int
+--   -> m s
+-- runPlasticPar split step stop stepSize parallel
+--   | stepSize < 1 = panic "Error, function Execution.runPlasticPar: argument stepSize must be strictly positive."
+--   | parallel < 1 = panic "Error, function Execution.runPlasticPar: argument parallel must be strictly positive."
+--   | otherwise = go (return mempty) (startRunners split fullStep (pure mempty) parallel)
+--   where
+--     go :: m s -> m (NonEmpty (Async s)) -> m s
+--     go curState running = do
+--       (res, left) <- waitForNext running
+--       let newState = liftM2 (<>) curState (return res)
+--       ifM (stop newState)
+--         (do
+--           maybe (return ()) (interrupt . return) left
+--           newState)
+--         (do
+--           (new1, new2) <- split newState
+--           let running' = case left of
+--                 Nothing -> pure <$> fullStep (pure new2)
+--                 Just l -> liftM2 (<>) (return l) (fmap pure (fullStep (pure new2)))
+--           go (pure new1) running')
+--     fullStep :: m s -> m (Async s)
+--     fullStep = stepAsync stepSize step
 
 -- Scan the algorithm with the monoid parallel scheme.
 scanPlasticPar

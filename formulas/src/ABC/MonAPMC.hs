@@ -137,17 +137,18 @@ stop P{_apmcP=apmcP, _stopSampleSize=sss} ms = do
                   (APMC.pAccMin apmcP :: Double) >= (pAcc :: Double) )
 
 -- Parallel Monoid APMC
-runPar
-  :: forall m. (MonadIO m, MonadRandom m)
-  => Int
-  -> Int
-  -> P m
-  -> (V.Vector Double -> m (V.Vector Double))
-  -> m (S m)
-runPar stepSize parallel p f
-  | parallel < 1 = panic "Error function MonAPMC.runPar: parallel argument must be strictly positive."
-  | otherwise =
-  Execution.runPlasticPar split (step p f) (stop p) stepSize parallel
+-- runPar
+--   :: forall m. (MonadIO m, MonadRandom m)
+--   => Int
+--   -> Int
+--   -> P m
+--   -> (V.Vector Double -> m (V.Vector Double))
+--   -> m (S m)
+-- runPar stepSize parallel p f
+--   | parallel < 1 = panic "Error function MonAPMC.runPar: parallel argument must be strictly positive."
+--   | otherwise =
+--   fmap fst
+--   $ Execution.runPlasticPar split (step p f) (stop p) stepSize parallel
 
 scanPar
   :: forall m. (MonadIO m, MonadRandom m)

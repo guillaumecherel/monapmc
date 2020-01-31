@@ -16,6 +16,7 @@ import Test.QuickCheck.Assertions
 import Test.Util
 
 import Util.Execution
+import Util.Duration (Duration, fromSeconds, fromPicoSeconds, seconds)
 
 -- Simple test of the monoid parallel algorithm where `f x = 1` and
 -- `<> = +`. The resulting algorithm simply counts the number of function
@@ -42,31 +43,32 @@ prop_count
 prop_simEasyPar :: Property
 prop_simEasyPar =
   let f :: Int -> Rand StdGen (Duration, Int)
-      f x = return (fromIntegral x, x)
+      f x = return (fromPicoSeconds (fromIntegral x) * 10 ^ 12, x)
       -- Algorithm state: (iteration, xs)
-      xs = [9 * 10^9, 8 * 10^9, 7 * 10^9, 6 * 10^9, 5 * 10^9, 0]
+      xs = [9, 8, 7, 6, 5, 0]
       init = (0, xs)
       stepPre :: (Integer, [Int]) -> Rand StdGen (Integer, [Int])
       stepPre (iter, _) = return (iter, xs)
       stepPost
         :: (Integer, [Int])
-        -> (Integer, [Int])
+        -> Integer 
         -> [Int]
         -> Rand StdGen (Integer, [Int])
-      stepPost _ (iter, _) ys = return (iter + 1, ys)
+      stepPost _ iter ys = return (iter + 1, ys)
       stop :: (Integer, [Int]) -> Bool
       stop (iter, _) = iter >= 2
       parallel = 2
       gen = mkStdGen 1
   in ioProperty $ do
-     (duration, (iter, ys)) <- evalRandT
+     ((algoDuration, simDuration), (iter, ys)) <- evalRandT
           (List.last <$> simEasyPar stepPre f stepPost stop parallel init)
           gen
      -- Test passes if the reported duration is greater than 21 * 2 (21 per
      -- step) and less than 22 * 2, implying that the actual run time taken by
      -- the algorithm for each step (and not by the simulated model run) takes
      -- less than 1 second.
-     return $ duration ?> (21 * 2 * 10^9) .&&. duration ?<= (22 * 2 * 10^9)
+     return $ algoDuration ?< fromSeconds 0.1
+         .&&. simDuration ?== (fromPicoSeconds $ 21 * 2 * 10 ^ 12)
          .&&. iter ?== 2
          .&&. ys ?== xs
 
@@ -89,7 +91,7 @@ prop_simPlasticPar :: Property
 prop_simPlasticPar =
   let
       -- Individual durations of all the simulations to run.
-      durations =  [9 * 10^9, 8 * 10^9, 7 * 10^9, 6 * 10^9, 5 * 10^9, 0]
+      durations =  [9, 8, 7, 6, 5, 0]
       fill = take 3 $ repeat (10^20)
       -- Algo state: total number of simulations already run and individual durations of simulations to run. Fill with simulations that run for a very long time.
       init = TestState 0 (durations ++ fill)
@@ -102,22 +104,23 @@ prop_simPlasticPar =
       step :: Rand StdGen TestState -> Rand StdGen (Duration, TestState)
       step rs = do
         (TestState n ds) <- rs
-        return (headDef 0 ds, TestState (n + 1) (tailSafe ds))
+        return (fromPicoSeconds $ headDef 0 ds * 10 ^ 12, TestState (n + 1) (tailSafe ds))
       stop :: Rand StdGen TestState -> Rand StdGen Bool
       stop rs = fmap (\(TestState n _) -> n >= length durations) rs
       stepSize = 1
       parallel = 2
   in ioProperty $ do
-     (duration, finalState) <- evalRandT
+     ((algoDuration, simDuration), finalState) <- evalRandT
           (List.last <$> simPlasticPar split step stop stepSize parallel init)
           (mkStdGen 1)
      -- Test passes if the reported duration is greater than 20 seconds
      -- (simulated) and less than 21 seconds, implying that the actual
      -- run time taken by the algorithm for each step (and not by the
      -- simulated model run) takes less than 1 second.
-     return $ duration > 20 * 10^9 && duration <= 21 * 10^9
+     return $ algoDuration ?<= fromSeconds 0.1
+         .&&. simDuration ?== (fromPicoSeconds $ 20 * 10 ^ 12)
            -- The final state should contain the "fill" list with the first two elements dropped, because they have been sent to run.
-           && finalState == TestState (length durations) (drop 2 fill)
+         .&&. finalState == TestState (length durations) (drop 2 fill)
 
 runTests = do
   checkOrExit "prop_count" prop_count

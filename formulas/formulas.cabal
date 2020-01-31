@@ -26,6 +26,7 @@ library
                        Util,
                        Util.CSV,
                        Util.Distribution,
+                       Util.Duration,
                        Util.Execution,
                        Util.Figure,
                        Util.HaskFile,

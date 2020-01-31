@@ -2,6 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE TupleSections #-}
 
 module Model where
 
@@ -9,25 +10,26 @@ import Protolude
 import Control.Monad.Random.Lazy
 import qualified Data.Random as R
 import qualified Data.Vector as V
+import           Util.Duration (Duration, fromSeconds)
 -- import qualified Text.Parsec as P
 
 import Util.Distribution as Distribution
 
 data Model
   = Toy
-  | ToyTimeBias Double deriving (Eq, Show, Read)
+  | ToyTimeBias Double Double deriving (Eq, Show, Read)
 
-model :: (MonadRandom m) => Model -> V.Vector Double -> m (V.Vector Double)
-model Toy = toyModel
-model (ToyTimeBias var) = undefined
+model :: (MonadRandom m) => Model -> V.Vector Double -> m (Duration, V.Vector Double)
+model Toy = (fmap . fmap) (1,) toyModel
+model (ToyTimeBias mean var) = undefined
 
 priorRandomSample :: (MonadRandom m) => Model -> m (V.Vector Double)
 priorRandomSample Toy = toyPriorRandomSample
-priorRandomSample (ToyTimeBias var) = undefined
+priorRandomSample (ToyTimeBias mean var) = undefined
 
 prior :: Model -> V.Vector Double -> Double
 prior Toy = toyPrior
-prior (ToyTimeBias var) = undefined
+prior (ToyTimeBias mean var) = undefined
 
 --------
 -- Toy Model

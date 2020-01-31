@@ -17,6 +17,9 @@ import qualified Numeric.LinearAlgebra as LA
 import qualified ABC.Lenormand2012 as APMC
 import qualified Util.Execution as Execution
 
+import           Util.Duration (Duration)
+import qualified Util.Duration as Duration
+
 data P m = P {_apmcP :: APMC.P m,
               _stopSampleSize :: Int}
 
@@ -108,9 +111,9 @@ split ms = do
 step
   :: (MonadRandom m)
   => P m
-  -> (V.Vector Double -> m (V.Vector Double))
+  -> (V.Vector Double -> m (Duration, V.Vector Double))
   -> m (S m)
-  -> m (S m)
+  -> m (Duration, S m)
 step p f ms = do
   s <- ms
   -- If s is empty or the number of particles it contains hasn't reach nAlpha
@@ -119,11 +122,11 @@ step p f ms = do
   -- (n - nAlpha)
   let reducedN = (_apmcP p){APMC.n = APMC.n (_apmcP p) - APMC.nAlpha (_apmcP p)}
   case s of
-    E -> (\s' -> S { _p = p, _t0 = 0, _s = s'}) <$> APMC.stepOne reducedN f
+    E -> (\(dur,s') -> (dur,S { _p = p, _t0 = 0, _s = s'})) <$> APMC.stepOne reducedN f
     S{_s=s'} ->
       if LA.rows (APMC.thetas s') < APMC.nAlpha (_apmcP p)
-        then (\s'' ->  s <> S { _p = p, _t0 = 0, _s = s''}) <$> APMC.stepOne reducedN f
-        else (\s'' -> s{_s = s''}) <$> APMC.step (_apmcP p) f s'
+        then (\(dur,s'') ->  (dur, s <> S { _p = p, _t0 = 0, _s = s''})) <$> APMC.stepOne reducedN f
+        else (\(dur, s'') -> (dur, s{_s = s''})) <$> APMC.step (_apmcP p) f s'
 
 -- Stop condition
 stop :: (MonadRandom m) => P m -> m (S m) -> m Bool
@@ -161,15 +164,14 @@ scanPar
   :: Int
   -> Int
   -> P (Rand StdGen)
-  -> (V.Vector Double -> Rand StdGen (V.Vector Double))
-  -> RandT StdGen IO [S (Rand StdGen)]
+  -> (V.Vector Double -> Rand StdGen (Duration, V.Vector Double))
+  -> RandT StdGen IO [((Duration, Duration), S (Rand StdGen))]
 scanPar stepSize parallel p f
   | parallel < 1 = panic "Error function MonAPMC.scanPar: parallel argument must be strictly positive."
   | otherwise =
-  (fmap . fmap) snd
-  $ Execution.simPlasticPar
+  Execution.simPlasticPar
       split
-      ((0,) <<$>> step p f)
+      (step p f)
       (stop p)
       stepSize
       parallel

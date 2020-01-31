@@ -3,6 +3,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module ABC.Lenormand2012 where
 
@@ -15,6 +16,8 @@ import Control.Monad.Zip
 import qualified Numeric.LinearAlgebra as LA
 import qualified Data.Vector as V
 import qualified Data.Text as T
+import           Util.Duration (Duration)
+import           Util.Execution (simEasyPar)
 
 
 -- TODO. Dans Beaumont2009, le facteur 2 par lequel on multiplie la variance pondérée de l'échantillon pour calculer la nouvelle variance est fait composant par composant. Il faut peut-être considérer le noyau de transition composant par composant, plutôt que de le faire sur toutes les dimensions en utilisant une matrice de covariance comme c'est fait là. Ça veut dire qu'on utilise à la place un vecteur de variance et que les covariances entre les composants des thetas ne sont pas pris en compte pour les transitions. Ça peut accélerer le calcul et réduire l'emprunte mémoire.
@@ -66,30 +69,75 @@ instance NFData S where
 pprintS :: S -> T.Text
 pprintS s = T.pack $ show $ thetas s
 
-run :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
-run p f = stepOne p f >>= go
-  where go s = do
-          s' <- step p f s
-          if stop p s'
-            then return s'
-            else go s'
+-- run :: (MonadRandom m) => P m -> (V.Vector Double -> m (Duration, V.Vector Double)) -> m S
+-- run p f = stepOne p f >>= go
+--   where go (dur, s) = do
+--           s' <- step p f s
+--           if stop p s'
+--             then return s'
+--             else go s'
+-- 
+-- scan :: (MonadRandom m) => P m -> (V.Vector Double -> m (Duration, V.Vector Double)) -> m [S]
+-- scan p f =
+--   stepOne p f >>= go
+--   where go s = do
+--           if stop p s
+--             then return [s]
+--             else step p f s >>= fmap (s:) . go
 
-scan :: (MonadRandom m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m [S]
-scan p f =
-  stepOne p f >>= go
-  where go s = do
-          if stop p s
-            then return [s]
-            else step p f s >>= fmap (s:) . go
+scanPar
+  :: Int
+  -> P (Rand StdGen)
+  -> (V.Vector Double -> Rand StdGen (Duration, V.Vector Double))
+  -> RandT StdGen IO [((Duration, Duration), S)]
+scanPar parallel p f
+  | parallel < 1 = panic "Error function APMC.scanPar: parallel argument must be strictly positive."
+  | otherwise =
+      -- Get rid of Maybes
+      fmap catMaybes . (fmap . fmap) sequence
+    $ simEasyPar
+      -- stepPre :: (s -> Rand StdGen (z,[x]))
+      (\mbs -> case mbs of
+        Nothing -> do
+          thetasV <- stepOnePre p
+          return
+            ( (witness
+              , LA.fromRows . fmap (LA.fromList . V.toList) $ thetasV
+              )
+            , thetasV)
+        Just s -> do
+          (sigmaSquared, newThetas) <- stepPre p s
+          return
+            ( (sigmaSquared, newThetas)
+            , fmap V.fromList . LA.toLists $ newThetas
+            )
+      )
+      -- f :: (x -> Rand StdGen (Duration,y))
+      f
+      -- stepPost :: (s -> z -> [y] -> Rand StdGen s)
+      (\mbs (sigmaSquared, newThetas) xsV -> case mbs of
+        Nothing -> Just <$> stepOnePost p (fmap V.fromList . LA.toLists $ newThetas) xsV
+        Just s -> Just <$> stepPost p s (sigmaSquared, newThetas) (LA.fromLists . fmap V.toList $ xsV)
+      )
+      -- stop :: (s -> Bool)
+      (\mbs -> case mbs of Nothing -> False; Just s -> stop p s)
+      -- parallel :: Int
+      parallel
+      -- init :: s
+      Nothing
 
 stop :: (Monad m) => P m -> S -> Bool
 stop p s = pAcc s <= pAccMin p
 
-stepOne :: (Monad m) => P m -> (V.Vector Double -> m (V.Vector Double)) -> m S
+stepOne :: (Monad m) => P m -> (V.Vector Double -> m (Duration, V.Vector Double)) -> m (Duration, S)
 stepOne p f = do
   thetasV <- stepOnePre p
-  xsV <- traverse f thetasV
-  stepOnePost p thetasV xsV
+  (duration, xsV) <- fmap
+           (foldr
+             (\(dur,x) (durAcc, xsAcc) -> (durAcc + dur, x: xsAcc))
+             (0, []))
+       $ traverse f thetasV
+  (duration,) <$> stepOnePost p thetasV xsV
 
 
 stepOnePre :: (Monad m) => P m -> m [V.Vector Double]
@@ -118,14 +166,20 @@ stepOnePost p thetasV xsV = do
 step
   :: (MonadRandom m)
   => P m
-  -> (V.Vector Double -> m (V.Vector Double))
+  -> (V.Vector Double -> m (Duration, V.Vector Double))
   -> S
-  -> m S
+  -> m (Duration, S)
 step p f s = do
   (sigmaSquared, newThetas) <- stepPre p s
   -- TODO: check performance wrapping/unwrapping
-  newXs <- LA.fromRows . fmap (LA.fromList . V.toList) <$> traverse (f . V.fromList . LA.toList) (LA.toRows newThetas)
-  stepPost p s (sigmaSquared, newThetas) newXs
+  (duration, newXs) <-
+      (fmap . second) (LA.fromRows . fmap (LA.fromList . V.toList))
+    $ fmap
+        (foldr
+          (\(dur,x) (durAcc, xsAcc) -> (durAcc + dur, x: xsAcc))
+          (0, []))
+    $ traverse (f . V.fromList . LA.toList) (LA.toRows newThetas)
+  (duration,) <$> stepPost p s (sigmaSquared, newThetas) newXs
 
 stepPre
   :: (MonadRandom m)

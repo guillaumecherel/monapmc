@@ -7,7 +7,7 @@ module Test.ABC.Lenormand2012 where
 import Control.DeepSeq (NFData)
 import qualified Control.Monad.Random.Lazy as CMR
 import qualified Control.Foldl as Fold
-import Control.Monad.Random.Lazy (MonadRandom, Rand, getRandomR)
+import Control.Monad.Random.Lazy (MonadRandom, RandT, Rand, getRandomR)
 import Control.Monad.Zip
 import Data.AEq
 import Data.Monoid
@@ -200,26 +200,26 @@ prop_toyModelL2 (Seed seed) =
             , observed = V.singleton 0
             }
       observed = 0
-      doRun :: Rand StdGen S
-      doRun = run p toyModel
-      replications ::[S]
-      replications = CMR.evalRand (CMR.replicateM 10 doRun) (mkStdGen seed)
+      doRun :: RandT StdGen IO S
+      doRun = snd . last <$> scanPar 1 p (Model.model Model.Toy)
       l2 :: S -> Double
       l2 s = posteriorL2 (-10) 10 300 (toyPosteriorCDF observed)
                $ zip (LA.toList $ weights s)
                      (LA.toList $ head $ LA.toColumns $ thetas s)
-      l2Rep :: [Double]
-      l2Rep = fmap l2 replications
-      (l2Mean, l2Var) = Fold.fold ((,) <$> Fold.mean <*> Fold.variance) l2Rep
-      test :: Bool
-      test = (abs (l2Mean - 0.39) < 0.01)
-               && (abs (l2Var - 0.007) < 0.002 )
   -- TODO: dans le code R, le l2 moyen avec ces paramètres reste au dessus de
   -- 0.37
-  in cover (0.30 < l2Mean && l2Mean < 0.41) 90 "0.38 < l2Mean < 0.41"
-      $ classify (0.38 >= l2Mean) "0.38 >= l2Mean"
-      $ classify (l2Mean >= 0.41) "0.41 <= l2Mean"
-      $ True
+  in ioProperty $ do
+     replications <- CMR.evalRandT (CMR.replicateM 10 doRun) (mkStdGen seed)
+     let l2Rep = fmap l2 replications
+     let (l2Mean, l2Var) =
+           Fold.fold ((,) <$> Fold.mean <*> Fold.variance) l2Rep
+     let test = (abs (l2Mean - 0.39) < 0.01)
+              && (abs (l2Var - 0.007) < 0.002 )
+     return
+       $ cover (0.30 < l2Mean && l2Mean < 0.41) 90 "0.38 < l2Mean < 0.41"
+       $ classify (0.38 >= l2Mean) "0.38 >= l2Mean"
+       $ classify (l2Mean >= 0.41) "0.41 <= l2Mean"
+       $ True
 
 
 runTests = do

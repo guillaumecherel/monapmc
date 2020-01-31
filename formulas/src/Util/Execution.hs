@@ -17,47 +17,26 @@ import Control.Monad.Morph (hoist, generalize)
 import           Data.Vector (Vector)
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NonEmpty
+import Util.Duration (Duration, fromPicoSeconds)
 import System.CPUTime (getCPUTime)
 import           Util (generalizeRand)
-
-type Duration = Integer -- picoseconds
-
--- Benchmarks: record computation time
-timeIteratedMapReduce
-  :: (MonadRandom m)
-  => ((Vector Double -> m (Vector Double)) -> m s)
-  -> ((Vector Double -> m (Vector Double)) -> s -> m s)
-  -> (s -> Bool)
-  -> Int
-  -> [(Duration, s)]
-timeIteratedMapReduce = undefined
-
-timeMonPar
-  :: forall m s. (Monoid s)
-  => (m s -> m (s, s))
-  -> (m s -> m s)
-  -> (m s -> m Bool)
-  -> Int
-  -> Int
-  -> m [(Duration, s)]
-timeMonPar = undefined
 
 -- Simulate running the argorithm with the naive parallelisation scheme.
 simEasyPar
   :: forall s z x y. (NFData s)
   => (s -> Rand StdGen (z,[x]))
   -> (x -> Rand StdGen (Duration,y))
-  -> (s -> (z, [x]) -> [y] -> Rand StdGen s)
+  -> (s -> z -> [y] -> Rand StdGen s)
   -> (s -> Bool)
   -> Int
   -> s
-  -> RandT StdGen IO [(Duration, s)]
+  -> RandT StdGen IO [((Duration, Duration), s)]
 simEasyPar !stepPre !f !stepPost !stop !parallel !init
   = do
-      start <- liftIO getCPUTime
+      start <- fromPicoSeconds <$> liftIO getCPUTime
       go init start 0
   where
-    go :: s -> Integer -> Duration -> RandT StdGen IO [(Duration, s)]
+    go :: s -> Duration -> Duration -> RandT StdGen IO [((Duration, Duration), s)]
     go !s !startTime !accSimTime =
       if stop s
         then return []
@@ -66,13 +45,13 @@ simEasyPar !stepPre !f !stepPost !stop !parallel !init
           -- next call to getCPUTime.
           stepRes <- liftRandT $ fmap return $ runRand $ step s
           (simElapsed, s') <- liftIO $ evaluate $ force stepRes
-          now <- liftIO getCPUTime
-          fmap ((accSimTime + simElapsed + now - startTime, s'):) $ go s' startTime (accSimTime + simElapsed)
+          now <- fromPicoSeconds <$> liftIO getCPUTime
+          fmap (((now - startTime, accSimTime + simElapsed), s'):) $ go s' startTime (accSimTime + simElapsed)
     step :: s -> Rand StdGen (Duration, s)
     step s = do
       (z, xs) <- stepPre s
       (simElapsed, ys) <- simScheduler xs
-      s' <- stepPost s (z, xs) ys
+      s' <- stepPost s z ys
       return (simElapsed, s')
     -- Preserve order of input and output!
     simScheduler :: [x] -> Rand StdGen (Duration, [y])
@@ -99,24 +78,24 @@ simPlasticPar
   -> Int
   -> Int
   -> s
-  -> RandT StdGen IO [(Duration, s)]
+  -> RandT StdGen IO [((Duration, Duration), s)]
 simPlasticPar !split !step !stop !stepSize !parallel !init
   | stepSize < 1 = panic "Error, function Execution.simPlasticPar: argument stepSize must be strictly positive."
   | parallel < 1 = panic "Error, function Execution.simPlasticPar: argument parallel must be strictly positive."
   | otherwise = do
-      startTime <- liftIO getCPUTime
+      startTime <- fromPicoSeconds <$> liftIO getCPUTime
       (startState, runners) <-
         generalizeRand $ simStartRunnersSorted init parallel
       go startTime 0 startState runners
   where
-    go :: Integer -> Duration -> s -> (NonEmpty (Duration, s)) -> RandT StdGen IO [(Duration, s)]
+    go :: Duration -> Duration -> s -> (NonEmpty (Duration, s)) -> RandT StdGen IO [((Duration, Duration), s)]
     go !startTime !accSimTime !curState !running =
       ifM (generalizeRand $ stop $ return curState)
         (do
           (accSimTimeNF, curStateNF) <-
             liftIO $ evaluate $ force (accSimTime, curState)
-          now <- liftIO getCPUTime
-          return [(accSimTimeNF + now - startTime, curStateNF)])
+          now <- fromPicoSeconds <$> liftIO getCPUTime
+          return [(( now - startTime, accSimTimeNF), curStateNF)])
         (do
           let (simElapsed, (res, left)) = simWaitForNextSorted running
           let newState = curState <> res
@@ -129,8 +108,8 @@ simPlasticPar !split !step !stop !stepSize !parallel !init
           -- Make sure all computation is performed before calling getCPUTime
           new1NF <- liftIO $ evaluate $ force new1
           newRunningNF <- liftIO $ evaluate $ force newRunning
-          now <- liftIO getCPUTime
-          ((accSimTime + simElapsed + now - startTime, new1NF) :)
+          now <- fromPicoSeconds <$> liftIO getCPUTime
+          (((now - startTime, accSimTime + simElapsed), new1NF) :)
             <$> (go startTime (accSimTime + simElapsed) new1NF newRunningNF))
     simStartRunnersSorted
       :: s -> Int -> Rand StdGen (s, NonEmpty (Duration, s))
@@ -152,7 +131,7 @@ simPlasticPar !split !step !stop !stepSize !parallel !init
       in (duration, (s, rest'))
     simFullStep :: s -> Rand StdGen (Duration, s)
     simFullStep curState = simFullStepGo stepSize 0 curState
-    simFullStepGo :: Int -> Integer -> s -> Rand StdGen (Duration, s)
+    simFullStepGo :: Int -> Duration -> s -> Rand StdGen (Duration, s)
     simFullStepGo n accDur curState =
       if n <= 0
         then return (accDur, curState)

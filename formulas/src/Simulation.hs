@@ -24,6 +24,8 @@ import qualified Model
 import           Model (Model)
 import qualified Numeric.LinearAlgebra as LA
 import           Util (nestFold)
+import           Util.Duration (Duration)
+import qualified Util.Duration as Duration
 import qualified Util.Figure as UFig
 import qualified Statistics
 import           Text.Pretty.Simple (pShow, pShowNoColor)
@@ -92,8 +94,8 @@ data Steps = Steps Simulation [Step]
   -- Steps simulation steps
   deriving (Show, Read)
 
-data Step = Step Int Double Double (Vector (Weight, Vector Double))
-  -- Step t epsilon pAcc sample
+data Step = Step (Duration, Duration) Int Double Double (Vector (Weight, Vector Double))
+  -- Step (realTime, simulatedTime) t epsilon pAcc sample
   deriving (Show, Read)
 
 getStepsSimulation :: Steps -> Simulation
@@ -108,8 +110,9 @@ peekSteps (Steps (Simulation algo model stepMax) steps) =
   <> " steps=" <> peekList 3 peekStep steps
 
 peekStep :: Step -> Text
-peekStep (Step t epsilon pAcc sample) =
+peekStep (Step dur t epsilon pAcc sample) =
   "(Step"
+  <> " duration=" <> show dur
   <> " t=" <> show t
   <> " epsilon=" <> show epsilon
   <> " pAcc=" <> show pAcc
@@ -132,7 +135,7 @@ peekList i peek v =
     len = length v
 
 getStepT :: Step -> Int
-getStepT (Step t _ _ _) = t
+getStepT (Step _ t _ _ _) = t
 
 steps :: Simulation -> RandT StdGen IO Steps
 steps s@(Simulation algo model stepMax) =
@@ -140,8 +143,8 @@ steps s@(Simulation algo model stepMax) =
 
 stepsResult :: Int -> Algorithm -> Model -> RandT StdGen IO [Step]
 stepsResult stepMax APMC{n, nAlpha, pAccMin} model =
-  let steps' :: Rand StdGen [APMC.S]
-      steps' = take stepMax <$> APMC.scan p (Model.model model)
+  let steps' :: RandT StdGen IO [((Duration, Duration), APMC.S)]
+      steps' = take stepMax <$> APMC.scanPar 1 p (Model.model model)
       p = APMC.P
         { APMC.n = n
         , APMC.nAlpha = nAlpha
@@ -150,19 +153,20 @@ stepsResult stepMax APMC{n, nAlpha, pAccMin} model =
         , APMC.priorDensity = Model.prior model
         , APMC.observed = Vector.singleton 0
         }
-      getStep r = Step
+      getStep (dur, r) = Step
+         dur
          (APMC.t r)
          (APMC.epsilon r)
          (APMC.pAcc r)
          (Vector.zip (Vector.fromList $ LA.toList $ APMC.weights r)
                         (Vector.fromList $ fmap Vector.fromList $ LA.toLists
                           $ APMC.thetas r))
-  in getStep <<$>> mapRandT (\(Identity x) -> return x) steps'
+  in getStep <<$>> steps'
 stepsResult
   stepMax
   MonAPMC {n, nAlpha, pAccMin, stepSize, parallel , stopSampleSize}
   model =
-  let steps' :: RandT StdGen IO [MonAPMC.S (Rand StdGen)]
+  let steps' :: RandT StdGen IO [((Duration, Duration), MonAPMC.S (Rand StdGen))]
       steps' = take stepMax
         <$> MonAPMC.scanPar stepSize parallel p (Model.model model)
       p = MonAPMC.P
@@ -176,8 +180,9 @@ stepsResult
               }
           , MonAPMC._stopSampleSize=stopSampleSize
           }
-      getStep MonAPMC.E = Step 0 0 0 mempty
-      getStep MonAPMC.S{MonAPMC._s = s} = Step
+      getStep (dur, MonAPMC.E) = Step dur 0 0 0 mempty
+      getStep (dur, MonAPMC.S{MonAPMC._s = s}) = Step
+        dur
         ( APMC.t s)
         ( APMC.epsilon s)
         ( APMC.pAcc s)
@@ -194,8 +199,8 @@ data Run = Run Algorithm Model RunResult
 
 type Weight = Double
 
-data RunResult = RunResult Int (Vector (Weight, Vector Double))
-  -- RunResult nSteps sample
+data RunResult = RunResult (Duration, Duration) Int (Vector (Weight, Vector Double))
+  -- RunResult (algoDuration, simDuration) nSteps sample
   deriving (Show, Read)
 
 run :: Simulation -> RandT StdGen IO Run
@@ -204,8 +209,8 @@ run (Simulation algo model stepMax) =
 
 runResult :: Int -> Algorithm -> Model -> RandT StdGen IO RunResult
 runResult stepMax APMC{n, nAlpha, pAccMin} model =
-  let steps' :: Rand StdGen [(Int, APMC.S)]
-      steps' = zip [1..stepMax] <$> APMC.scan p (Model.model model)
+  let steps' :: RandT StdGen IO [(Int, ((Duration, Duration), APMC.S))]
+      steps' = zip [1..stepMax] <$> APMC.scanPar 1 p (Model.model model)
       p = APMC.P
         { APMC.n = n
         , APMC.nAlpha = nAlpha
@@ -214,17 +219,16 @@ runResult stepMax APMC{n, nAlpha, pAccMin} model =
         , APMC.priorDensity = Model.prior model
         , APMC.observed = Vector.singleton 0
         }
-      getRun (i, r) = RunResult i
+      getRun (i, (dur, r)) = RunResult dur i
         $ Vector.zip (Vector.fromList $ LA.toList $ APMC.weights r)
                           (Vector.fromList $ fmap Vector.fromList $ LA.toLists
                             $ APMC.thetas r)
-  in getRun . List.last
-    <$> mapRandT (\(Identity x) -> return x) steps'
+  in getRun . List.last <$>  steps'
 runResult
   stepMax
   MonAPMC{n ,nAlpha ,pAccMin ,stepSize ,parallel ,stopSampleSize}
   model =
-  let result :: RandT StdGen IO (MonAPMC.S (Rand StdGen))
+  let result :: RandT StdGen IO ((Duration, Duration), MonAPMC.S (Rand StdGen))
       result = List.last . take stepMax
         <$> MonAPMC.scanPar stepSize parallel p (Model.model model)
       p = MonAPMC.P
@@ -238,33 +242,45 @@ runResult
               }
           , MonAPMC._stopSampleSize=stopSampleSize
           }
-      getRun MonAPMC.E = RunResult 0 mempty
-      getRun MonAPMC.S{MonAPMC._s = s} = RunResult
+      getRun (dur, MonAPMC.E) = RunResult dur 0 mempty
+      getRun (dur, MonAPMC.S{MonAPMC._s = s}) = RunResult
+        dur
         (APMC.t s)
         $ Vector.zip (Vector.fromList $ LA.toList $ APMC.weights s)
                           (Vector.fromList $ fmap Vector.fromList $ LA.toLists
                             $ APMC.thetas s)
   in getRun <$> result
+-- runResult stepMax SteadyState{n, alpha, pAccMin, parallel} model =
+--   let step :: RandT StdGen IO SteadyState.S
+--       step = SteadyState.runN (stepMax * n) ssr
+--       ssr = SteadyState.runner p ((fmap . fmap) snd $ model')
+--       model' (seed, xs) = return $ evalRand (Model.model model xs) (mkStdGen seed)
+--       p :: SteadyState.P (RandT StdGen IO)
+--       p = SteadyState.P
+--         { SteadyState.n = n
+--         , SteadyState.nAlpha = floor $ alpha * (fromIntegral $ n)
+--         , SteadyState.pAccMin = pAccMin
+--         , SteadyState.parallel = parallel
+--         , SteadyState.priorSample = Model.priorRandomSample model
+--         , SteadyState.priorDensity = Model.prior model
+--         , SteadyState.distanceToData = Statistics.absoluteError 0 . Vector.head
+--         }
+--       getRun r = RunResult 
+--         (SteadyState.curStep r)
+--         $ fmap (\a -> (SteadyState.getWeight a, SteadyState.getTheta $ SteadyState.getSimulation $ SteadyState.getReady a)) (SteadyState.accepteds r)
+--   in getRun <$> step
 runResult stepMax SteadyState{n, alpha, pAccMin, parallel} model =
-  let step :: RandT StdGen IO SteadyState.S
-      step = SteadyState.runN (stepMax * n) ssr
-      ssr = SteadyState.runner p model'
-      model' (seed, xs) = return $ evalRand (Model.model model xs) (mkStdGen seed)
-      p :: SteadyState.P (RandT StdGen IO)
-      p = SteadyState.P
-        { SteadyState.n = n
-        , SteadyState.nAlpha = floor $ alpha * (fromIntegral $ n)
-        , SteadyState.pAccMin = pAccMin
-        , SteadyState.parallel = parallel
-        , SteadyState.priorSample = Model.priorRandomSample model
-        , SteadyState.priorDensity = Model.prior model
-        , SteadyState.distanceToData = Statistics.absoluteError 0 . Vector.head
-        }
-      getRun r = RunResult 
-        (SteadyState.curStep r)
-        $ fmap (\a -> (SteadyState.getWeight a, SteadyState.getTheta $ SteadyState.getSimulation $ SteadyState.getReady a)) (SteadyState.accepteds r)
-  in getRun <$> step
-runResult _ Beaumont2009{} _ = return (RunResult 0 mempty)
+  return
+    (RunResult
+      (Duration.fromPicoSeconds 0, Duration.fromPicoSeconds 0)
+      0
+      mempty)
+runResult _ Beaumont2009{} _ = 
+  return
+    (RunResult
+      (Duration.fromPicoSeconds 0, Duration.fromPicoSeconds 0)
+      0
+      mempty)
 
 
 -- Data sets
@@ -291,7 +307,7 @@ l2VsNSimusSteps (Steps (Simulation algo _ _) steps') =
         l2VsNSimus' step = (nSimus algo (getStepT step), l2ToyStep step)
 
 l2VsNSimusRun :: Run -> DataSet (Int,Double)
-l2VsNSimusRun (Run algo _ (RunResult nSteps sample)) =
+l2VsNSimusRun (Run algo _ (RunResult _ nSteps sample)) =
   DataSet [(nSimus algo nSteps, Statistics.l2Toy sample)]
 
 nSimus :: Algorithm -> Int -> Int
@@ -306,10 +322,10 @@ numberSimusLenormand2012 :: Int -> Int -> Int -> Int
 numberSimusLenormand2012 n nAlpha step = n + (n - nAlpha) * step
 
 l2ToyStep :: Step -> Double
-l2ToyStep (Step _ _ _ sample') = Statistics.l2Toy sample'
+l2ToyStep (Step _ _ _ _ sample') = Statistics.l2Toy sample'
 
 histogramStep :: Step -> DataSet (Double, Double)
-histogramStep (Step _ _ _ sample') =
+histogramStep (Step _ _ _ _ sample') =
     DataSet
   $ Statistics.estPostDen (-10) 10 300
   $ fmap (second Vector.head)
@@ -497,17 +513,24 @@ rowSample title plotTitles (Sample xs) =
 stackPlots :: UFig.Plot -> UFig.Plot -> UFig.Plot
 stackPlots = (<>)
 
--- realTime :: Step -> Double
--- realTime (Step t epsilon pAcc sample) = undefined
+totalTimeSeconds :: Step -> Double
+totalTimeSeconds (Step (algoTime, simTime) _ _ _ _) =
+  Duration.seconds $ algoTime + simTime
 
-cpuTime :: Int -> Double
-cpuTime step = fromIntegral step
+algoTimeSeconds :: Step -> Double
+algoTimeSeconds (Step (algoTime, _) _ _ _ _) = 
+  Duration.seconds $ algoTime
 
-realTime :: Algorithm -> Int -> Double
-realTime algo step = case algo of
-  -- APMC{getParallel=par} -> cpuTime step
-  MonAPMC{stepSize,parallel} ->
-   fromIntegral $ stepSize * (ceiling $ cpuTime step / fromIntegral (parallel * stepSize))
-  _ -> panic "Algorithm.realTime Not implemented."
+simTimeSeconds :: Step -> Double
+simTimeSeconds (Step (_, simTime) _ _ _ _) = 
+  Duration.seconds $ simTime
+
+-- TO BE REMOVED
+-- realTime :: Algorithm -> Int -> Double
+-- realTime algo step = case algo of
+--   -- APMC{getParallel=par} -> cpuTime step
+--   MonAPMC{stepSize,parallel} ->
+--    fromIntegral $ stepSize * (ceiling $ cpuTime step / fromIntegral (parallel * stepSize))
+--   _ -> panic "Algorithm.realTime Not implemented."
 
 

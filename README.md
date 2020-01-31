@@ -10,14 +10,30 @@ The loss is also aggravated when some simulations take longer than others. An ex
 
 We designed the algorithm MonAPMC to answer to this loss problem. We thus need to test that it is effectively more efficient than an easy to implement parallelisation scheme as the number of computing cores grows, as the ratio of number of simulations over the number of cores shrinks, and as the variance of simulation duration grows.
 
-For a first check of these three claims, we plot the evolution L2 against time for a single run of both APMC and MonAPMC. We make several plots varying the number of computing cores (K), the ratio of the number of simulations over the number of cores (N / K) and the variance of simulation duration (V). For each figure, the parameters that don't vary take the following default values: n=5000, nAlpha=500, pAccMin=0.01, parallel=1, stepSize=1, stopSampleSize=4500.
+For a first check of these three claims, we plot the evolution L2 against time for a replicated run of both APMC and MonAPMC, varying some variables while keeping the others fixed at the following default values: n=5000, nAlpha=500, pAccMin=0.01, parallel=1, stepSize=1, stopSampleSize=4500. 
 
-These series of figures illustrate that:
+Fig L2 vs time K
 
-- MonAPMC and APMC are comparable with a single core, 
-- MonAPMC is more efficient than APMC with more cores, 
+:   A two column grid of plots showing L2 vs time for replicated runs. 
+    Plots on the left column are runs of the APMC algorithm, plots on the right
+    are runs of MonAPMC. Rows correspond to different values of parallelism K: 
+    1, 2, 4, 10.
+
+The first set of plots (`l2_vs_realtime_k`) shows this evolution for both algorithm and different values of K in 1, 2, 4, 10. These plots illustrate that:
+
+- MonAPMC and APMC are comparable with a single core,
+- MonAPMC is more efficient than APMC with more cores.
+
+The second set is similar but K takes the values 4 and 10 and N varies such that N / K takes the values 1, 1/2, 1/10. These figures illustrate that:
+
 - The advantage of MonAPMC is not considerable with few (4) cores
 - The advantage of MonAPMC is significant when the number of simulations per iteration is close to the number of cores. (On the grid with K = 100)
+
+In the third set of figures, only the variance of simulation duration (V) varies taking the values 0, 1, 10. It illustrates that 
+
+- The advantage of MonAPMC is more important when there are simulation that take longer than others.
+
+
 
 At the core of MonAPMC's design is that we don't have to wait for the longer simulations to finish before going on with the algorithm. This is likely to introdue a bias in the posterior sample where the faster simulations will be more represented. We check for this bias by plotting a histogram of the posterior sample with the toy model where the higher values of theta lead to a higher simulation time.
 
@@ -182,7 +198,7 @@ FigSteps: histogram of posterior sample at each steps for an example run of APMC
 
 FigL2VSNSimu: L2 vs nSimus aggregated over replications (mean and std) of APMC and MonAPMC each with varying pAccMin, n, nAlpha
 
-Fig0APMC: Series of L2 vs real time for some replications of APMC with varying K and a few samples of the other parameters
+Fig0APMC: Series of L2 vs real time for some replications of APMC with varying K and default values for other parameters
 
 Fig0MonAPMC: same as Fig0APMC with MonAPMC
 
@@ -291,6 +307,8 @@ Morphisms:
 - repliRun: Simu x m -> Repli Run x m
 - repliSteps: Simu x m -> Repli Steps x m
 - histoSteps: Steps x m -> Histo Steps x m
+
+
 
 
 

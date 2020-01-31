@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# Populate the directory input/simu with the desired simulation specifications.
+
 # make bash stricter
 set -euo pipefail
 
@@ -25,6 +27,9 @@ apmc    555   500   0.01   1   Toy   100
 apmc    625   500   0.01   1   Toy   100
 apmc   1000   500   0.01   1   Toy   100
 apmc   5000   500   0.01   1   Toy   100
+apmc   5000   500   0.01   2   Toy   100
+apmc   5000   500   0.01   5   Toy   100
+apmc   5000   500   0.01   10  Toy   100
 apmc    501   500   0.05   1   Toy   100
 apmc    555   500   0.05   1   Toy   100
 apmc    625   500   0.05   1   Toy   100

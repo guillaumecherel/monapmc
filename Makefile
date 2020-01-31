@@ -3,6 +3,8 @@ SHELL := bash
 .ONESHELL:
 .SHELLFLAGS := -eu -o pipefail -c
 .DELETE_ON_ERROR:
+
+# This doesn't seem to work in Make 4 or above. Use the command-line option
 MAKEFLAGS += --warn-undefined-variables
 MAKEFLAGS += --no-builtin-rules
 
@@ -15,28 +17,59 @@ SEED = $(shell od -An -N2 -i /dev/random | tr -d ' ')
 REPLICATIONS = 10
 ##################
 
-### File lists
+#### Rules
 
-figures = \
-  output/report/steps.png \
-  output/report/l2_vs_nsimus.png
+# Avant de pouvoir générer les figures, les spécifications de
+# simulations et les répertoires doivent exister et l'executable haskfile
+# doit être compilé.  Les règles de simulation sont implicites
+# et nécessitent que les fichiers de specification de simulations
+# dans input/simu existent pour être déclenchées. On ne peut donc
+# pas simplement ajouter les règles de génération de fichiers en
+# dépendances, car elles ne seraient pas déclenchées.  D'autre part,
+# on évite de mettre l'executable haskfile en dépendances dans les
+# règles pour éviter que toutes les simulations soient refaites dès
+# qu'il est recompilé (ça rallonge le temps de build quand on modifie
+# des statistiques par exemple, sans toucher au code de simulation).
+# Avant de générer les figures, il faut donc exécuter `make setup`.
 
-# Statistics
+all: figures
+.PHONY: all
 
-mean_std_l2_vs_nsimus = \
-  output/formulas/figure_data/mean_std_l2_vs_nsimus
 
-histo_steps = \
-  output/formulas/figure_data/histo_steps/apmc_n5000_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
-  output/formulas/figure_data/histo_steps/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100
+#### Executables ####
 
-# Simulation results
+haskfile = formulas/.stack-work/install/x86_64-linux/lts-12.14/8.4.3/bin/haskfile
 
-steps = \
+
+#### Definitions ####
+
+## Simulations Run ##
+
+# Don't use the sentinel pattern here. This is just a shorter way to write one
+# rule per target file. Use static pattern rules rather than implicit pattern
+# rules because implicit pattern rules are only triggered when the prerequisite
+# exists and silent otherwise. I prefer to get an error that the prerequisite
+# doesn't exist.
+: output/formulas/run/%: input/simu/%
+> mkdir -p output/formulas/run
+> $(haskfile) run $(SEED) $< $@
+
+
+## Simulation Steps ##
+
+files_simu_steps = \
   output/formulas/steps/apmc_n5000_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
   output/formulas/steps/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100
   
-repli_run_l2_vs_nsimus = \
+# Don't use the sentinel pattern here.
+$(files_simu_steps): output/formulas/steps/%: input/simu/%   
+> mkdir -p output/formulas/steps
+> $(haskfile) steps $(SEED) $< $@
+
+
+## Simulation Repli Run ##
+
+files_simu_repli_run_l2_vs_nsimus = \
   output/formulas/repli/run/apmc_n501_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
   output/formulas/repli/run/apmc_n555_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
   output/formulas/repli/run/apmc_n625_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
@@ -78,43 +111,145 @@ repli_run_l2_vs_nsimus = \
   output/formulas/repli/run/mon-apmc_n1000_nAlpha500_pAccMin0.2_stepSize1_parallel1_stopSampleSize500_modelToy_stepMax100 \
   output/formulas/repli/run/mon-apmc_n5000_nAlpha500_pAccMin0.2_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100
 
+# Don't use the sentinel pattern here.
+$(files_simu_repli_run_l2_vs_nsimus): output/formulas/repli/run/%: input/simu/%
+> mkdir -p output/formulas/repli/run
+> $(haskfile) repli-run $(SEED) $(REPLICATIONS) $< $@
 
-# Executables
 
-haskfile = formulas/.stack-work/install/x86_64-linux/lts-12.14/8.4.3/bin/haskfile
+## Simulation Repli Steps ##
 
-#### Rules
+files_simu_repli_steps_l2_vs_time_k = \
+  output/formulas/repli/steps/apmc_n5000_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
+  output/formulas/repli/steps/apmc_n5000_nAlpha500_pAccMin0.01_parallel2_modelToy_stepMax100 \
+  output/formulas/repli/steps/apmc_n5000_nAlpha500_pAccMin0.01_parallel5_modelToy_stepMax100 \
+  output/formulas/repli/steps/apmc_n5000_nAlpha500_pAccMin0.01_parallel10_modelToy_stepMax100 \
+  output/formulas/repli/steps/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100 \
+  output/formulas/repli/steps/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel2_stopSampleSize4500_modelToy_stepMax100 \
+  output/formulas/repli/steps/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel5_stopSampleSize4500_modelToy_stepMax100 \
+  output/formulas/repli/steps/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel10_stopSampleSize4500_modelToy_stepMax100
+  
+# Don't use the sentinel pattern here.
+$(files_simu_repli_steps_l2_vs_time_k): output/formulas/repli/steps/%: input/simu/% 
+> mkdir -p output/formulas/repli/steps
+> $(haskfile) repli-steps $(SEED) $(REPLICATIONS) $< $@
 
-# Avant de pouvoir générer les figures, les spécifications de
-# simulations et les répertoires doivent exister et l'executable haskfile
-# doit être compilé.  Les règles de simulation sont implicites
-# et nécessitent que les fichiers de specification de simulations
-# dans input/simu existent pour être déclenchées. On ne peut donc
-# pas simplement ajouter les règles de génération de fichiers en
-# dépendances, car elles ne seraient pas déclenchées.  D'autre part,
-# on évite de mettre l'executable haskfile en dépendances dans les
-# règles pour éviter que toutes les simulations soient refaites dès
-# qu'il est recompilé (ça rallonge le temps de build quand on modifie
-# des statistiques par exemple, sans toucher au code de simulation).
-# Avant de générer les figures, il faut donc exécuter `make setup`.
 
-all: $(figures)
-.PHONY: all
+## Stats mean std l2 vs nsimus ##
 
-setup: simulation-specifications directory-tree $(haskfile)
+files_stat_mean_std_l2_vs_nsimus = output/formulas/figure_data/mean_std_l2_vs_nsimus
+
+$(files_stat_mean_std_l2_vs_nsimus): sentinel/stat_mean_std_l2_vs_nsimus ;
+
+sentinel/stat_mean_std_l2_vs_nsimus: $(files_simu_repli_run_l2_vs_nsimus)
+> mkdir -p output/formulas/figure_data/
+> $(haskfile) mean-std-l2-vs-nsimus \
+>   $(foreach x, $(files_simu_repli_run_l2_vs_nsimus), --run $(x)) \
+>   --out $(files_stat_mean_std_l2_vs_nsimus)
+> mkdir -p $(@D)
+> touch $@
+
+
+## Stats histo steps ##
+
+files_stat_histo_steps = \
+  output/formulas/figure_data/histo_steps/apmc_n5000_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
+  output/formulas/figure_data/histo_steps/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100
+
+$(files_stat_histo_steps) : sentinel/stat_histo_steps ;
+
+sentinel/stat_histo_steps : $(files_simu_steps)
+> mkdir -p output/formulas/figure_data/histo_steps
+> $(haskfile) histo-steps \
+>   $(foreach x, $(files_simu_steps), --steps $(x)) \
+>   $(foreach x, $(files_stat_histo_steps), --histo $(x))
+> mkdir -p $(@D)
+> touch $@
+
+
+## Stat L2 vs time K ##
+
+files_stat_l2_vs_time_k = \
+  output/formulas/figure_data/l2_vs_time_k/apmc_n5000_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time_k/apmc_n5000_nAlpha500_pAccMin0.01_parallel2_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time_k/apmc_n5000_nAlpha500_pAccMin0.01_parallel5_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time_k/apmc_n5000_nAlpha500_pAccMin0.01_parallel10_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time_k/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time_k/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel2_stopSampleSize4500_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time_k/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel5_stopSampleSize4500_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time_k/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel10_stopSampleSize4500_modelToy_stepMax100
+
+$(files_stat_l2_vs_time_k): sentinel/stat_l2_vs_time_k ;
+
+sentinel/stat_l2_vs_time_k: \
+  report/l2_vs_time_k.gnuplot \
+  $(files_simu_repli_steps_l2_vs_time_k)
+> mkdir -p output/formulas/figure_data/l2_vs_time_k
+> $(haskfile) l2-vs-time-k  
+>   $(foreach x, $(files_repli_run_l2_vs_time_k), --in $(x)) \
+>   $(foreach x, $(files_stat_l2_vs_time_k), --out $(x))
+> mkdir -p $(@D)
+> touch $@
+
+
+## Figure Steps ##
+
+files_figure_steps = output/report/steps.png
+
+$(files_figure_steps) : sentinel/figure_steps ;
+
+sentinel/figure_steps: \
+  report/steps.gnuplot \
+  $(files_stat_histo_steps)
+> mkdir -p output/report
+> gnuplot -c $< $(files_figure_steps) $(files_stat_histo_steps)
+> mkdir -p $(@D)
+> touch $@
+
+
+## Figure L2 vs nsimus ## 
+
+files_figure_l2_vs_nsimus = output/report/l2_vs_nsimus.png
+
+$(files_figure_l2_vs_nsimus) : sentinel/figure_l2_vs_nsimus ;
+
+sentinel/figure_l2_vs_nsimus: \
+  report/l2_vs_nsimus.gnuplot \
+  $(files_stat_mean_std_l2_vs_nsimus)
+> mkdir -p output/report
+> gnuplot -c $< $(files_figure_l2_vs_nsimus) \
+>   $(files_stat_mean_std_l2_vs_nsimus)
+> mkdir -p $(@D)
+> touch $@
+
+
+## Figure L2 vs Time K ##
+
+files_figure_l2_vs_time_k = output/report/l2_vs_time_k.png
+
+$(files_figure_l2_vs_time_k) : sentinel/figure_l2_vs_time_k ;
+
+sentinel/figure_l2_vs_time_k: \
+  report/l2_vs_time_k.gnuplot \
+  $(files_stat_l2_vs_time_k)
+> mkdir -p output/report
+> gnuplot -c $< $(files_figure_l2_vs_time_k) $(files_stat_l2_vs_time_k)
+> mkdir -p $(@D)
+> touch $@
+
+#### Helper rules ####
+
+figures: \
+  $(files_figure_steps) \
+  $(files_figure_l2_vs_nsimus) \
+  $(files_figure_l2_vs_time_k)
+.PHONY: all-bottom
+
+setup: simulation-specifications $(haskfile)
 .PHONY: setup
 
-directory-tree:
-> mkdir -p output/formulas/figure_data/histo_steps
-> mkdir -p output/formulas/run
-> mkdir -p output/formulas/steps
-> mkdir -p output/formulas/repli/steps
-> mkdir -p output/formulas/repli/run
-> mkdir -p output/report
-> mkdir -p input/simu
-.PHONY: directory-tree
-
 simulation-specifications:
+> mkdir -p input/simu
 > util/populate_simu_specs.sh
 .PHONY: simulation-specifications
 
@@ -138,49 +273,3 @@ clean:
 > rm -Rf output/formulas/*
 > rm -Rf sentinel
 .PHONY: clean
-
-
-#### Figures ####
-
-output/report/steps.png: \
-  report/steps.gnuplot \
-  sentinel/histo_steps
-> gnuplot -c $< $@ $(histo_steps)
-
-output/report/l2_vs_nsimus.png: \
-  report/l2_vs_nsimus.gnuplot \
-  $(mean_std_l2_vs_nsimus)
-> gnuplot -c $< $@ $(mean_std_l2_vs_nsimus)
-
-
-
-#### Statistics ####
-
-sentinel/histo_steps : $(steps)
-> $(haskfile) histo-steps \
->   $(foreach x, $(steps), --steps $(x)) \
->   $(foreach x, $(histo_steps), --histo $(x))
-> mkdir -p $(@D)
-> touch $@
-
-$(mean_std_l2_vs_nsimus): $(repli_run_l2_vs_nsimus)
-> $(haskfile) mean-std-l2-vs-nsimus \
->   $(foreach x, $(repli_run_l2_vs_nsimus), --run $(x)) \
->   --out $(mean_std_l2_vs_nsimus)
-
-
-#### Simulations ####
-
-output/formulas/run/%: input/simu/% 
-> $(haskfile) steps $(SEED) $< $@
-
-output/formulas/steps/%: input/simu/%   
-> $(haskfile) steps $(SEED) $< $@
-
-output/formulas/repli/run/%: input/simu/% 
-> $(haskfile) repli-run $(SEED) $(REPLICATIONS) $< $@
-
-output/formulas/repli/steps/%: input/simu/% 
-> $(haskfile) repli-steps $(SEED) $(REPLICATIONS) $< $@
-
-

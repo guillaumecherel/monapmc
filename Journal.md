@@ -158,3 +158,11 @@ Refactoré le code haskell pour utiliser simEasyPar et simPlasticPar partout. Le
 
 - coder en haskell l'executable qui sert à calculer les stats L2 vs time pour les replications (voir la règle du makefile pour `files_stat_l2_vs_time_k`)
 - coder le script gnuplot
+
+
+lundi 3 février 2020, 09:22:08 (UTC+0100)
+=========================================
+
+Revoir l'organisation du code haskell pour refléter l'organisation en "définitions/valeurs" - "fichiers" comme dans le makefile.
+
+Codé les stats L2 vs Time pour des replications de steps, créé l'executable correspondant et intégré au Makefile dans la section Stat L2 vs time. 

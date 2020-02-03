@@ -69,6 +69,8 @@ import qualified Util.DataSet as DataSet
 --   [Repli Res Apmc(K,N,Nalpha,pAccMin), Repli Res MonApmc(K,N,Nalpha,pAccMin)
 --     | Varying N, Nalpha, pAccMin]
 
+-- Read --
+
 readList :: forall a. (Read a) => [FilePath] -> IO [a]
 readList filePaths = traverse readSingle filePaths
 
@@ -86,47 +88,7 @@ writeSingle :: forall a. (Show a) => FilePath -> a -> IO ()
 writeSingle = writeOneFile show
 
 
----- Write functions for statistics ----
-
--- [Histo Steps APMC, Histo Steps MonAPMC]
-
-writeHistoSteps
-  :: [FilePath] -> [[DataSet (Double, Double)]] -> IO ()
-writeHistoSteps = writeListWith (gnuplotData2 . gnuplotDataSetsWithStep)
-  where
-    gnuplotDataSetsWithStep
-      :: [DataSet a]
-      -> [(Maybe Text, DataSet a)]
-    gnuplotDataSetsWithStep dataSets =
-      zip (fmap (pure . mappend "Step " . show) [(1::Int)..]) dataSets
-
--- [MeanStd L2VsNSimu Apmc1, ..., MeanStd L2VsNSimu MonApmc1, ...]
-
-writeL2VSNSimu
-  :: FilePath
-  -> [(Maybe Text, DataSet (Double, Double, Double, Double))]
-  -> IO ()
-writeL2VSNSimu = writeOneFile gnuplotData4
-
--- [Repli Steps L2VsRealTime MonApmc(K=k) | k=1,2,4]
-
-writeL2VsRealTime
-  :: [FilePath]
-  -> [DataSet (Double, Double)]
-  -> IO ()
-writeL2VsRealTime = undefined
-
--- [Repli (T MonApmc(K,N,Nalpha,pAccMin) / T Apmc(K,N,Nalpha,pAccMin) vs K - r)
---   | Varying N, Nalpha, pAccMin]
-
-writeTVsKr
-  :: [FilePath]
-  -> [DataSet (Double, Double)]
-  -> IO ()
-writeTVsKr = undefined
-
-
--- Utility functions --
+-- Write --
 
 writeListWith :: forall a. (a -> Text) -> [FilePath] -> [a] -> IO ()
 writeListWith toText filePaths xs =
@@ -168,3 +130,11 @@ pureGnuplotDataSets
   :: [DataSet a]
   -> [(Maybe Text, DataSet a)]
 pureGnuplotDataSets dataSets = (Nothing, ) <$> dataSets
+
+gnuplotDataSetsWithName
+  :: (Int -> Text)
+  -> [DataSet a]
+  -> [(Maybe Text, DataSet a)]
+gnuplotDataSetsWithName name dataSets =
+  zip (fmap (pure . name) [(1::Int)..]) dataSets
+

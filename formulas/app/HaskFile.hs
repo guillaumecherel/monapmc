@@ -11,6 +11,9 @@ import           Options.Applicative
 import           Experiment
 import           Util.HaskFile
 import           Util.DataSet (DataSet(..))
+import           Util.Repli (Repli(..))
+import qualified Util.Repli as Repli
+import           Util.Sample (Sample(..))
 
 data Cmd
   = Run
@@ -37,12 +40,9 @@ data Cmd
   | MeanStdL2VsNSimus
       [FilePath] -- Files where replicated runs are written
       FilePath -- Mean and Std of L2 vs NSimu 
-  | RepliL2VsRealTime
-      [FilePath] -- List of directories where each replication is written
-      FilePath -- L2 vs real time.
-  | RepliTvsKR
-      [FilePath] -- List of directories containing the replications of Res.
-      FilePath -- T MonApmc / T Apmc vs K - r
+  | L2VsTime
+      FilePath -- Replications
+      FilePath -- L2 vs time.
   deriving (Show)
 
 cmd :: Parser Cmd
@@ -115,6 +115,14 @@ cmd = subparser
        )
        mempty
      )
+  <> command "l2-vs-time"
+     ( info
+       ( L2VsTime
+         <$> argument str (metavar "Replications Steps")
+         <*> argument str (metavar "L2 vs Time")
+       )
+       mempty
+     )
    )
 
 parseOpts :: IO Cmd
@@ -136,22 +144,29 @@ main = do
       writeSingle output res
     RepliRun seed replications input output -> do
       sim <- readSingle input
-      res <- evalRandT (repliM replications $ run sim) (mkStdGen seed)
+      res <- evalRandT (repliRun replications sim) (mkStdGen seed)
       writeSingle output res
     RepliSteps seed replications input output -> do
       sim <- readSingle input
-      res <- evalRandT (repliM replications $ steps sim) (mkStdGen seed)
+      res <- evalRandT (repliSteps replications sim) (mkStdGen seed)
       writeSingle output res
     HistoSteps pathsSteps pathsHisto -> do
       steps' <- readList pathsSteps
       let histos = fmap histogramSteps steps' :: [[DataSet (Double, Double)]]
-      writeHistoSteps pathsHisto histos
+      writeListWith
+        (gnuplotData2 . gnuplotDataSetsWithName (mappend "Step " . show))
+        pathsHisto
+        histos
     MeanStdL2VsNSimus pathsRuns pathOut -> do
       runs <- Sample <$> readList pathsRuns
         :: IO (Sample (Repli Run))
       case meanStdL2VsNSimus runs of
         Left err -> putStrLn err
-        Right x -> writeL2VSNSimu pathOut x
+        Right x -> writeOneFile gnuplotData4 pathOut x
+    L2VsTime pathIn pathOut -> do
+      repliSteps <- readSingle pathIn
+      let stats = l2VsTimeRepliSteps repliSteps
+      writeOneFile gnuplotData4 pathOut $ pureGnuplotDataSets $ Repli.get stats
     c -> panic $ "Command not implemented yet: " <> show c
     -- | RepliL2VsRealTime
     --     [FilePath] -- List of directories where each replication is written

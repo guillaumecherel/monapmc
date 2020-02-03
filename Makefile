@@ -35,7 +35,6 @@ REPLICATIONS = 10
 all: figures
 .PHONY: all
 
-
 #### Executables ####
 
 haskfile = formulas/.stack-work/install/x86_64-linux/lts-12.14/8.4.3/bin/haskfile
@@ -135,21 +134,6 @@ $(files_simu_repli_steps_l2_vs_time_k): output/formulas/repli/steps/%: input/sim
 > $(haskfile) repli-steps $(SEED) $(REPLICATIONS) $< $@
 
 
-## Stats mean std l2 vs nsimus ##
-
-files_stat_mean_std_l2_vs_nsimus = output/formulas/figure_data/mean_std_l2_vs_nsimus
-
-$(files_stat_mean_std_l2_vs_nsimus): sentinel/stat_mean_std_l2_vs_nsimus ;
-
-sentinel/stat_mean_std_l2_vs_nsimus: $(files_simu_repli_run_l2_vs_nsimus)
-> mkdir -p output/formulas/figure_data/
-> $(haskfile) mean-std-l2-vs-nsimus \
->   $(foreach x, $(files_simu_repli_run_l2_vs_nsimus), --run $(x)) \
->   --out $(files_stat_mean_std_l2_vs_nsimus)
-> mkdir -p $(@D)
-> touch $@
-
-
 ## Stats histo steps ##
 
 files_stat_histo_steps = \
@@ -167,29 +151,38 @@ sentinel/stat_histo_steps : $(files_simu_steps)
 > touch $@
 
 
-## Stat L2 vs time K ##
+## Stats mean std l2 vs nsimus ##
 
-files_stat_l2_vs_time_k = \
-  output/formulas/figure_data/l2_vs_time_k/apmc_n5000_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
-  output/formulas/figure_data/l2_vs_time_k/apmc_n5000_nAlpha500_pAccMin0.01_parallel2_modelToy_stepMax100 \
-  output/formulas/figure_data/l2_vs_time_k/apmc_n5000_nAlpha500_pAccMin0.01_parallel5_modelToy_stepMax100 \
-  output/formulas/figure_data/l2_vs_time_k/apmc_n5000_nAlpha500_pAccMin0.01_parallel10_modelToy_stepMax100 \
-  output/formulas/figure_data/l2_vs_time_k/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100 \
-  output/formulas/figure_data/l2_vs_time_k/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel2_stopSampleSize4500_modelToy_stepMax100 \
-  output/formulas/figure_data/l2_vs_time_k/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel5_stopSampleSize4500_modelToy_stepMax100 \
-  output/formulas/figure_data/l2_vs_time_k/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel10_stopSampleSize4500_modelToy_stepMax100
+files_stat_mean_std_l2_vs_nsimus = output/formulas/figure_data/mean_std_l2_vs_nsimus
 
-$(files_stat_l2_vs_time_k): sentinel/stat_l2_vs_time_k ;
+$(files_stat_mean_std_l2_vs_nsimus): sentinel/stat_mean_std_l2_vs_nsimus ;
 
-sentinel/stat_l2_vs_time_k: \
-  report/l2_vs_time_k.gnuplot \
-  $(files_simu_repli_steps_l2_vs_time_k)
-> mkdir -p output/formulas/figure_data/l2_vs_time_k
-> $(haskfile) l2-vs-time-k  
->   $(foreach x, $(files_repli_run_l2_vs_time_k), --in $(x)) \
->   $(foreach x, $(files_stat_l2_vs_time_k), --out $(x))
+sentinel/stat_mean_std_l2_vs_nsimus: $(files_simu_repli_run_l2_vs_nsimus)
+> mkdir -p output/formulas/figure_data/
+> $(haskfile) mean-std-l2-vs-nsimus \
+>   $(foreach x, $(files_simu_repli_run_l2_vs_nsimus), --run $(x)) \
+>   --out $(files_stat_mean_std_l2_vs_nsimus)
 > mkdir -p $(@D)
 > touch $@
+
+
+## Stat L2 vs time ##
+
+files_stat_l2_vs_time_k = \
+  output/formulas/figure_data/l2_vs_time/apmc_n5000_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/apmc_n5000_nAlpha500_pAccMin0.01_parallel2_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/apmc_n5000_nAlpha500_pAccMin0.01_parallel5_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/apmc_n5000_nAlpha500_pAccMin0.01_parallel10_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel2_stopSampleSize4500_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel5_stopSampleSize4500_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_n5000_nAlpha500_pAccMin0.01_stepSize1_parallel10_stopSampleSize4500_modelToy_stepMax100
+
+# No sentinel here.
+$(files_stat_l2_vs_time_k):output/formulas/figure_data/l2_vs_time/%: \
+  output/formulas/repli/steps/%
+> mkdir -p output/formulas/figure_data/l2_vs_time
+> $(haskfile) l2-vs-time $< $@
 
 
 ## Figure Steps ##

@@ -27,10 +27,16 @@ import           Util.DataSet (DataSet(..))
 import qualified Util.DataSet as DataSet
 import           Util.Duration (Duration)
 import qualified Util.Duration as Duration
+import           Util.Repli (Repli(..))
+import qualified Util.Repli as Repli
+import           Util.Sample (Sample(..))
+import qualified Util.Sample as Sample
 import qualified Util.Figure as UFig
 import qualified Statistics
 import           Text.Pretty.Simple (pShow, pShowNoColor)
 import qualified Util.SteadyState as SteadyState 
+
+---- Simulations Specification ----
 
 data Algorithm =
   APMC
@@ -91,108 +97,10 @@ data Simulation = Simulation Algorithm Model Int
   -- Simulation algo model stepMax
   deriving (Show, Read)
 
-data Steps = Steps Simulation [Step]
-  -- Steps simulation steps
-  deriving (Show, Read)
 
-data Step = Step (Duration, Duration) Int Double Double (Vector (Weight, Vector Double))
-  -- Step (realTime, simulatedTime) t epsilon pAcc sample
-  deriving (Show, Read)
 
-steps :: Simulation -> RandT StdGen IO Steps
-steps s@(Simulation algo model stepMax) =
-  Steps s <$> (stepsResult stepMax algo model)
 
-stepsResult :: Int -> Algorithm -> Model -> RandT StdGen IO [Step]
-stepsResult stepMax APMC{n, nAlpha, pAccMin} model =
-  let steps' :: RandT StdGen IO [((Duration, Duration), APMC.S)]
-      steps' = take stepMax <$> APMC.scanPar 1 p (Model.model model)
-      p = APMC.P
-        { APMC.n = n
-        , APMC.nAlpha = nAlpha
-        , APMC.pAccMin = pAccMin
-        , APMC.priorSample = Model.priorRandomSample model
-        , APMC.priorDensity = Model.prior model
-        , APMC.observed = Vector.singleton 0
-        }
-      getStep (dur, r) = Step
-         dur
-         (APMC.t r)
-         (APMC.epsilon r)
-         (APMC.pAcc r)
-         (Vector.zip (Vector.fromList $ LA.toList $ APMC.weights r)
-                        (Vector.fromList $ fmap Vector.fromList $ LA.toLists
-                          $ APMC.thetas r))
-  in getStep <<$>> steps'
-stepsResult
-  stepMax
-  MonAPMC {n, nAlpha, pAccMin, stepSize, parallel , stopSampleSize}
-  model =
-  let steps' :: RandT StdGen IO [((Duration, Duration), MonAPMC.S (Rand StdGen))]
-      steps' = take stepMax
-        <$> MonAPMC.scanPar stepSize parallel p (Model.model model)
-      p = MonAPMC.P
-          { MonAPMC._apmcP=APMC.P
-              { APMC.n = n
-              , APMC.nAlpha = nAlpha
-              , APMC.pAccMin = pAccMin
-              , APMC.priorSample = Model.priorRandomSample model
-              , APMC.priorDensity = Model.prior model
-              , APMC.observed = Vector.singleton 0
-              }
-          , MonAPMC._stopSampleSize=stopSampleSize
-          }
-      getStep (dur, MonAPMC.E) = Step dur 0 0 0 mempty
-      getStep (dur, MonAPMC.S{MonAPMC._s = s}) = Step
-        dur
-        ( APMC.t s)
-        ( APMC.epsilon s)
-        ( APMC.pAcc s)
-        ( Vector.zip (Vector.fromList $ LA.toList $ APMC.weights s)
-              (Vector.fromList $ fmap Vector.fromList $ LA.toLists
-                 $ APMC.thetas s))
-  in getStep <<$>> steps'
-stepsResult _ SteadyState{} _ = return mempty
-stepsResult _ Beaumont2009{} _ = return mempty
-
-getStepsSimulation :: Steps -> Simulation
-getStepsSimulation (Steps x _) = x
-
-peekSteps :: Steps -> Text
-peekSteps (Steps (Simulation algo model stepMax) steps) =
-  "(Steps"
-  <> " algo=" <> show algo
-  <> " model=" <> show model
-  <> " stepMax=" <> show stepMax
-  <> " steps=" <> peekList 3 peekStep steps
-
-peekStep :: Step -> Text
-peekStep (Step dur t epsilon pAcc sample) =
-  "(Step"
-  <> " duration=" <> show dur
-  <> " t=" <> show t
-  <> " epsilon=" <> show epsilon
-  <> " pAcc=" <> show pAcc
-  <> " sample=" <> peekVector 3 show sample
-  <> ")"
-
-peekVector :: Int -> (a -> Text) -> Vector a -> Text
-peekVector i peek v =
-  "(Vector "
-  <> peekList i peek (Vector.toList v)
-  <> ")"
-
-peekList :: Int -> (a -> Text) -> [a] -> Text
-peekList i peek v =
-  "Length " <> show len <> " ["
-  <> (mconcat $ intersperse ", " $ fmap peek $ take i v)
-  <> if i < len then "..." else ""
-  <> "]"
-  where
-    len = length v
-
-getStepT :: Step -> Int
-getStepT (Step _ t _ _ _) = t
+---- Simulation Run ----
 
 data Run = Run Algorithm Model RunResult
   -- Run algo model runResult
@@ -284,17 +192,163 @@ runResult _ Beaumont2009{} _ =
       mempty)
 
 
--- Statistics
+
+---- Simulation Steps ----
+
+data Steps = Steps Simulation [Step]
+  -- Steps simulation steps
+  deriving (Show, Read)
+
+data Step = Step (Duration, Duration) Int Double Double (Vector (Weight, Vector Double))
+  -- Step (realTime, simulatedTime) t epsilon pAcc sample
+  deriving (Show, Read)
+
+steps :: Simulation -> RandT StdGen IO Steps
+steps s@(Simulation algo model stepMax) =
+  Steps s <$> stepsResult stepMax algo model
+
+stepsResult :: Int -> Algorithm -> Model -> RandT StdGen IO [Step]
+stepsResult stepMax APMC{n, nAlpha, pAccMin} model =
+  let steps' :: RandT StdGen IO [((Duration, Duration), APMC.S)]
+      steps' = take stepMax <$> APMC.scanPar 1 p (Model.model model)
+      p = APMC.P
+        { APMC.n = n
+        , APMC.nAlpha = nAlpha
+        , APMC.pAccMin = pAccMin
+        , APMC.priorSample = Model.priorRandomSample model
+        , APMC.priorDensity = Model.prior model
+        , APMC.observed = Vector.singleton 0
+        }
+      getStep (dur, r) = Step
+         dur
+         (APMC.t r)
+         (APMC.epsilon r)
+         (APMC.pAcc r)
+         (Vector.zip (Vector.fromList $ LA.toList $ APMC.weights r)
+                        (Vector.fromList $ fmap Vector.fromList $ LA.toLists
+                          $ APMC.thetas r))
+  in getStep <<$>> steps'
+stepsResult
+  stepMax
+  MonAPMC {n, nAlpha, pAccMin, stepSize, parallel , stopSampleSize}
+  model =
+  let steps' :: RandT StdGen IO [((Duration, Duration), MonAPMC.S (Rand StdGen))]
+      steps' = take stepMax
+        <$> MonAPMC.scanPar stepSize parallel p (Model.model model)
+      p = MonAPMC.P
+          { MonAPMC._apmcP=APMC.P
+              { APMC.n = n
+              , APMC.nAlpha = nAlpha
+              , APMC.pAccMin = pAccMin
+              , APMC.priorSample = Model.priorRandomSample model
+              , APMC.priorDensity = Model.prior model
+              , APMC.observed = Vector.singleton 0
+              }
+          , MonAPMC._stopSampleSize=stopSampleSize
+          }
+      getStep (dur, MonAPMC.E) = Step dur 0 0 0 mempty
+      getStep (dur, MonAPMC.S{MonAPMC._s = s}) = Step
+        dur
+        ( APMC.t s)
+        ( APMC.epsilon s)
+        ( APMC.pAcc s)
+        ( Vector.zip (Vector.fromList $ LA.toList $ APMC.weights s)
+              (Vector.fromList $ fmap Vector.fromList $ LA.toLists
+                 $ APMC.thetas s))
+  in getStep <<$>> steps'
+stepsResult _ SteadyState{} _ = return mempty
+stepsResult _ Beaumont2009{} _ = return mempty
+
+getStepsSimulation :: Steps -> Simulation
+getStepsSimulation (Steps x _) = x
+
+getStepT :: Step -> Int
+getStepT (Step _ t _ _ _) = t
+
+getStepSample :: Step -> Vector (Weight, Vector Double)
+getStepSample (Step _ _ _ _ sample) = sample
+
+peekSteps :: Steps -> Text
+peekSteps (Steps (Simulation algo model stepMax) steps) =
+  "(Steps"
+  <> " algo=" <> show algo
+  <> " model=" <> show model
+  <> " stepMax=" <> show stepMax
+  <> " steps=" <> peekList 3 peekStep steps
+
+peekStep :: Step -> Text
+peekStep (Step dur t epsilon pAcc sample) =
+  "(Step"
+  <> " duration=" <> show dur
+  <> " t=" <> show t
+  <> " epsilon=" <> show epsilon
+  <> " pAcc=" <> show pAcc
+  <> " sample=" <> peekVector 3 show sample
+  <> ")"
+
+peekVector :: Int -> (a -> Text) -> Vector a -> Text
+peekVector i peek v =
+  "(Vector "
+  <> peekList i peek (Vector.toList v)
+  <> ")"
+
+peekList :: Int -> (a -> Text) -> [a] -> Text
+peekList i peek v =
+  "Length " <> show len <> " ["
+  <> (mconcat . intersperse ", " . fmap peek . take i $ v)
+  <> if i < len then "..." else ""
+  <> "]"
+  where
+    len = length v
+
+
+
+
+---- Simulation Repli Run ----
+
+repliRun :: Int -> Simulation -> RandT StdGen IO (Repli Run)
+repliRun n sim = Repli.repliM n $ run sim
+
+
+
+
+---- Simulation Repli Steps ----
+
+repliSteps :: Int -> Simulation -> RandT StdGen IO (Repli Steps)
+repliSteps n sim = Repli.repliM n $ steps sim
+
+
+
+
+---- Stats histo steps ----
+
+histogramStep :: Step -> DataSet (Double, Double)
+histogramStep (Step _ _ _ _ sample') =
+    DataSet
+  $ Statistics.estPostDen (-10) 10 300
+  $ fmap (second Vector.head)
+  $ Vector.toList sample'
+
+histogramSteps :: Steps -> [DataSet (Double, Double)]
+histogramSteps (Steps _ steps') = histogramStep <$> steps'
+
+
+
+
+---- Stats mean std l2 vs nsimus ----
 
 l2VsNSimusSteps :: Steps -> DataSet (Int, Double)
 l2VsNSimusSteps (Steps (Simulation algo _ _) steps') =
   DataSet $ l2VsNSimus' <$> steps'
   where l2VsNSimus' :: Step -> (Int, Double)
-        l2VsNSimus' step = (nSimus algo (getStepT step), l2ToyStep step)
+        l2VsNSimus' step =
+          ( nSimus algo (getStepT step)
+          , Statistics.l2Toy . getStepSample $ step
+          )
 
 l2VsNSimusRun :: Run -> DataSet (Int,Double)
 l2VsNSimusRun (Run algo _ (RunResult _ nSteps sample)) =
-  DataSet [(nSimus algo nSteps, Statistics.l2Toy sample)]
+  DataSet [( nSimus algo nSteps, Statistics.l2Toy sample)]
 
 nSimus :: Algorithm -> Int -> Int
 nSimus APMC{n=n, nAlpha=nAlpha} step =
@@ -307,19 +361,6 @@ nSimus Beaumont2009{n=n} step = n * step
 numberSimusLenormand2012 :: Int -> Int -> Int -> Int
 numberSimusLenormand2012 n nAlpha step = n + (n - nAlpha) * step
 
-l2ToyStep :: Step -> Double
-l2ToyStep (Step _ _ _ _ sample') = Statistics.l2Toy sample'
-
-histogramStep :: Step -> DataSet (Double, Double)
-histogramStep (Step _ _ _ _ sample') =
-    DataSet
-  $ Statistics.estPostDen (-10) 10 300
-  $ fmap (second Vector.head)
-  $ Vector.toList sample'
-
-histogramSteps :: Steps -> [DataSet (Double, Double)]
-histogramSteps (Steps _ steps') = histogramStep <$> steps'
-
 meanStdL2VsNSimus
   :: Sample (Repli Run)
   -> Either Text [(Maybe Text, DataSet (Double, Double, Double, Double))]
@@ -331,13 +372,13 @@ meanStdL2VsNSimus runs =
   -- Either Text (Map group [(nAlpha, DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]), ...])
    . (fmap . fmap) (sortOn fst)
   -- Either Text (Map group [(nAlpha, DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]), ...])
-   . fmap (Map.fromListWith (<>) . getSample)
+   . fmap (Map.fromListWith (<>) . Sample.get)
   -- Either Text (Sample (group, [(nAlpha, DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]])))
-   . (fmap . mapSample) (\((g, na), d) -> (g, [(na, d)]))
+   . (fmap . Sample.map) (\((g, na), d) -> (g, [(na, d)]))
   -- Either Text (Sample ((group, nAlpha), DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]))
-   . (traverseSample . traverse) DataSet.meanStd
+   . (Sample.traverse . traverse) DataSet.meanStd
   -- Sample ((group, nAlpha), [DataSet [(nSimus, l2)], ...])
-   . mapSample (\(Repli _ runs) ->
+   . Sample.map (\(Repli _ runs) ->
       ( ( group =<< headMay runs
         , nAlpha =<< headMay runs
         )
@@ -358,75 +399,46 @@ meanStdL2VsNSimus runs =
       (Run (MonAPMC n _ _ _ _ _) _ _) -> Just n
       _ -> Nothing
 
+
+
+---- Stat L2 vs time K ----
+
 totalTimeSeconds :: Step -> Double
 totalTimeSeconds (Step (algoTime, simTime) _ _ _ _) =
   Duration.seconds $ algoTime + simTime
 
 algoTimeSeconds :: Step -> Double
 algoTimeSeconds (Step (algoTime, _) _ _ _ _) = 
-  Duration.seconds $ algoTime
+  Duration.seconds algoTime
 
 simTimeSeconds :: Step -> Double
 simTimeSeconds (Step (_, simTime) _ _ _ _) = 
-  Duration.seconds $ simTime
+  Duration.seconds simTime
+
+-- Returns DataSet (totalTime, algoTime, simTime, L2)
+l2VsTimeSteps :: Steps -> DataSet (Double, Double, Double, Double)
+l2VsTimeSteps (Steps (Simulation algo _ _) steps') =
+  DataSet $ stat <$> steps'
+  where stat step =
+          ( totalTimeSeconds step
+          , algoTimeSeconds step
+          , simTimeSeconds step
+          , Statistics.l2Toy . getStepSample $ step)
+
+l2VsTimeRepliSteps :: Repli Steps -> Repli (DataSet (Double, Double, Double, Double))
+l2VsTimeRepliSteps repliSteps = Repli.map l2VsTimeSteps repliSteps
 
 
--- Replication functor
-
-data Repli a = Repli Int [a]
-  deriving (Show, Read)
-
-getRepli :: Repli a -> [a]
-getRepli (Repli _ xs) = xs
-
-repli :: Int -> a -> Repli a
-repli n x = Repli n $ replicate n x
-
-repliM :: (Applicative m) => Int -> m a -> m (Repli a)
-repliM n x = Repli n <$> replicateM n x
-
-mapRepli :: (a -> b) -> Repli a -> Repli b
-mapRepli f (Repli n xs) = Repli n (f <$> xs)
-
-foldRepli :: (b -> a -> b) -> b -> Repli a -> b
-foldRepli f z (Repli n xs) = List.foldl' f z xs
-
-traverseRepli :: (Applicative f) => (a -> f b) -> Repli a -> f (Repli b)
-traverseRepli f (Repli i xs) = Repli i <$> traverse f xs
-
-aggregateRepli :: ([a] -> b) -> Repli a -> b
-aggregateRepli f (Repli _ xs) = f xs
-
--- Sample functor
-
-newtype Sample a = Sample [a]
-  deriving (Show, Read)
-
-getSample :: Sample a -> [a]
-getSample (Sample xs) = xs
-
-mapSample :: (a -> b) -> Sample a -> Sample b
-mapSample f (Sample xs) = Sample (f <$> xs)
-
-foldSample :: (b -> a -> b) -> b -> Sample a -> b
-foldSample f z (Sample xs) = List.foldl' f z xs
-
-traverseSample :: (Applicative f) => (a -> f b) -> Sample a -> f (Sample b)
-traverseSample f (Sample xs) = Sample <$> traverse f xs
-
-appendSample :: Sample a -> Sample a -> Sample a
-appendSample (Sample as) (Sample bs) = Sample (as <> bs)
-
-zipSample :: (a -> b -> c) -> [a] -> Sample b -> Sample c
-zipSample f xs (Sample ys) = Sample $ zipWith f xs ys
 
 
+
+-- TO BE REMOVED
 -- Plotting
 
 line
-  :: (Maybe Text)
-  -> (Maybe Int)
-  -> (Maybe Int)
+  :: Maybe Text
+  -> Maybe Int
+  -> Maybe Int
   -> [DataSet (Double, Double)]
   -> UFig.PlotLine
 line legend color style datasets =
@@ -434,9 +446,9 @@ line legend color style datasets =
   $ fmap (\xys -> (Nothing, Just <$> DataSet.get xys)) datasets
 
 point 
-  :: (Maybe Text)
-  -> (Maybe Int)
-  -> (Maybe Int)
+  :: Maybe Text
+  -> Maybe Int
+  -> Maybe Int
   -> [DataSet (Double, Double)]
   -> UFig.PlotPoint
 point legend color style datasets =

@@ -20,7 +20,7 @@ data Model
   | ToyTimeBias Double Double deriving (Eq, Show, Read)
 
 model :: (MonadRandom m) => Model -> V.Vector Double -> m (Duration, V.Vector Double)
-model Toy = (fmap . fmap) (1,) toyModel
+model Toy = (fmap . fmap) (fromSeconds 1,) toyModel
 model (ToyTimeBias mean var) = undefined
 
 priorRandomSample :: (MonadRandom m) => Model -> m (V.Vector Double)

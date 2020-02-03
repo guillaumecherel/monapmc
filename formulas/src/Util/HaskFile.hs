@@ -101,7 +101,7 @@ gnuplotData :: (a -> Text) -> [(Maybe Text, DataSet a)] -> Text
 gnuplotData formatRecord dataSets =
      Text.intercalate "\n\n"
      ( flip fmap dataSets (\ (comment,ds)
-     -> "\"" <> fromMaybe mempty comment <> "\"\n"
+     -> maybe mempty (\title -> "\"" <> title  <> "\"\n") comment
      <> (Text.unlines $ fmap formatRecord $ DataSet.get ds )))
 
 gnuplotData2
@@ -131,10 +131,17 @@ pureGnuplotDataSets
   -> [(Maybe Text, DataSet a)]
 pureGnuplotDataSets dataSets = (Nothing, ) <$> dataSets
 
-gnuplotDataSetsWithName
+gnuplotDataSetsNameWithIndex
   :: (Int -> Text)
   -> [DataSet a]
   -> [(Maybe Text, DataSet a)]
-gnuplotDataSetsWithName name dataSets =
+gnuplotDataSetsNameWithIndex name dataSets =
   zip (fmap (pure . name) [(1::Int)..]) dataSets
+
+gnuplotDataSetsWithNames
+  :: [Text]
+  -> [DataSet a]
+  -> [(Maybe Text, DataSet a)]
+gnuplotDataSetsWithNames names dataSets =
+  zip (fmap pure names) dataSets
 

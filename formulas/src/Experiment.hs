@@ -93,11 +93,24 @@ algoFilename Beaumont2009{n, epsilonFrom, epsilonTo} =
              <> sformat (fixed 2) epsilonFrom <> "_"
              <> sformat (fixed 2) epsilonTo
 
+getAlgoName :: Algorithm -> Text
+getAlgoName APMC{} = "APMC"
+getAlgoName MonAPMC{} = "MonAPMC"
+getAlgoName SteadyState{} = "SteadyState"
+getAlgoName Beaumont2009{} = "Beaumont"
+
+getAlgoParallel :: Algorithm -> Int
+getAlgoParallel APMC{parallel} = parallel
+getAlgoParallel MonAPMC{parallel} = parallel
+getAlgoParallel SteadyState{parallel} = parallel
+getAlgoParallel Beaumont2009{} = undefined
+
 data Simulation = Simulation Algorithm Model Int
   -- Simulation algo model stepMax
   deriving (Show, Read)
 
-
+getSimuAlgo :: Simulation -> Algorithm
+getSimuAlgo (Simulation a _ _) = a
 
 
 ---- Simulation Run ----
@@ -208,9 +221,9 @@ steps s@(Simulation algo model stepMax) =
   Steps s <$> stepsResult stepMax algo model
 
 stepsResult :: Int -> Algorithm -> Model -> RandT StdGen IO [Step]
-stepsResult stepMax APMC{n, nAlpha, pAccMin} model =
+stepsResult stepMax APMC{n, nAlpha, pAccMin, parallel} model =
   let steps' :: RandT StdGen IO [((Duration, Duration), APMC.S)]
-      steps' = take stepMax <$> APMC.scanPar 1 p (Model.model model)
+      steps' = take stepMax <$> APMC.scanPar parallel p (Model.model model)
       p = APMC.P
         { APMC.n = n
         , APMC.nAlpha = nAlpha

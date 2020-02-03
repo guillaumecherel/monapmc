@@ -166,3 +166,8 @@ lundi 3 février 2020, 09:22:08 (UTC+0100)
 Revoir l'organisation du code haskell pour refléter l'organisation en "définitions/valeurs" - "fichiers" comme dans le makefile.
 
 Codé les stats L2 vs Time pour des replications de steps, créé l'executable correspondant et intégré au Makefile dans la section Stat L2 vs time. 
+
+Faire le script gnuplot pour Générer la figure L2 vs time K.
+
+Scrit fait et figure Générée.
+

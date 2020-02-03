@@ -30,6 +30,7 @@ apmc   5000   500   0.01   1   Toy   100
 apmc   5000   500   0.01   2   Toy   100
 apmc   5000   500   0.01   5   Toy   100
 apmc   5000   500   0.01   10  Toy   100
+apmc   5000   500   0.01   500 Toy   100
 apmc    501   500   0.05   1   Toy   100
 apmc    555   500   0.05   1   Toy   100
 apmc    625   500   0.05   1   Toy   100
@@ -50,6 +51,10 @@ mon_apmc    555   500   0.01   1   1   Toy   100
 mon_apmc    625   500   0.01   1   1   Toy   100
 mon_apmc   1000   500   0.01   1   1   Toy   100
 mon_apmc   5000   500   0.01   1   1   Toy   100
+mon_apmc   5000   500   0.01   1   2   Toy   100
+mon_apmc   5000   500   0.01   1   5   Toy   100
+mon_apmc   5000   500   0.01   1   10  Toy   100
+mon_apmc   5000   500   0.01   1   500 Toy   100
 mon_apmc    501   500   0.05   1   1   Toy   100
 mon_apmc    555   500   0.05   1   1   Toy   100
 mon_apmc    625   500   0.05   1   1   Toy   100

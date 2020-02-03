@@ -154,7 +154,7 @@ main = do
       steps' <- readList pathsSteps
       let histos = fmap histogramSteps steps' :: [[DataSet (Double, Double)]]
       writeListWith
-        (gnuplotData2 . gnuplotDataSetsWithName (mappend "Step " . show))
+        (gnuplotData2 . gnuplotDataSetsNameWithIndex (mappend "Step " . show))
         pathsHisto
         histos
     MeanStdL2VsNSimus pathsRuns pathOut -> do
@@ -166,7 +166,7 @@ main = do
     L2VsTime pathIn pathOut -> do
       repliSteps <- readSingle pathIn
       let stats = l2VsTimeRepliSteps repliSteps
-      writeOneFile gnuplotData4 pathOut $ pureGnuplotDataSets $ Repli.get stats
+      writeOneFile gnuplotData4 pathOut $ pureGnuplotDataSets (Repli.get stats)
     c -> panic $ "Command not implemented yet: " <> show c
     -- | RepliL2VsRealTime
     --     [FilePath] -- List of directories where each replication is written

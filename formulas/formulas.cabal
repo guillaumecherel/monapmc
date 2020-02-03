@@ -18,13 +18,13 @@ library
   ghc-options:         -Wall
   exposed-modules:     Model,
                        Statistics,
-                       Simulation,
+                       Experiment,
                        ABC.Lenormand2012,
                        ABC.SteadyState,
                        ABC.MonAPMC,
-                       ToyModel,
                        Util,
                        Util.CSV,
+                       Util.DataSet,
                        Util.Distribution,
                        Util.Duration,
                        Util.Execution,
@@ -158,7 +158,6 @@ test-suite formulas-test
   other-modules:       Test.ABC.Lenormand2012,
                        Test.ABC.SteadyState,
                        Test.Execution,
-                       Test.ToyModel,
                        Test.Util
                        Test.Util.SteadyState
   default-language:    Haskell2010

@@ -3,7 +3,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
 
-module Simulation where
+module Experiment where
 
 import Protolude
 
@@ -23,7 +23,8 @@ import           Formatting
 import qualified Model 
 import           Model (Model)
 import qualified Numeric.LinearAlgebra as LA
-import           Util (nestFold)
+import           Util.DataSet (DataSet(..))
+import qualified Util.DataSet as DataSet
 import           Util.Duration (Duration)
 import qualified Util.Duration as Duration
 import qualified Util.Figure as UFig
@@ -98,45 +99,6 @@ data Step = Step (Duration, Duration) Int Double Double (Vector (Weight, Vector 
   -- Step (realTime, simulatedTime) t epsilon pAcc sample
   deriving (Show, Read)
 
-getStepsSimulation :: Steps -> Simulation
-getStepsSimulation (Steps x _) = x
-
-peekSteps :: Steps -> Text
-peekSteps (Steps (Simulation algo model stepMax) steps) =
-  "(Steps"
-  <> " algo=" <> show algo
-  <> " model=" <> show model
-  <> " stepMax=" <> show stepMax
-  <> " steps=" <> peekList 3 peekStep steps
-
-peekStep :: Step -> Text
-peekStep (Step dur t epsilon pAcc sample) =
-  "(Step"
-  <> " duration=" <> show dur
-  <> " t=" <> show t
-  <> " epsilon=" <> show epsilon
-  <> " pAcc=" <> show pAcc
-  <> " sample=" <> peekVector 3 show sample
-  <> ")"
-
-peekVector :: Int -> (a -> Text) -> Vector a -> Text
-peekVector i peek v =
-  "(Vector "
-  <> peekList i peek (Vector.toList v)
-  <> ")"
-
-peekList :: Int -> (a -> Text) -> [a] -> Text
-peekList i peek v =
-  "Length " <> show len <> " ["
-  <> (mconcat $ intersperse ", " $ fmap peek $ take i v)
-  <> if i < len then "..." else ""
-  <> "]"
-  where
-    len = length v
-
-getStepT :: Step -> Int
-getStepT (Step _ t _ _ _) = t
-
 steps :: Simulation -> RandT StdGen IO Steps
 steps s@(Simulation algo model stepMax) =
   Steps s <$> (stepsResult stepMax algo model)
@@ -192,6 +154,45 @@ stepsResult
   in getStep <<$>> steps'
 stepsResult _ SteadyState{} _ = return mempty
 stepsResult _ Beaumont2009{} _ = return mempty
+
+getStepsSimulation :: Steps -> Simulation
+getStepsSimulation (Steps x _) = x
+
+peekSteps :: Steps -> Text
+peekSteps (Steps (Simulation algo model stepMax) steps) =
+  "(Steps"
+  <> " algo=" <> show algo
+  <> " model=" <> show model
+  <> " stepMax=" <> show stepMax
+  <> " steps=" <> peekList 3 peekStep steps
+
+peekStep :: Step -> Text
+peekStep (Step dur t epsilon pAcc sample) =
+  "(Step"
+  <> " duration=" <> show dur
+  <> " t=" <> show t
+  <> " epsilon=" <> show epsilon
+  <> " pAcc=" <> show pAcc
+  <> " sample=" <> peekVector 3 show sample
+  <> ")"
+
+peekVector :: Int -> (a -> Text) -> Vector a -> Text
+peekVector i peek v =
+  "(Vector "
+  <> peekList i peek (Vector.toList v)
+  <> ")"
+
+peekList :: Int -> (a -> Text) -> [a] -> Text
+peekList i peek v =
+  "Length " <> show len <> " ["
+  <> (mconcat $ intersperse ", " $ fmap peek $ take i v)
+  <> if i < len then "..." else ""
+  <> "]"
+  where
+    len = length v
+
+getStepT :: Step -> Int
+getStepT (Step _ t _ _ _) = t
 
 data Run = Run Algorithm Model RunResult
   -- Run algo model runResult
@@ -283,22 +284,7 @@ runResult _ Beaumont2009{} _ =
       mempty)
 
 
--- Data sets
-
-data DataSet a = DataSet [a]
-  deriving (Read, Show)
-
-getDataSet :: DataSet a -> [a]
-getDataSet (DataSet xs) = xs
-
-mapDataSet :: (a -> b) -> DataSet a -> DataSet b
-mapDataSet f (DataSet xs) = DataSet $ fmap f xs
-
-sizeDataSet :: DataSet a -> Int
-sizeDataSet (DataSet xs) = length xs
-
-appendDataSets :: DataSet a -> DataSet a -> DataSet a
-appendDataSets (DataSet a) (DataSet b) = DataSet $ a <> b
+-- Statistics
 
 l2VsNSimusSteps :: Steps -> DataSet (Int, Double)
 l2VsNSimusSteps (Steps (Simulation algo _ _) steps') =
@@ -334,29 +320,6 @@ histogramStep (Step _ _ _ _ sample') =
 histogramSteps :: Steps -> [DataSet (Double, Double)]
 histogramSteps (Steps _ steps') = histogramStep <$> steps'
 
-meanStdDataSets
-  :: [DataSet (Double, Double)] 
-  -> Either Text (DataSet (Double, Double, Double, Double))
-meanStdDataSets dataSets =
-    DataSet . getZipList
-  . Fold.fold (nestFold meanStdPoints)
-  . fmap (ZipList . getDataSet)
-  <$> checkLength dataSets
-  where
-    meanStdPoints :: Fold (Double, Double) (Double, Double, Double, Double)
-    meanStdPoints =
-      (,,,)
-      <$> Fold.premap fst Fold.mean
-      <*> Fold.premap snd Fold.mean
-      <*> Fold.premap fst Fold.std
-      <*> Fold.premap snd Fold.std
-    checkLength :: [DataSet a] -> Either Text [DataSet a]
-    checkLength [] = Right []
-    checkLength (x:[]) = Right [x]
-    checkLength (x:xs) = if all (sizeDataSet x ==) (sizeDataSet <$> xs)
-      then Right (x:xs)
-      else Left "meanStdDataSets: dataSets sizes differ. All dataSets must have the same size."
-
 meanStdL2VsNSimus
   :: Sample (Repli Run)
   -> Either Text [(Maybe Text, DataSet (Double, Double, Double, Double))]
@@ -364,21 +327,21 @@ meanStdL2VsNSimus runs =
   -- Either Text [(group, DataSet l2VsNSimus)]
      fmap Map.toAscList
   -- Either Text (Map group (DataSet mean...))
-   $ (fmap . fmap) (foldl' (\acc x -> appendDataSets acc (snd x)) (DataSet []))
+   . (fmap . fmap) (foldl' (\acc x -> DataSet.append acc (snd x)) (DataSet []))
   -- Either Text (Map group [(nAlpha, DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]), ...])
-   $ (fmap . fmap) (sortOn fst)
+   . (fmap . fmap) (sortOn fst)
   -- Either Text (Map group [(nAlpha, DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]), ...])
-   $ fmap (Map.fromListWith (<>) . getSample)
+   . fmap (Map.fromListWith (<>) . getSample)
   -- Either Text (Sample (group, [(nAlpha, DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]])))
-   $ (fmap . mapSample) (\((g, na), d) -> (g, [(na, d)]))
+   . (fmap . mapSample) (\((g, na), d) -> (g, [(na, d)]))
   -- Either Text (Sample ((group, nAlpha), DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]))
-   $ (traverseSample . traverse) meanStdDataSets
+   . (traverseSample . traverse) DataSet.meanStd
   -- Sample ((group, nAlpha), [DataSet [(nSimus, l2)], ...])
-   $ mapSample (\(Repli _ runs) ->
+   . mapSample (\(Repli _ runs) ->
       ( ( group =<< headMay runs
         , nAlpha =<< headMay runs
         )
-      , mapDataSet (first fromIntegral) . l2VsNSimusRun <$> runs
+      , DataSet.map (first fromIntegral) . l2VsNSimusRun <$> runs
       ))
   -- Sample (Repli Run)
    $ runs
@@ -394,6 +357,19 @@ meanStdL2VsNSimus runs =
       (Run (APMC n _ _ _) _ _) -> Just n
       (Run (MonAPMC n _ _ _ _ _) _ _) -> Just n
       _ -> Nothing
+
+totalTimeSeconds :: Step -> Double
+totalTimeSeconds (Step (algoTime, simTime) _ _ _ _) =
+  Duration.seconds $ algoTime + simTime
+
+algoTimeSeconds :: Step -> Double
+algoTimeSeconds (Step (algoTime, _) _ _ _ _) = 
+  Duration.seconds $ algoTime
+
+simTimeSeconds :: Step -> Double
+simTimeSeconds (Step (_, simTime) _ _ _ _) = 
+  Duration.seconds $ simTime
+
 
 -- Replication functor
 
@@ -445,8 +421,6 @@ zipSample :: (a -> b -> c) -> [a] -> Sample b -> Sample c
 zipSample f xs (Sample ys) = Sample $ zipWith f xs ys
 
 
--- Plotting functors
-
 -- Plotting
 
 line
@@ -457,7 +431,7 @@ line
   -> UFig.PlotLine
 line legend color style datasets =
   UFig.PlotLine legend color style
-  $ fmap (\xys -> (Nothing, Just <$> getDataSet xys)) datasets
+  $ fmap (\xys -> (Nothing, Just <$> DataSet.get xys)) datasets
 
 point 
   :: (Maybe Text)
@@ -467,7 +441,7 @@ point
   -> UFig.PlotPoint
 point legend color style datasets =
    UFig.PlotPoint legend color style
-  $ fmap (\xys -> (Nothing, Just <$> getDataSet xys)) datasets
+  $ fmap (\xys -> (Nothing, Just <$> DataSet.get xys)) datasets
 
 pointErrDelta
   :: (Maybe Text)
@@ -477,7 +451,7 @@ pointErrDelta
   -> UFig.PlotPointErrDelta
 pointErrDelta legend color style dataSets =
    UFig.PlotPointErrDelta legend color style
-  $ fmap (\xys -> (Nothing, Just <$> getDataSet xys)) dataSets
+  $ fmap (\xys -> (Nothing, Just <$> DataSet.get xys)) dataSets
 
 bar
   :: (Maybe Text)
@@ -487,7 +461,7 @@ bar
   -> UFig.PlotBar
 bar legend color fillstyle dataSets =
   UFig.PlotBar legend color fillstyle
-  $ fmap (\xys -> (Nothing, Just <$> getDataSet xys)) dataSets
+  $ fmap (\xys -> (Nothing, Just <$> DataSet.get xys)) dataSets
 
 plotLine :: UFig.PlotLine -> UFig.Plot
 plotLine = UFig.Plot . pure . UFig.PlotCmdLine
@@ -512,18 +486,6 @@ rowSample title plotTitles (Sample xs) =
 
 stackPlots :: UFig.Plot -> UFig.Plot -> UFig.Plot
 stackPlots = (<>)
-
-totalTimeSeconds :: Step -> Double
-totalTimeSeconds (Step (algoTime, simTime) _ _ _ _) =
-  Duration.seconds $ algoTime + simTime
-
-algoTimeSeconds :: Step -> Double
-algoTimeSeconds (Step (algoTime, _) _ _ _ _) = 
-  Duration.seconds $ algoTime
-
-simTimeSeconds :: Step -> Double
-simTimeSeconds (Step (_, simTime) _ _ _ _) = 
-  Duration.seconds $ simTime
 
 -- TO BE REMOVED
 -- realTime :: Algorithm -> Int -> Double

@@ -9,7 +9,9 @@ module Util.HaskFile where
 import Protolude
 
 import qualified Data.Text as Text
-import qualified Simulation
+import qualified Experiment
+import           Util.DataSet (DataSet(..))
+import qualified Util.DataSet as DataSet
 
 ---- Functions to generate the executable functor ----
 
@@ -89,12 +91,12 @@ writeSingle = writeOneFile show
 -- [Histo Steps APMC, Histo Steps MonAPMC]
 
 writeHistoSteps
-  :: [FilePath] -> [[Simulation.DataSet (Double, Double)]] -> IO ()
+  :: [FilePath] -> [[DataSet (Double, Double)]] -> IO ()
 writeHistoSteps = writeListWith (gnuplotData2 . gnuplotDataSetsWithStep)
   where
     gnuplotDataSetsWithStep
-      :: [Simulation.DataSet a]
-      -> [(Maybe Text, Simulation.DataSet a)]
+      :: [DataSet a]
+      -> [(Maybe Text, DataSet a)]
     gnuplotDataSetsWithStep dataSets =
       zip (fmap (pure . mappend "Step " . show) [(1::Int)..]) dataSets
 
@@ -102,7 +104,7 @@ writeHistoSteps = writeListWith (gnuplotData2 . gnuplotDataSetsWithStep)
 
 writeL2VSNSimu
   :: FilePath
-  -> [(Maybe Text, Simulation.DataSet (Double, Double, Double, Double))]
+  -> [(Maybe Text, DataSet (Double, Double, Double, Double))]
   -> IO ()
 writeL2VSNSimu = writeOneFile gnuplotData4
 
@@ -110,7 +112,7 @@ writeL2VSNSimu = writeOneFile gnuplotData4
 
 writeL2VsRealTime
   :: [FilePath]
-  -> [Simulation.DataSet (Double, Double)]
+  -> [DataSet (Double, Double)]
   -> IO ()
 writeL2VsRealTime = undefined
 
@@ -119,7 +121,7 @@ writeL2VsRealTime = undefined
 
 writeTVsKr
   :: [FilePath]
-  -> [Simulation.DataSet (Double, Double)]
+  -> [DataSet (Double, Double)]
   -> IO ()
 writeTVsKr = undefined
 
@@ -133,20 +135,20 @@ writeListWith toText filePaths xs =
 writeOneFile :: (a -> Text) -> FilePath -> a -> IO ()
 writeOneFile toText path x = writeFile path $ toText x
 
-gnuplotData :: (a -> Text) -> [(Maybe Text, Simulation.DataSet a)] -> Text
+gnuplotData :: (a -> Text) -> [(Maybe Text, DataSet a)] -> Text
 gnuplotData formatRecord dataSets =
      Text.intercalate "\n\n"
      ( flip fmap dataSets (\ (comment,ds)
      -> "\"" <> fromMaybe mempty comment <> "\"\n"
-     <> (Text.unlines $ fmap formatRecord $ Simulation.getDataSet ds )))
+     <> (Text.unlines $ fmap formatRecord $ DataSet.get ds )))
 
 gnuplotData2
-  :: [(Maybe Text, Simulation.DataSet (Double, Double))]
+  :: [(Maybe Text, DataSet (Double, Double))]
   -> Text
 gnuplotData2 = gnuplotData gnuplotRecord2
 
 gnuplotData4
-  :: [(Maybe Text, Simulation.DataSet (Double, Double, Double, Double))]
+  :: [(Maybe Text, DataSet (Double, Double, Double, Double))]
   -> Text
 gnuplotData4 = gnuplotData gnuplotRecord4
 
@@ -158,11 +160,11 @@ gnuplotRecord4 (x, y, xdelta, ydelta) =
   show x <> " " <> show y <> " " <> show xdelta <> " " <> show ydelta
 
 pureGnuplotDataSet
-  :: Simulation.DataSet a
-  -> [(Maybe Text, Simulation.DataSet a)]
+  :: DataSet a
+  -> [(Maybe Text, DataSet a)]
 pureGnuplotDataSet dataSet = [(Nothing, dataSet)]
 
 pureGnuplotDataSets
-  :: [Simulation.DataSet a]
-  -> [(Maybe Text, Simulation.DataSet a)]
+  :: [DataSet a]
+  -> [(Maybe Text, DataSet a)]
 pureGnuplotDataSets dataSets = (Nothing, ) <$> dataSets

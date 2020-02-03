@@ -8,7 +8,7 @@ import Protolude
 
 import qualified Data.Text as Text
 import           Options.Applicative
-import           Simulation
+import           Experiment
 import           Text.Pretty.Simple (pPrintNoColor)
 
 args :: Parser Simulation

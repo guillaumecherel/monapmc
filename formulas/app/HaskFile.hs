@@ -8,8 +8,9 @@ import Protolude
 
 import           Control.Monad.Random.Lazy
 import           Options.Applicative
-import           Simulation
+import           Experiment
 import           Util.HaskFile
+import           Util.DataSet (DataSet(..))
 
 data Cmd
   = Run

@@ -171,3 +171,9 @@ Faire le script gnuplot pour Générer la figure L2 vs time K.
 
 Scrit fait et figure Générée.
 
+Trouver un cas où MonAPMC est vraiment plus efficace que APMC (voir cas idéal dans le readme.)
+
+
+mardi 4 février 2020, 10:14:33 (UTC+0100)
+=========================================
+

@@ -144,7 +144,9 @@ stop P{_apmcP=apmcP, _stopSampleSize=sss} ms = do
                              (APMC.ts s')
           pAcc :: Double
           pAcc = (fromIntegral count) / (fromIntegral (tSpan * (APMC.n apmcP - APMC.nAlpha apmcP)))
-      in return (APMC.t s' >= tSpan &&
+      in traceShow (APMC.t s', tSpan, APMC.pAccMin apmcP , pAcc)
+
+         return (APMC.t s' >= tSpan &&
                   (APMC.pAccMin apmcP :: Double) >= (pAcc :: Double) )
 
 -- Parallel Monoid APMC

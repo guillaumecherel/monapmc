@@ -2,7 +2,7 @@ output_path=ARG1
 data_apmc=ARG2
 data_mon_apmc=ARG3
 
-set terminal png truecolor size 5cm,20cm font ',12'
+set terminal png truecolor size 2560.32,1280.16 font ',12'
 set xrange [-4:4]
 set yrange [0:3]
 # set samples 500

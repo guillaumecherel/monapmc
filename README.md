@@ -21,10 +21,13 @@ Fig L2 vs time K
 
 The first set of plots (`l2_vs_realtime_k`) shows this evolution for both algorithm and different values of K in 1, 2, 4, 10. These plots illustrate that:
 
-- MonAPMC and APMC are comparable with a single core,
-- MonAPMC is more efficient than APMC with more cores.
+- MonAPMC and APMC have a similar results in terms of time and quality,
+- There both benefit from additionnal cores.
+- They remain similar in quality and speed with more cores. 
 
-The second set is similar but K takes the values 4 and 10 and N varies such that N / K takes the values 1, 1/2, 1/10. These figures illustrate that:
+MonAPMC offers no advantage here. It is expected from the absence of variance in the model run time and the fact that the number of simulation per iteration is a multiple of the number of cores. As a consequence the loss mentionned above should be absent: no cpu ever idles in APMC. The two following sets of figures will illustrate what happens when the number of simulations per run does not divide into the number of cores, and when the variance of the model run time increases.
+
+In the second set, K takes the values 4 and 10 and N varies such that N / K takes the values 1, 1/2, 1/10. These figures illustrate that:
 
 - The advantage of MonAPMC is not considerable with few (4) cores
 - The advantage of MonAPMC is significant when the number of simulations per iteration is close to the number of cores. (On the grid with K = 100)

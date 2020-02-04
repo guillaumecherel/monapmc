@@ -10,14 +10,14 @@ The loss is also aggravated when some simulations take longer than others. An ex
 
 We designed the algorithm MonAPMC to answer to this loss problem. We thus need to test that it is effectively more efficient than an easy to implement parallelisation scheme as the number of computing cores grows, as the ratio of number of simulations over the number of cores shrinks, and as the variance of simulation duration grows.
 
-For a first check of these three claims, we plot the evolution L2 against time for a replicated run of both APMC and MonAPMC, varying some variables while keeping the others fixed at the following default values: n=5000, nAlpha=500, pAccMin=0.01, parallel=1, stepSize=1, stopSampleSize=4500. 
+For a first check of these three claims, we plot the evolution L2 against time for a replicated run of both APMC and MonAPMC, varying some variables while keeping the others fixed at the following default values: nGen=4000, nAlpha=500, pAccMin=0.01, parallel=1, stepSize=1, stopSampleSize=4500. 
 
 Fig L2 vs time K
 
 :   A two column grid of plots showing L2 vs time for replicated runs. 
     Plots on the left column are runs of the APMC algorithm, plots on the right
     are runs of MonAPMC. Rows correspond to different values of parallelism K: 
-    1, 2, 4, 10.
+    1, 2, 4, 100. For MonAPMC, nGen is set such that `nGen * K = 4000` to be closer to APMC's running conditions. The StepMax parameter must also be adapted such that `stepMax * nGen = 400000`.
 
 The first set of plots (`l2_vs_realtime_k`) shows this evolution for both algorithm and different values of K in 1, 2, 4, 10. These plots illustrate that:
 
@@ -25,7 +25,7 @@ The first set of plots (`l2_vs_realtime_k`) shows this evolution for both algori
 - There both benefit from additionnal cores.
 - They remain similar in quality and speed with more cores. 
 
-MonAPMC offers no advantage here. It is expected from the absence of variance in the model run time and the fact that the number of simulation per iteration is a multiple of the number of cores. As a consequence the loss mentionned above should be absent: no cpu ever idles in APMC. The two following sets of figures will illustrate what happens when the number of simulations per run does not divide into the number of cores, and when the variance of the model run time increases.
+MonAPMC offers no clear advantage here. It is expected from the absence of variance in the model run time and the fact that the number of simulation per iteration is a multiple of the number of cores. As a consequence the loss mentionned above should be absent: no cpu ever idles in APMC. The two following sets of figures will illustrate what happens when the number of simulations per run does not divide into the number of cores, and when the variance of the model run time increases.
 
 In the second set, K takes the values 4 and 10 and N varies such that N / K takes the values 1, 1/2, 1/10. These figures illustrate that:
 

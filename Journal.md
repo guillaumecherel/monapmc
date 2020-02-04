@@ -177,5 +177,12 @@ Trouver un cas où MonAPMC est vraiment plus efficace que APMC (voir cas idéal 
 mardi 4 février 2020, 10:14:33 (UTC+0100)
 =========================================
 
+Automatisé la création des fichiers de specification de simulation dans input/simu avec le `Makefile` et le script `util/populate_simu_specs.sh`.
+
 Les noms des paramètres d'APMC et MonAPMC n et nAlpha sont confus. Adaptation des noms pour faire directement référence à la taille de l'échantillon (nAlpha) et le nombre de simulation effectuées à chaque étape (nGen).
+
+Changé le dernière valeur de K dans Fig L2 vs Time K pour 100 au lieu de 10. Il a fallu aussi adapter la valeur de stepMax pour que les deux algos fassent au max le même nombre de simulations.
+
+À faire: adapter la valeur de stepMax dans tout le Makefile. Idée: changer le parametr stepMax en un parametr nEvalMax pour le nombre maximum d'évaluation du modèle de simulation.
+
 

@@ -45,12 +45,14 @@ plot apmc_k5 u 1:4 with linespoint t ''
 set title "MonAPMC K = 4"
 plot monApmc_k5 u 1:4 with linespoint t ''
 
-set xrange [0:*]
-set xtics 0.2e4
-set title "APMC K = 10"
+set xrange [*:*]
+set yrange [0:*]
+set xtics autofreq rotate
+unset format x
+set title "APMC K = 100"
 plot apmc_k10 u 1:4 with linespoint t ''
 
-set title "MonAPMC K = 10"
+set title "MonAPMC K = 100"
 plot monApmc_k10 u 1:4 with linespoint t ''
 
 unset multiplot

@@ -127,11 +127,11 @@ files_simu_repli_steps_l2_vs_time_k = \
   output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
   output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel2_modelToy_stepMax100 \
   output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToy_stepMax100 \
-  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel10_modelToy_stepMax100 \
+  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToy_stepMax100 \
   output/formulas/repli/steps/mon-apmc_nGen4000_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100 \
-  output/formulas/repli/steps/mon-apmc_nGen2000_nAlpha500_pAccMin0.01_stepSize1_parallel2_stopSampleSize4500_modelToy_stepMax100 \
-  output/formulas/repli/steps/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToy_stepMax100 \
-  output/formulas/repli/steps/mon-apmc_nGen400_nAlpha500_pAccMin0.01_stepSize1_parallel10_stopSampleSize4500_modelToy_stepMax100
+  output/formulas/repli/steps/mon-apmc_nGen2000_nAlpha500_pAccMin0.01_stepSize1_parallel2_stopSampleSize4500_modelToy_stepMax200 \
+  output/formulas/repli/steps/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToy_stepMax400 \
+  output/formulas/repli/steps/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToy_stepMax10000
   
 # Don't use the sentinel pattern here.
 $(files_simu_repli_steps_l2_vs_time_k): output/formulas/repli/steps/%: input/simu/% 
@@ -177,11 +177,11 @@ files_stat_l2_vs_time_k = \
   output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
   output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel2_modelToy_stepMax100 \
   output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToy_stepMax100 \
-  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel10_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToy_stepMax100 \
   output/formulas/figure_data/l2_vs_time/mon-apmc_nGen4000_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100 \
-  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen2000_nAlpha500_pAccMin0.01_stepSize1_parallel2_stopSampleSize4500_modelToy_stepMax100 \
-  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToy_stepMax100 \
-  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen400_nAlpha500_pAccMin0.01_stepSize1_parallel10_stopSampleSize4500_modelToy_stepMax100
+  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen2000_nAlpha500_pAccMin0.01_stepSize1_parallel2_stopSampleSize4500_modelToy_stepMax200 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToy_stepMax400 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToy_stepMax10000
 
 # No sentinel here.
 $(files_stat_l2_vs_time_k):output/formulas/figure_data/l2_vs_time/%: \

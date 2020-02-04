@@ -28,7 +28,7 @@ import           Util.Execution (simEasyPar)
 -- The algorithm parameters
 -- TODO. V.Vector performance issue vs LA.Vector?
 data P m = P
-  { n :: Int
+  { nGen :: Int
   , nAlpha :: Int
   , pAccMin :: Double
   , priorSample :: m (V.Vector Double)
@@ -38,7 +38,7 @@ data P m = P
 
 instance NFData (P m) where
   rnf p =
-          rnf (n p)
+          rnf (nGen p)
     `seq` rnf (nAlpha p)
     `seq` rnf (pAccMin p)
     `seq` rwhnf (priorSample p)
@@ -141,7 +141,7 @@ stepOne p f = do
 
 
 stepOnePre :: (Monad m) => P m -> m [V.Vector Double]
-stepOnePre p = sequence $ replicate (n p) (priorSample p)
+stepOnePre p = sequence $ replicate (nGen p + nAlpha p) (priorSample p)
 
 stepOnePost
   :: (Monad m) => P m -> [V.Vector Double] -> [V.Vector Double] -> m S
@@ -187,14 +187,14 @@ stepPre
   -> S
   -> m (LA.Herm Double, LA.Matrix Double)
 stepPre p s = do
-  resampleIndices <- replicateM (n p - nAlpha p) $ weighted $ (mzip [0..] (fmap toRational $ LA.toList $ weights s))
+  resampleIndices <- replicateM (nGen p) $ weighted $ (mzip [0..] (fmap toRational $ LA.toList $ weights s))
   let resampleThetas = thetas s LA.? resampleIndices
   seed <- getRandom
   let dim = LA.cols (thetas s)
   let sigmaSquared = LA.scale 2
                          $ weightedCovariance (thetas s) (weights s)
   let newThetas =  resampleThetas +
-                    LA.gaussianSample seed (n p - nAlpha p)
+                    LA.gaussianSample seed (nGen p)
                       (LA.konst 0 dim)
                       sigmaSquared
   return (sigmaSquared, newThetas)
@@ -222,7 +222,7 @@ stepPost p s (sigmaSquared, newThetas) newXs = do
                <> fmap (2,) (zip [0..] $ LA.toList $ newRhos))
   let rhosSelected = LA.vjoin [prevRhosSelected, newRhosSelected]
   let newEpsilon = rhosSelected LA.! (nAlpha p - 1)
-  let newPAcc = fromIntegral (LA.size newRhosSelected) / fromIntegral (n p - nAlpha p)
+  let newPAcc = fromIntegral (LA.size newRhosSelected) / fromIntegral (nGen p)
   let prevThetasSelected = thetas s LA.? selectPrev
   let newThetasSelected = newThetas LA.? selectNew
   let thetasSelected = prevThetasSelected LA.=== newThetasSelected

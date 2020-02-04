@@ -177,3 +177,5 @@ Trouver un cas où MonAPMC est vraiment plus efficace que APMC (voir cas idéal 
 mardi 4 février 2020, 10:14:33 (UTC+0100)
 =========================================
 
+Les noms des paramètres d'APMC et MonAPMC n et nAlpha sont confus. Adaptation des noms pour faire directement référence à la taille de l'échantillon (nAlpha) et le nombre de simulation effectuées à chaque étape (nGen).
+

@@ -40,13 +40,13 @@ import qualified Util.SteadyState as SteadyState
 
 data Algorithm =
   APMC
-    { n :: Int
+    { nGen :: Int
     , nAlpha :: Int
     , pAccMin :: Double
     , parallel :: Int
     }
   | MonAPMC
-    { n :: Int
+    { nGen :: Int
     , nAlpha :: Int
     , pAccMin :: Double
     , stepSize :: Int
@@ -67,15 +67,15 @@ data Algorithm =
   deriving (Show, Read, Eq, Ord)
 
 algoFilename :: Algorithm -> FilePath
-algoFilename APMC{n, nAlpha, pAccMin, parallel} =
+algoFilename APMC{nGen, nAlpha, pAccMin, parallel} =
    unpack $ "apmc_"
-             <> show n <> "_"
+             <> show nGen <> "_"
              <> sformat (fixed 2) nAlpha <> "_"
              <> sformat (fixed 2) pAccMin <> "_"
              <> show parallel
-algoFilename MonAPMC{n, nAlpha, pAccMin, stepSize, parallel, stopSampleSize} =
+algoFilename MonAPMC{nGen, nAlpha, pAccMin, stepSize, parallel, stopSampleSize} =
    unpack $ "monAPMC_"
-             <> show n <> "_"
+             <> show nGen <> "_"
              <> show nAlpha <> "_"
              <> sformat (fixed 2) pAccMin <> "_"
              <> show stepSize <> "_"
@@ -92,6 +92,18 @@ algoFilename Beaumont2009{n, epsilonFrom, epsilonTo} =
              <> show n <> "_"
              <> sformat (fixed 2) epsilonFrom <> "_"
              <> sformat (fixed 2) epsilonTo
+
+getAlgoNGen :: Algorithm -> Int
+getAlgoNGen APMC {nGen} = nGen
+getAlgoNGen MonAPMC {nGen} = nGen
+getAlgoNGen SteadyState{} = undefined
+getAlgoNGen Beaumont2009{} = undefined
+
+getAlgoNAlpha :: Algorithm -> Int
+getAlgoNAlpha APMC {nAlpha} = nAlpha
+getAlgoNAlpha MonAPMC {nAlpha} = nAlpha
+getAlgoNAlpha SteadyState{} = undefined
+getAlgoNAlpha Beaumont2009{} = undefined
 
 getAlgoName :: Algorithm -> Text
 getAlgoName APMC{} = "APMC"
@@ -121,20 +133,23 @@ data Run = Run Algorithm Model RunResult
 
 type Weight = Double
 
-data RunResult = RunResult (Duration, Duration) Int (Vector (Weight, Vector Double))
-  -- RunResult (algoDuration, simDuration) nSteps sample
-  deriving (Show, Read)
-
 run :: Simulation -> RandT StdGen IO Run
 run (Simulation algo model stepMax) =
   Run algo model <$> runResult stepMax algo model
 
+getRunAlgo :: Run -> Algorithm
+getRunAlgo (Run algo _ _) = algo
+
+data RunResult = RunResult (Duration, Duration) Int (Vector (Weight, Vector Double))
+  -- RunResult (algoDuration, simDuration) nSteps sample
+  deriving (Show, Read)
+
 runResult :: Int -> Algorithm -> Model -> RandT StdGen IO RunResult
-runResult stepMax APMC{n, nAlpha, pAccMin} model =
+runResult stepMax APMC{nGen, nAlpha, pAccMin} model =
   let steps' :: RandT StdGen IO [(Int, ((Duration, Duration), APMC.S))]
       steps' = zip [1..stepMax] <$> APMC.scanPar 1 p (Model.model model)
       p = APMC.P
-        { APMC.n = n
+        { APMC.nGen = nGen
         , APMC.nAlpha = nAlpha
         , APMC.pAccMin = pAccMin
         , APMC.priorSample = Model.priorRandomSample model
@@ -148,14 +163,14 @@ runResult stepMax APMC{n, nAlpha, pAccMin} model =
   in getRun . List.last <$>  steps'
 runResult
   stepMax
-  MonAPMC{n ,nAlpha ,pAccMin ,stepSize ,parallel ,stopSampleSize}
+  MonAPMC{nGen ,nAlpha ,pAccMin ,stepSize ,parallel ,stopSampleSize}
   model =
   let result :: RandT StdGen IO ((Duration, Duration), MonAPMC.S (Rand StdGen))
       result = List.last . take stepMax
         <$> MonAPMC.scanPar stepSize parallel p (Model.model model)
       p = MonAPMC.P
           { MonAPMC._apmcP=APMC.P
-              { APMC.n = n
+              { APMC.nGen = nGen
               , APMC.nAlpha = nAlpha
               , APMC.pAccMin = pAccMin
               , APMC.priorSample = Model.priorRandomSample model
@@ -212,20 +227,16 @@ data Steps = Steps Simulation [Step]
   -- Steps simulation steps
   deriving (Show, Read)
 
-data Step = Step (Duration, Duration) Int Double Double (Vector (Weight, Vector Double))
-  -- Step (realTime, simulatedTime) t epsilon pAcc sample
-  deriving (Show, Read)
-
 steps :: Simulation -> RandT StdGen IO Steps
 steps s@(Simulation algo model stepMax) =
   Steps s <$> stepsResult stepMax algo model
 
 stepsResult :: Int -> Algorithm -> Model -> RandT StdGen IO [Step]
-stepsResult stepMax APMC{n, nAlpha, pAccMin, parallel} model =
+stepsResult stepMax APMC{nGen, nAlpha, pAccMin, parallel} model =
   let steps' :: RandT StdGen IO [((Duration, Duration), APMC.S)]
       steps' = take stepMax <$> APMC.scanPar parallel p (Model.model model)
       p = APMC.P
-        { APMC.n = n
+        { APMC.nGen = nGen
         , APMC.nAlpha = nAlpha
         , APMC.pAccMin = pAccMin
         , APMC.priorSample = Model.priorRandomSample model
@@ -243,14 +254,14 @@ stepsResult stepMax APMC{n, nAlpha, pAccMin, parallel} model =
   in getStep <<$>> steps'
 stepsResult
   stepMax
-  MonAPMC {n, nAlpha, pAccMin, stepSize, parallel , stopSampleSize}
+  MonAPMC {nGen, nAlpha, pAccMin, stepSize, parallel , stopSampleSize}
   model =
   let steps' :: RandT StdGen IO [((Duration, Duration), MonAPMC.S (Rand StdGen))]
       steps' = take stepMax
         <$> MonAPMC.scanPar stepSize parallel p (Model.model model)
       p = MonAPMC.P
           { MonAPMC._apmcP=APMC.P
-              { APMC.n = n
+              { APMC.nGen = nGen
               , APMC.nAlpha = nAlpha
               , APMC.pAccMin = pAccMin
               , APMC.priorSample = Model.priorRandomSample model
@@ -275,11 +286,27 @@ stepsResult _ Beaumont2009{} _ = return mempty
 getStepsSimulation :: Steps -> Simulation
 getStepsSimulation (Steps x _) = x
 
+getSteps :: Steps -> [Step]
+getSteps (Steps _ steps) = steps
+ 
+data Step = Step (Duration, Duration) Int Double Double (Vector (Weight, Vector Double))
+  -- Step (realTime, simulatedTime) t epsilon pAcc sample
+  deriving (Show, Read)
+
 getStepT :: Step -> Int
 getStepT (Step _ t _ _ _) = t
 
 getStepSample :: Step -> Vector (Weight, Vector Double)
 getStepSample (Step _ _ _ _ sample) = sample
+
+getStepAlgoTime :: Step -> Duration
+getStepAlgoTime (Step (algoTime, _) _ _ _ _) = algoTime
+
+getStepSimTime :: Step -> Duration
+getStepSimTime (Step (_, simTime) _ _ _ _) = simTime
+
+getStepTotalTime :: Step -> Duration
+getStepTotalTime step = getStepAlgoTime step + getStepSimTime step
 
 peekSteps :: Steps -> Text
 peekSteps (Steps (Simulation algo model stepMax) steps) =
@@ -364,15 +391,11 @@ l2VsNSimusRun (Run algo _ (RunResult _ nSteps sample)) =
   DataSet [( nSimus algo nSteps, Statistics.l2Toy sample)]
 
 nSimus :: Algorithm -> Int -> Int
-nSimus APMC{n=n, nAlpha=nAlpha} step =
-  numberSimusLenormand2012 n nAlpha step
-nSimus MonAPMC{n=n, stepSize=stepSize, nAlpha=nAlpha} step =
-  numberSimusLenormand2012 n nAlpha (step * stepSize)
+nSimus APMC{nGen=nGen, nAlpha=nAlpha} step = nGen + nAlpha + nGen * step
+nSimus MonAPMC{nGen=nGen, stepSize=stepSize, nAlpha=nAlpha} step =
+  nGen + nAlpha + nGen * (step * stepSize)
 nSimus SteadyState{} step = step
 nSimus Beaumont2009{n=n} step = n * step
-
-numberSimusLenormand2012 :: Int -> Int -> Int -> Int
-numberSimusLenormand2012 n nAlpha step = n + (n - nAlpha) * step
 
 meanStdL2VsNSimus
   :: Sample (Repli Run)
@@ -382,18 +405,18 @@ meanStdL2VsNSimus runs =
      fmap Map.toAscList
   -- Either Text (Map group (DataSet mean...))
    . (fmap . fmap) (foldl' (\acc x -> DataSet.append acc (snd x)) (DataSet []))
-  -- Either Text (Map group [(nAlpha, DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]), ...])
+  -- Either Text (Map group [(nGen, DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]), ...])
    . (fmap . fmap) (sortOn fst)
-  -- Either Text (Map group [(nAlpha, DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]), ...])
+  -- Either Text (Map group [(nGen, DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]), ...])
    . fmap (Map.fromListWith (<>) . Sample.get)
-  -- Either Text (Sample (group, [(nAlpha, DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]])))
-   . (fmap . Sample.map) (\((g, na), d) -> (g, [(na, d)]))
-  -- Either Text (Sample ((group, nAlpha), DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]))
+  -- Either Text (Sample (group, [(nGen, DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]])))
+   . (fmap . Sample.map) (\((g, ng), d) -> (g, [(ng, d)]))
+  -- Either Text (Sample ((group, nGen), DataSet [(meanNSimus, meanL2, stdNSimus, stdL2)]))
    . (Sample.traverse . traverse) DataSet.meanStd
-  -- Sample ((group, nAlpha), [DataSet [(nSimus, l2)], ...])
+  -- Sample ((group, nGen), [DataSet [(nSimus, l2)], ...])
    . Sample.map (\(Repli _ runs) ->
       ( ( group =<< headMay runs
-        , nAlpha =<< headMay runs
+        , nGen =<< headMay runs
         )
       , DataSet.map (first fromIntegral) . l2VsNSimusRun <$> runs
       ))
@@ -407,41 +430,24 @@ meanStdL2VsNSimus runs =
       (Run (MonAPMC{pAccMin}) Model.Toy _) ->
         Just ("MonAPMC pAccMin=" <> show pAccMin)
       _ -> Nothing
-    nAlpha x = case x of
-      (Run (APMC n _ _ _) _ _) -> Just n
-      (Run (MonAPMC n _ _ _ _ _) _ _) -> Just n
-      _ -> Nothing
+    nGen x = Just $ getAlgoNGen . getRunAlgo $ x
 
 
 
 ---- Stat L2 vs time K ----
 
-totalTimeSeconds :: Step -> Double
-totalTimeSeconds (Step (algoTime, simTime) _ _ _ _) =
-  Duration.seconds $ algoTime + simTime
-
-algoTimeSeconds :: Step -> Double
-algoTimeSeconds (Step (algoTime, _) _ _ _ _) = 
-  Duration.seconds algoTime
-
-simTimeSeconds :: Step -> Double
-simTimeSeconds (Step (_, simTime) _ _ _ _) = 
-  Duration.seconds simTime
-
 -- Returns DataSet (totalTime, algoTime, simTime, L2)
 l2VsTimeSteps :: Steps -> DataSet (Double, Double, Double, Double)
-l2VsTimeSteps (Steps (Simulation algo _ _) steps') =
-  DataSet $ stat <$> steps'
+l2VsTimeSteps steps =
+  DataSet $ stat <$> getSteps steps
   where stat step =
-          ( totalTimeSeconds step
-          , algoTimeSeconds step
-          , simTimeSeconds step
+          ( Duration.seconds $ getStepTotalTime step
+          , Duration.seconds $ getStepAlgoTime step
+          , Duration.seconds $ getStepSimTime step
           , Statistics.l2Toy . getStepSample $ step)
 
 l2VsTimeRepliSteps :: Repli Steps -> Repli (DataSet (Double, Double, Double, Double))
 l2VsTimeRepliSteps repliSteps = Repli.map l2VsTimeSteps repliSteps
-
-
 
 
 

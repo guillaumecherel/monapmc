@@ -9,13 +9,13 @@ set -euo pipefail
 # set -x
 
 apmc () {
-  output=input/simu/apmc_n$1_nAlpha$2_pAccMin$3_parallel$4_model$5_stepMax$6
+  output=input/simu/apmc_nGen$1_nAlpha$2_pAccMin$3_parallel$4_model$5_stepMax$6
   stack exec -- template apmc $1 $2 $3 $4 $5 $6 > $output
 }
 
 mon_apmc () {
   # Set step sample size to n - nAlpha to reproduce the behaviour of APMC.
-  output=input/simu/mon-apmc_n$1_nAlpha$2_pAccMin$3_stepSize$4_parallel$5_stopSampleSize$6_model$7_stepMax$8
+  output=input/simu/mon-apmc_nGen$1_nAlpha$2_pAccMin$3_stepSize$4_parallel$5_stopSampleSize$6_model$7_stepMax$8
   stack exec -- template mon-apmc $1 $2 $3 $4 $5 $6 $7 $8 > $output
 }
 
@@ -24,8 +24,8 @@ fill_simulation_spec () {
   algo=${A[0]}
   if test $algo = "apmc"
   then 
-    n=${A[1]##n}
-    test ${n:?[populate_simu_specs] Error: No value for n.}
+    nGen=${A[1]##nGen}
+    test ${nGen:?[populate_simu_specs] Error: No value for nGen.}
     nAlpha=${A[2]##nAlpha}
     test ${nAlpha:?[populate_simu_specs] Error: No value for nAlpha.}
     pAccMin=${A[3]##pAccMin}
@@ -37,12 +37,12 @@ fill_simulation_spec () {
     stepMax=${A[6]##stepMax}
     test ${stepMax:?[populate_simu_specs] Error: No value for stepMax.}
 
-    command=(apmc $n $nAlpha $pAccMin $parallel $model $stepMax) 
+    command=(apmc $nGen $nAlpha $pAccMin $parallel $model $stepMax) 
 
   elif test $algo = "mon-apmc"
   then
-    n=${A[1]##n}
-    test ${n:?[populate_simu_specs] Error: No value for n.}
+    nGen=${A[1]##nGen}
+    test ${nGen:?[populate_simu_specs] Error: No value for nGen.}
     nAlpha=${A[2]##nAlpha}
     test ${nAlpha:?[populate_simu_specs] Error: No value for nAlpha.}
     pAccMin=${A[3]##pAccMin}
@@ -58,7 +58,7 @@ fill_simulation_spec () {
     stepMax=${A[8]##stepMax}
     test ${stepMax:?[populate_simu_specs] Error: No value for stepMax.}
 
-    command=(mon_apmc $n $nAlpha $pAccMin $stepSize $parallel $stopSampleSize $model $stepMax)
+    command=(mon_apmc $nGen $nAlpha $pAccMin $stepSize $parallel $stopSampleSize $model $stepMax)
 
   else
     echo "Unknown algorithm type: " ${A[*]}

@@ -29,24 +29,24 @@ plot apmc_k1 u 1:4 with linespoint t ''
 set title "MonAPMC K = 1"
 plot monApmc_k1 u 1:4 with linespoint t ''
 
-#set xrange [0:4e4]
-#set xtics 1e4
+set xrange [0:4e4]
+set xtics 1e4
 set title "APMC K = 2"
 plot apmc_k2 u 1:4 with linespoint t ''
 
 set title "MonAPMC K = 2"
 plot monApmc_k2 u 1:4 with linespoint t ''
 
-#set xrange [0:2e4]
-#set xtics 0.5e4
+set xrange [0:2e4]
+set xtics 0.5e4
 set title "APMC K = 4"
 plot apmc_k5 u 1:4 with linespoint t ''
 
 set title "MonAPMC K = 4"
 plot monApmc_k5 u 1:4 with linespoint t ''
 
-#set xrange [0:*]
-#set xtics 0.2e4
+set xrange [0:*]
+set xtics 0.2e4
 set title "APMC K = 10"
 plot apmc_k10 u 1:4 with linespoint t ''
 

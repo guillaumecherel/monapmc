@@ -18,7 +18,6 @@ import qualified ABC.Lenormand2012 as APMC
 import qualified Util.Execution as Execution
 
 import           Util.Duration (Duration)
-import qualified Util.Duration as Duration
 
 data P m = P {_apmcP :: APMC.P m,
               _stopSampleSize :: Int}
@@ -117,15 +116,15 @@ step
 step p f ms = do
   s <- ms
   -- If s is empty or the number of particles it contains hasn't reach nAlpha
-  -- yet, keep generating particles (n - nAlpha by n - nAlpha) from the prior
-  -- using the function APMC.stepOne and setting the parameter n to
-  -- (n - nAlpha)
-  let reducedN = (_apmcP p){APMC.n = APMC.n (_apmcP p) - APMC.nAlpha (_apmcP p)}
+  -- yet, keep generating particles (nGen at a time) from the prior
+  -- using the function APMC.stepOne and setting the parameter nAlpha to nGen and nGen to 0
+  -- (APMC.stepOne generates (nGen + nAlpha) particules and keeps the nAlpha best).
+  let p' = (_apmcP p){APMC.nGen = 0, APMC.nAlpha = APMC.nGen $ _apmcP p}
   case s of
-    E -> (\(dur,s') -> (dur,S { _p = p, _t0 = 0, _s = s'})) <$> APMC.stepOne reducedN f
+    E -> (\(dur,s') -> (dur,S { _p = p, _t0 = 0, _s = s'})) <$> APMC.stepOne p' f
     S{_s=s'} ->
       if LA.rows (APMC.thetas s') < APMC.nAlpha (_apmcP p)
-        then (\(dur,s'') ->  (dur, s <> S { _p = p, _t0 = 0, _s = s''})) <$> APMC.stepOne reducedN f
+        then (\(dur,s'') ->  (dur, s <> S { _p = p, _t0 = 0, _s = s''})) <$> APMC.stepOne p' f
         else (\(dur, s'') -> (dur, s{_s = s''})) <$> APMC.step (_apmcP p) f s'
 
 -- Stop condition
@@ -136,18 +135,16 @@ stop P{_apmcP=apmcP, _stopSampleSize=sss} ms = do
     E -> return False
     S{_s=s'} ->
       let tSpan :: Int
-          tSpan = ceiling (fromIntegral sss /
-                   fromIntegral (APMC.n apmcP - APMC.nAlpha apmcP) :: Double)
+          tSpan = ceiling (fromIntegral sss / fromIntegral (APMC.nGen apmcP) :: Double)
           count :: Int
           count = getSum $ foldMap
                              (\t -> if t > APMC.t s' - tSpan then Sum 1 else Sum 0)
                              (APMC.ts s')
           pAcc :: Double
-          pAcc = (fromIntegral count) / (fromIntegral (tSpan * (APMC.n apmcP - APMC.nAlpha apmcP)))
-      in traceShow (APMC.t s', tSpan, APMC.pAccMin apmcP , pAcc)
-
-         return (APMC.t s' >= tSpan &&
-                  (APMC.pAccMin apmcP :: Double) >= (pAcc :: Double) )
+          pAcc = (fromIntegral count) / (fromIntegral (tSpan * (APMC.nGen apmcP)))
+      in return ( APMC.t s' >= tSpan
+               && (APMC.pAccMin apmcP :: Double) >= (pAcc :: Double)
+                )
 
 -- Parallel Monoid APMC
 -- runPar

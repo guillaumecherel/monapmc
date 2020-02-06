@@ -17,19 +17,27 @@ import Util.Distribution as Distribution
 
 data Model
   = Toy
-  | ToyTimeBias Double Double deriving (Eq, Show, Read)
+  | ToyTimeVar Double Double
+  -- ToyTimeVar mode variance
+  | ToyTimeBias Double
+  -- ToyTimeBias power
+  deriving (Eq, Show, Read)
 
 model :: (MonadRandom m) => Model -> V.Vector Double -> m (Duration, V.Vector Double)
-model Toy = (fmap . fmap) (fromSeconds 1,) toyModel
-model (ToyTimeBias mean var) = undefined
+model Toy x = (fromSeconds 1,) <$> toyModel x
+model (ToyTimeVar mean var) x = 
+  (,) <$> pure (fromSeconds 1) <*> toyModel x
+model (ToyTimeBias power) x = undefined
 
 priorRandomSample :: (MonadRandom m) => Model -> m (V.Vector Double)
 priorRandomSample Toy = toyPriorRandomSample
-priorRandomSample (ToyTimeBias mean var) = undefined
+priorRandomSample (ToyTimeVar _ _) = toyPriorRandomSample
+priorRandemSample (ToyTimeBias _) = toyPriorRandomSample
 
 prior :: Model -> V.Vector Double -> Double
 prior Toy = toyPrior
-prior (ToyTimeBias mean var) = undefined
+prior (ToyTimeVar _ _) = toyPrior
+prior (ToyTimeBias _) = toyPrior
 
 --------
 -- Toy Model

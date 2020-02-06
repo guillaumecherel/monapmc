@@ -13,6 +13,7 @@ import qualified ABC.MonAPMC as MonAPMC
 import qualified ABC.SteadyState as SteadyState
 import qualified Control.Foldl as Fold
 import           Control.Foldl (Fold)
+import           Control.Monad.Primitive
 import           Control.Monad.Random.Lazy
 import qualified Data.List as List
 import qualified Data.Map.Strict as Map

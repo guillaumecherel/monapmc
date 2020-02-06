@@ -25,8 +25,8 @@ data Model
 
 model :: (MonadRandom m) => Model -> V.Vector Double -> m (Duration, V.Vector Double)
 model Toy x = (fromSeconds 1,) <$> toyModel x
-model (ToyTimeVar mean var) x = 
-  (,) <$> pure (fromSeconds 1) <*> toyModel x
+model (ToyTimeVar mode var) x =
+  (,) <$> (fromSeconds <$> gammaRandomSample mode var) <*> toyModel x
 model (ToyTimeBias power) x = undefined
 
 priorRandomSample :: (MonadRandom m) => Model -> m (V.Vector Double)

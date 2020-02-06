@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -52,18 +53,23 @@ normalCDF :: Double -> Double -> Double -> Double
 normalCDF mean var = cumulative (normalDistr mean (sqrt var))
 
 gammaRandomSample :: forall m . (MonadRandom m) => Double -> Double -> m Double
-gammaRandomSample mode var =
-  let std = sqrt var
-      k = std / (std - mode)
-      theta = mode / (k - 1)
-  in do
-    -- Initializing the generator of MWC at every function call is probably slow.
-    -- TODO: Optimize by generalizing the use of MWC to the rest of the code such that
-    -- the generator is only initialized once. Also benefit from a better random generator.
-    seed <-  pure <$> getRandom
-    return $ runST $ do
-      gen <- MWC.initialize . V.fromList $ seed
-      genContinuous (gammaDistr k theta) gen
+gammaRandomSample mode var
+  -- The following two conditions are derived from the conditions k, theta > 0 on the parameter
+  -- of the gamma distribution.
+  | mode <= 0 = panic "Distribution.gammaRandomSample: mode parameter must be positive."
+  | var <= mode ** 2 = panic "Distribution.gammaRandomSample: var and mode must verify var > m^2."
+  | otherwise =
+    let std = sqrt var
+        k = std / (std - mode)
+        theta = mode / (k - 1)
+    in do
+      -- Initializing the generator of MWC at every function call is probably slow.
+      -- TODO: Optimize by generalizing the use of MWC to the rest of the code such that
+      -- the generator is only initialized once. Also benefit from a better random generator.
+      seed <-  pure <$> getRandom
+      return $ runST $ do
+        gen <- MWC.initialize . V.fromList $ seed
+        genContinuous (gammaDistr k theta) gen
 
 --------
 -- Parsing

@@ -9,7 +9,6 @@ import qualified Control.Foldl as Fold
 import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 import qualified Text.Parsec as P
-import Util.Parser
 
 import Model (toyPosteriorCDF)
 
@@ -66,18 +65,4 @@ foldMeanWith f = Fold.premap f Fold.mean
 
 foldStdWith :: (a -> Double) -> Fold.Fold a Double
 foldStdWith f = fmap sqrt $ Fold.premap f Fold.variance
-
---------
--- Parsing
---------
-
-readHistogram :: FilePath -> Text -> Either P.ParseError [(Double, Double)]
-readHistogram = P.parse parserHistogram
-
-parserHistogram :: (P.Stream s m Char) => P.ParsecT s u m [(Double, Double)]
-parserHistogram = P.many $ P.try line
-  where line = (,) <$> parserDouble
-                   <*  P.many P.space
-                   <*> parserDouble
-                   <* P.optional P.endOfLine
 

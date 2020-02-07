@@ -38,11 +38,12 @@ all: figures
 #### Executables ####
 
 haskfile = formulas/.stack-work/install/x86_64-linux/lts-12.14/8.4.3/bin/haskfile
+template = formulas/.stack-work/install/x86_64-linux/lts-12.14/8.4.3/bin/template
 
 ## Helpers ##
 
 input/simu/%:
-> util/populate_simu_specs.sh $@
+> $(template) $@ > $@
 
 
 #### Definitions ####
@@ -133,8 +134,23 @@ files_simu_repli_steps_l2_vs_time_k = \
   output/formulas/repli/steps/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToy_stepMax400 \
   output/formulas/repli/steps/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToy_stepMax10000
   
+files_simu_repli_steps_l2_vs_time_k_v = \
+  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToy_stepMax100 \
+  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeVar_1.0_10.0_stepMax100 \
+  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToy_stepMax100 \
+  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeVar_1.0_10.0_stepMax100 \
+  output/formulas/repli/steps/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToy_stepMax400 \
+  output/formulas/repli/steps/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeVar_1.0_10.0_stepMax400 \
+  output/formulas/repli/steps/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToy_stepMax10000 \
+  output/formulas/repli/steps/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1.0_10.0_stepMax10000
+  
 # Don't use the sentinel pattern here.
-$(files_simu_repli_steps_l2_vs_time_k): output/formulas/repli/steps/%: input/simu/% 
+# We use $(sort ...) to remove duplicates (see doc)
+$(sort \
+  $(files_simu_repli_steps_l2_vs_time_k) \
+  $(files_simu_repli_steps_l2_vs_time_k_v)\
+) \
+: output/formulas/repli/steps/%: input/simu/% 
 > mkdir -p output/formulas/repli/steps
 > $(haskfile) repli-steps $(SEED) $(REPLICATIONS) $< $@
 
@@ -183,8 +199,23 @@ files_stat_l2_vs_time_k = \
   output/formulas/figure_data/l2_vs_time/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToy_stepMax400 \
   output/formulas/figure_data/l2_vs_time/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToy_stepMax10000
 
+files_stat_l2_vs_time_k_v = \
+  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeVar_1.0_10.0_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToy_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeVar_1.0_10.0_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToy_stepMax400 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeVar_1.0_10.0_stepMax400 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToy_stepMax10000 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1.0_10.0_stepMax10000
+
+
 # No sentinel here.
-$(files_stat_l2_vs_time_k):output/formulas/figure_data/l2_vs_time/%: \
+$(sort \
+  $(files_stat_l2_vs_time_k) \
+  $(files_stat_l2_vs_time_k_v) \
+) \
+:output/formulas/figure_data/l2_vs_time/%: \
   output/formulas/repli/steps/%
 > mkdir -p output/formulas/figure_data/l2_vs_time
 > $(haskfile) l2-vs-time $< $@
@@ -244,6 +275,32 @@ sentinel/figure_l2_vs_time_k: \
 > | gnuplot - $< 
 > mkdir -p $(@D)
 > touch $@
+
+
+## Figure L2 vs Time K V ##
+
+files_figure_l2_vs_time_k_v = output/report/l2_vs_time_k_v.png
+
+$(files_figure_l2_vs_time_k_v) : sentinel/figure_l2_vs_time_k_v ;
+
+sentinel/figure_l2_vs_time_k_v: \
+  report/l2_vs_time_k_v.gnuplot \
+  $(files_stat_l2_vs_time_k_v)
+> mkdir -p output/report
+> echo -e ""\
+>   "output_path=\"$(files_figure_l2_vs_time_k_v)\"\n" \
+>   "apmc_kLow_vLow=\"$(word 1, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "apmc_kLow_vHigh=\"$(word 2, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "apmc_kHigh_vLow=\"$(word 3, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "apmc_kHigh_vHigh=\"$(word 4, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "monApmc_kLow_vLow=\"$(word 5, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "monApmc_kLow_vHigh=\"$(word 6, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "monApmc_kHigh_vLow=\"$(word 7, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "monApmc_kHigh_vHigh=\"$(word 8, $(files_stat_l2_vs_time_k_v))\"\n" \
+> | gnuplot - $< 
+> mkdir -p $(@D)
+> touch $@
+
 
 #### Helper rules ####
 

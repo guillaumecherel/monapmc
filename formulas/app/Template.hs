@@ -6,13 +6,26 @@ module Main where
 
 import Protolude
 
-import qualified Data.Text as Text
 import           Options.Applicative
 import           Experiment
+import           Util.Parser (simulationFileName)
+import           Text.Parsec (parse, ParseError)
 import           Text.Pretty.Simple (pPrintNoColor)
 
+
 args :: Parser Simulation
-args = Simulation
+args = argsFileName <|> argsStd
+
+argsFileName :: Parser Simulation
+argsFileName =
+      either
+        (\e -> panic $ "Simu spec filename couldn't be parsed: " <> show e)
+        identity
+   .  (parse simulationFileName "" :: Text -> Either Text.Parsec.ParseError Simulation)
+  <$> argument str (metavar "simu spec filename")
+
+argsStd :: Parser Simulation
+argsStd = Simulation
   <$> subparser
         ( command "apmc"
           ( info

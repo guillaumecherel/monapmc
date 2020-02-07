@@ -111,6 +111,7 @@ executable template
                        text >= 1.2.3.0,
                        text-show >= 3.7.2,
                        random >= 1.1,
+                       parsec >= 3.1.13,
                        pretty-simple >= 2.1.0,
                        MonadRandom >= 0.5,
                        vector >= 0.12,

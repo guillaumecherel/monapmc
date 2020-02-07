@@ -16,7 +16,6 @@ import           Util.Figure (Figure(..))
 import qualified Data.Vector as Vector
 import           Data.Vector (Vector)
 import qualified Text.Parsec as P
-import Util.Parser
 import Formatting
 
 type Weight = Double
@@ -39,16 +38,6 @@ liftC2 f a b = Compose $ liftA2 f (getCompose a) (getCompose b)
 generalizeRand :: (Monad m) => Rand g a -> RandT g m a
 generalizeRand = liftRandT . fmap return . runRand
 
-read1DSample :: FilePath -> Text -> Either P.ParseError (Vector (Weight, Vector Double))
-read1DSample = --mapM ((fmap fst) . TR.double) (T.lines text)
-  P.parse parser1DSample
-
-parser1DSample :: (P.Stream s m Char) => P.ParsecT s u m (Vector (Weight, Vector Double))
-parser1DSample = Vector.fromList
-             <$> (P.many $ P.try weightAndValue <* P.optional P.endOfLine)
-             <*  P.eof
-  where weightAndValue = (\w x -> (w, Vector.singleton x)) <$> parserDouble <*> parserDouble
- 
 show2dec :: Double -> Text
 show2dec = sformat (fixed 2)
 

@@ -190,4 +190,8 @@ jeudi 6 février 2020, 15:45:37 (UTC+0100)
 Pour sampler une distribution gamma (utilisé dans le modèle avec variance du temps d'exécution), je n'ai trouvé que la bibliothèque statistics qui utilise System.Random.MWC (il y a aussi Data.Random mais je ne sais pas à quoi correspondent les paramètres de la distribution gamma). J'utilise cette bibliothèque dans Distribution.gammaRandomSample. Pour l'instant, la méthode doit créer une nouvelle seed à chaque appel à partir d'un générateur StdGen, ce qui est lent et/ou peu robuste statistiquement puisqu'on perd les propriétés du générateur MWC. TODO: il faudra passer à Problème: un générateur MWC est mutable, on ne peut donc pas l'utiliser dans plusieurs threads en même temps, attention à la parallelisation. (En préparation de l'utilisation de MWC partout, je l'ai mis aussi dans Distribution.normalRandomSample.)
 
 
+vendredi 7 février 2020, 17:32:47 (UTC+0100)
+============================================
+
+Le script `util/populate_simu_specs.sh` n'est pas facile à adapter pour les noms de fichiers plus complexes avec les nouveaux modèles (`..._modelToyTimeVar_1_1_...`). Écriture du parseur de nom de fichier de specification de simulation en haskell pour traiter ces nouveaux cas.
 

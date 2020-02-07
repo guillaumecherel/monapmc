@@ -51,15 +51,14 @@ normalCDF :: Double -> Double -> Double -> Double
 normalCDF mean var = cumulative (normalDistr mean (sqrt var))
 
 gammaRandomSample :: forall m . (MonadRandom m) => Double -> Double -> m Double
-gammaRandomSample mode var
+gammaRandomSample mean var
   -- The following two conditions are derived from the conditions k, theta > 0 on the parameter
   -- of the gamma distribution.
-  | mode <= 0 = panic "Distribution.gammaRandomSample: mode parameter must be positive."
-  | var <= mode ** 2 = panic "Distribution.gammaRandomSample: var and mode must verify var > m^2."
+  | mean <= 0 = panic "Distribution.gammaRandomSample: mean parameter must be positive."
+  | var <= 0 = panic "Distribution.gammaRandomSample: var parameter must be positive."
   | otherwise =
-    let std = sqrt var
-        k = std / (std - mode)
-        theta = mode / (k - 1)
+    let k = mean ** 2 / var
+        theta = var / mean
     in do
       -- Initializing the generator of MWC at every function call is probably slow.
       -- TODO: Optimize by generalizing the use of MWC to the rest of the code such that

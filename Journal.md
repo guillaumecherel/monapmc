@@ -195,3 +195,6 @@ vendredi 7 février 2020, 17:32:47 (UTC+0100)
 
 Le script `util/populate_simu_specs.sh` n'est pas facile à adapter pour les noms de fichiers plus complexes avec les nouveaux modèles (`..._modelToyTimeVar_1_1_...`). Écriture du parseur de nom de fichier de specification de simulation en haskell pour traiter ces nouveaux cas.
 
+Implémentation des modèles au temps d'execution variable ToyTimeBias et ToyTimeVar. ToyTimeBias est paramêtré avec la moyenne et la variance pour pouvoir faire varier cette dernière en gardant constant le temps moyen d'execution d'un modèle, et donc le temps total d'execution des modèles.
+
+La figure L2 vs Time K V montre comme on s'attendait qu'APMC offre un avantage sur APMC quand à la fois le parallelisme et la variance de temps de calcul sont élevés.

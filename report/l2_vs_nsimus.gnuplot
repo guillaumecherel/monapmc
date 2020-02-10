@@ -1,7 +1,6 @@
 output_path=ARG1
 datafile=ARG2
 
-
 set terminal png truecolor
 set grid
 set key on inside horizontal

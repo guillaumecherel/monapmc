@@ -34,9 +34,12 @@ data Cmd
       Int        -- Replications
       FilePath   -- Simulation
       FilePath   -- Steps
+  | HistoRun
+      FilePath -- Run
+      FilePath -- Histogram
   | HistoSteps
-      [FilePath] -- Steps
-      [FilePath] -- Histograms for each algorithm
+      FilePath -- Steps
+      FilePath -- Histogram for each step
   | MeanStdL2VsNSimus
       [FilePath] -- Files where replicated runs are written
       FilePath -- Mean and Std of L2 vs NSimu 
@@ -85,19 +88,27 @@ cmd = subparser
        )
        mempty
      )
+  <> command "histo-run"
+     ( info
+       ( HistoRun
+         <$> strOption
+                ( long "run"
+               <> metavar "Run")
+         <*> strOption
+                ( long "histo"
+               <> metavar "Histograms")
+       )
+       mempty
+     )
   <> command "histo-steps"
      ( info
        ( HistoSteps
-         <$> some
-             ( strOption
+         <$> strOption
                 ( long "steps"
-               <> metavar "Steps...")
-             )
-         <*> some
-             ( strOption
+               <> metavar "Steps")
+         <*> strOption
                 ( long "histo"
-               <> metavar "Histograms...")
-             )
+               <> metavar "Histograms")
        )
        mempty
      )
@@ -150,13 +161,23 @@ main = do
       sim <- readSingle input
       res <- evalRandT (repliSteps replications sim) (mkStdGen seed)
       writeSingle output res
-    HistoSteps pathsSteps pathsHisto -> do
-      steps' <- readList pathsSteps
-      let histos = fmap histogramSteps steps' :: [[DataSet (Double, Double)]]
-      writeListWith
+    HistoRun pathRun pathHisto -> do
+      run <- readSingle pathRun
+      let histo = histogramRun run :: DataSet (Double, Double)
+      writeOneFile
+        ( gnuplotData2
+        . gnuplotDataSetsWithNames
+            [(getAlgoName $ getRunAlgo run)  <> "Steps = " <> show (getRunSteps run)]
+        )
+        pathHisto
+        [histo]
+    HistoSteps pathSteps pathHisto -> do
+      steps' <- readSingle pathSteps
+      let histo = histogramSteps steps' :: [DataSet (Double, Double)]
+      writeOneFile
         (gnuplotData2 . gnuplotDataSetsNameWithIndex (mappend "Step " . show))
-        pathsHisto
-        histos
+        pathHisto
+        histo
     MeanStdL2VsNSimus pathsRuns pathOut -> do
       runs <- Sample <$> readList pathsRuns
         :: IO (Sample (Repli Run))

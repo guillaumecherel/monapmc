@@ -193,8 +193,14 @@ Pour sampler une distribution gamma (utilisé dans le modèle avec variance du t
 vendredi 7 février 2020, 17:32:47 (UTC+0100)
 ============================================
 
-Le script `util/populate_simu_specs.sh` n'est pas facile à adapter pour les noms de fichiers plus complexes avec les nouveaux modèles (`..._modelToyTimeVar_1_1_...`). Écriture du parseur de nom de fichier de specification de simulation en haskell pour traiter ces nouveaux cas.
+Le script `util/populate_simu_specs.sh` n'est pas facile à adapter pour les noms de fichiers plus complexes avec les nouveaux modèles (`..._modelToyTimeVar_1_1_...`). Pour les traiter plus facilement, j'ai écrit un executable en haskell qui parse les noms de fichiers pour construire la spec désirée.
 
 Implémentation des modèles au temps d'execution variable ToyTimeBias et ToyTimeVar. ToyTimeBias est paramêtré avec la moyenne et la variance pour pouvoir faire varier cette dernière en gardant constant le temps moyen d'execution d'un modèle, et donc le temps total d'execution des modèles.
 
 La figure L2 vs Time K V montre comme on s'attendait qu'APMC offre un avantage sur APMC quand à la fois le parallelisme et la variance de temps de calcul sont élevés.
+
+
+lundi 10 février 2020, 10:45:49 (UTC+0100)
+==========================================
+
+J'ai complété la figure L2 vs Time K V en montrant aussi le cas pour chaque algo où le temps d'execution du modèle est dépendant des valeurs de paramètres de l'algo (ToyTimeBias), ce qui pourrait introduire un biais. La Figure Fig Steps Bias montre aussi l'histogramme de l'échantillon final pour APMC, MonApmc avec nGen = 40 et MonAPMC avec nGen = 1. Pas de biais visible.

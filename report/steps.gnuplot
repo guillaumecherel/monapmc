@@ -2,15 +2,15 @@ output_path=ARG1
 data_apmc=ARG2
 data_mon_apmc=ARG3
 
-set terminal png truecolor size 2560.32,1280.16 font ',12'
+set terminal png truecolor size 1000,700 font ',12'
 set xrange [-4:4]
 set yrange [0:3]
 # set samples 500
 # set isosamples 500
 set style fill solid 1.0
 
-ROW=5
-COL=14
+ROW=2
+COL=5
 
 set key off
 
@@ -21,9 +21,10 @@ set output output_path
 
 set multiplot layout ROW,COL rowsfirst
 
-stats data_apmc nooutput
+# stats data_apmc nooutput
 
-do for [i=1:STATS_blocks] {
+# do for [i=1:STATS_blocks] {
+do for [i in "1 2 3 4 5"] {
   set title "APMC\nStep ".i
   plot \
     data_apmc \
@@ -31,11 +32,12 @@ do for [i=1:STATS_blocks] {
     posterior(x) linecolor 0 dashtype 1 with line
 }
 
-do for [i=1:COL - STATS_blocks] {set multiplot next}
+# do for [i=1:COL - STATS_blocks] {set multiplot next}
 
-stats data_mon_apmc nooutput
+# stats data_mon_apmc nooutput
 
-do for [i=1:STATS_blocks] {
+# do for [i=1:STATS_blocks] {
+do for [i in "1 2 3 4 5"] {
   set title "MonAPMC\nStep ".i
   plot \
     data_mon_apmc \
@@ -43,6 +45,6 @@ do for [i=1:STATS_blocks] {
     posterior(x) linecolor 0 dashtype 1 with line
 }
 
-do for [i=1:COL - STATS_blocks] {set multiplot next}
+# do for [i=1:COL - STATS_blocks] {set multiplot next}
 
 unset multiplot

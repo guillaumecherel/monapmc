@@ -55,7 +55,13 @@ input/simu/%:
 # rules because implicit pattern rules are only triggered when the prerequisite
 # exists and silent otherwise. I prefer to get an error that the prerequisite
 # doesn't exist.
-: output/formulas/run/%: input/simu/%
+
+files_simu_run_time_bias = \
+  output/formulas/run/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeBias_100_1_stepMax100 \
+  output/formulas/run/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4000_modelToyTimeBias_100_1_stepMax10000 \
+  output/formulas/run/mon-apmc_nGen1_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4000_modelToyTimeBias_100_1_stepMax400000
+
+$(files_simu_run_time_bias) : output/formulas/run/%: input/simu/%
 > mkdir -p output/formulas/run
 > $(haskfile) run $(SEED) $< $@
 
@@ -66,8 +72,16 @@ files_simu_steps = \
   output/formulas/steps/apmc_nGen4500_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
   output/formulas/steps/mon-apmc_nGen4500_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100
   
+files_simu_steps_time_bias = \
+  output/formulas/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeBias_100_1_stepMax100 \
+  output/formulas/steps/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4000_modelToyTimeBias_100_1_stepMax10000 \
+  output/formulas/steps/mon-apmc_nGen1_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4000_modelToyTimeBias_100_1_stepMax400000
+
+  
 # Don't use the sentinel pattern here.
-$(files_simu_steps): output/formulas/steps/%: input/simu/%   
+$(files_simu_steps) \
+$(files_simu_steps_time_bias) \
+: output/formulas/steps/%: input/simu/%   
 > mkdir -p output/formulas/steps
 > $(haskfile) steps $(SEED) $< $@
 
@@ -135,14 +149,18 @@ files_simu_repli_steps_l2_vs_time_k = \
   output/formulas/repli/steps/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToy_stepMax10000
   
 files_simu_repli_steps_l2_vs_time_k_v = \
-  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeVar_1.0_0.01_stepMax100 \
-  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeVar_1.0_100.0_stepMax100 \
-  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeVar_1.0_0.01_stepMax100 \
-  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeVar_1.0_100.0_stepMax100 \
-  output/formulas/repli/steps/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeVar_1.0_0.01_stepMax400 \
-  output/formulas/repli/steps/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeVar_1.0_100.0_stepMax400 \
-  output/formulas/repli/steps/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1.0_0.01_stepMax10000 \
-  output/formulas/repli/steps/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1.0_100.0_stepMax10000
+  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeVar_1_1_stepMax100 \
+  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeVar_1_100_stepMax100 \
+  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeBias_1_1_stepMax100 \
+  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeVar_1_1_stepMax100 \
+  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeVar_1_100_stepMax100 \
+  output/formulas/repli/steps/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeBias_1_1_stepMax100 \
+  output/formulas/repli/steps/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeVar_1_1_stepMax400 \
+  output/formulas/repli/steps/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeVar_1_100_stepMax400 \
+  output/formulas/repli/steps/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeBias_1_1_stepMax400 \
+  output/formulas/repli/steps/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1_1_stepMax10000 \
+  output/formulas/repli/steps/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1_100_stepMax10000 \
+  output/formulas/repli/steps/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeBias_1_1_stepMax10000
   
 # Don't use the sentinel pattern here.
 # We use $(sort ...) to remove duplicates (see doc)
@@ -155,21 +173,31 @@ $(sort \
 > $(haskfile) repli-steps $(SEED) $(REPLICATIONS) $< $@
 
 
+## Stats histo run ##
+
+files_stat_histo_run_time_bias = \
+  output/formulas/figure_data/histo_run/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeBias_100_1_stepMax100 \
+  output/formulas/figure_data/histo_run/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4000_modelToyTimeBias_100_1_stepMax10000 \
+  output/formulas/figure_data/histo_run/mon-apmc_nGen1_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4000_modelToyTimeBias_100_1_stepMax400000
+
+# No sentinel.
+$(files_stat_histo_run_time_bias) \
+: output/formulas/figure_data/histo_run/% : output/formulas/run/%
+> mkdir -p output/formulas/figure_data/histo_run
+> $(haskfile) histo-run --run $< --histo $@
+
+
 ## Stats histo steps ##
 
 files_stat_histo_steps = \
   output/formulas/figure_data/histo_steps/apmc_nGen4500_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
   output/formulas/figure_data/histo_steps/mon-apmc_nGen4500_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100
 
-$(files_stat_histo_steps) : sentinel/stat_histo_steps ;
-
-sentinel/stat_histo_steps : $(files_simu_steps)
+# No sentinel.
+$(files_stat_histo_steps) \
+: output/formulas/figure_data/histo_steps/% : output/formulas/steps/%
 > mkdir -p output/formulas/figure_data/histo_steps
-> $(haskfile) histo-steps \
->   $(foreach x, $(files_simu_steps), --steps $(x)) \
->   $(foreach x, $(files_stat_histo_steps), --histo $(x))
-> mkdir -p $(@D)
-> touch $@
+> $(haskfile) histo-steps --steps $< --histo $@
 
 
 ## Stats mean std l2 vs nsimus ##
@@ -200,14 +228,18 @@ files_stat_l2_vs_time_k = \
   output/formulas/figure_data/l2_vs_time/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToy_stepMax10000
 
 files_stat_l2_vs_time_k_v = \
-  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeVar_1.0_0.01_stepMax100 \
-  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeVar_1.0_100.0_stepMax100 \
-  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeVar_1.0_0.01_stepMax100 \
-  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeVar_1.0_100.0_stepMax100 \
-  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeVar_1.0_0.01_stepMax400 \
-  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeVar_1.0_100.0_stepMax400 \
-  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1.0_0.01_stepMax10000 \
-  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1.0_100.0_stepMax10000
+  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeVar_1_1_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeVar_1_100_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeBias_1_1_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeVar_1_1_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeVar_1_100_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeBias_1_1_stepMax100 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeVar_1_1_stepMax400 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeVar_1_100_stepMax400 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeBias_1_1_stepMax400 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1_1_stepMax10000 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1_100_stepMax10000 \
+  output/formulas/figure_data/l2_vs_time/mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeBias_1_1_stepMax10000
 
 
 # No sentinel here.
@@ -291,15 +323,35 @@ sentinel/figure_l2_vs_time_k_v: \
 >   "output_path=\"$(files_figure_l2_vs_time_k_v)\"\n" \
 >   "apmc_kLow_vLow=\"$(word 1, $(files_stat_l2_vs_time_k_v))\"\n" \
 >   "apmc_kLow_vHigh=\"$(word 2, $(files_stat_l2_vs_time_k_v))\"\n" \
->   "apmc_kHigh_vLow=\"$(word 3, $(files_stat_l2_vs_time_k_v))\"\n" \
->   "apmc_kHigh_vHigh=\"$(word 4, $(files_stat_l2_vs_time_k_v))\"\n" \
->   "monApmc_kLow_vLow=\"$(word 5, $(files_stat_l2_vs_time_k_v))\"\n" \
->   "monApmc_kLow_vHigh=\"$(word 6, $(files_stat_l2_vs_time_k_v))\"\n" \
->   "monApmc_kHigh_vLow=\"$(word 7, $(files_stat_l2_vs_time_k_v))\"\n" \
->   "monApmc_kHigh_vHigh=\"$(word 8, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "apmc_kLow_vBias=\"$(word 3, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "apmc_kHigh_vLow=\"$(word 4, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "apmc_kHigh_vHigh=\"$(word 5, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "apmc_kHigh_vBias=\"$(word 6, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "monApmc_kLow_vLow=\"$(word 7, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "monApmc_kLow_vHigh=\"$(word 8, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "monApmc_kLow_vBias=\"$(word 9, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "monApmc_kHigh_vLow=\"$(word 10, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "monApmc_kHigh_vHigh=\"$(word 11, $(files_stat_l2_vs_time_k_v))\"\n" \
+>   "monApmc_kHigh_vBias=\"$(word 12, $(files_stat_l2_vs_time_k_v))\"\n" \
 > | gnuplot - $< 
 > mkdir -p $(@D)
 > touch $@
+
+
+## Figure Time Bias ##
+
+files_figure_time_bias = output/report/time_bias.png
+
+$(files_figure_time_bias) : sentinel/figure_time_bias ;
+
+sentinel/figure_time_bias: \
+  report/time_bias.gnuplot \
+  $(files_stat_histo_run_time_bias)
+> mkdir -p output/report
+> gnuplot -c $< $(files_figure_time_bias) $(files_stat_histo_run_time_bias)
+> mkdir -p $(@D)
+> touch $@
+
 
 
 #### Helper rules ####

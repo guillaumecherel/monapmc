@@ -44,16 +44,22 @@ The first set of plots (`l2_vs_realtime_k`) shows this evolution for both algori
 
 MonAPMC offers no clear advantage here. It is expected from the absence of variance in the model run time and the fact that the number of simulation per iteration is a multiple of the number of cores. As a consequence the loss mentionned above should be absent: no cpu ever idles in APMC. The two following sets of figures will illustrate what happens when the number of simulations per run does not divide into the number of cores, and when the variance of the model run time increases.
 
-In the second set, both K and V change to illustrate cases of low and high parallelism (respectively K=4 and K=100) and of low and high model run time variance. 
+In the second set, both K and V change to illustrate cases of low and high parallelism (respectively K=4 and K=100) and of low and high model run time variance and a case where . 
 
 Fig L2 vs time K V
 
 :   A 2x2 grid of plots for each algorithm. On the left column K=4, on the 
     right K=100. On the top row V = low, on the bottom V = high.
 
-These figures illustrate that MonAPMC has an advantage over APMC when both are high.
+These figures illustrate that MonAPMC has an advantage over APMC when both are high and the model runtime is independant from the model parameter values.
 
 At the core of MonAPMC's design is that we don't have to wait for the longer simulations to finish before going on with the algorithm. This is likely to introdue a bias in the posterior sample where the faster simulations will be more represented. We check for this bias by plotting a histogram of the posterior sample with the toy model where the higher values of theta lead to a higher simulation time.
+
+Fig Time Bias
+
+:   2 rows of histograms showing the posterior sample step by step for both 
+    algorithms.
+
 
 The previous results gave us a first check that MonAPMC is more efficient than APMC with a simple parallelisation scheme with some default parameter values but we would like to build up a more comprehensive understanding of the conditions in which it is more efficient. 
 

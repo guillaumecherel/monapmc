@@ -19,25 +19,28 @@ data Model
   = Toy
   | ToyTimeVar Double Double
   -- ToyTimeVar mean variance
-  | ToyTimeBias Double
-  -- ToyTimeBias power
+  | ToyTimeBias Double Double
+  -- ToyTimeBias power variance
   deriving (Eq, Show, Read)
 
 model :: (MonadRandom m) => Model -> V.Vector Double -> m (Duration, V.Vector Double)
 model Toy x = (fromSeconds 1,) <$> toyModel x
 model (ToyTimeVar mean var) x =
   (,) <$> (fromSeconds <$> gammaRandomSample mean var) <*> toyModel x
-model (ToyTimeBias power) x = undefined
+model (ToyTimeBias power var) x =
+      (fromSeconds $ if V.head x < 0 then 1 else power,)
+  <$> (V.singleton <$> uniformRandomSample (V.head x - 1, V.head x + 1))
+  -- (,) <$> (fromSeconds <$> gammaRandomSample (max 1 (power * (V.head x + 1))) var) <*> toyModel x
 
 priorRandomSample :: (MonadRandom m) => Model -> m (V.Vector Double)
 priorRandomSample Toy = toyPriorRandomSample
 priorRandomSample (ToyTimeVar _ _) = toyPriorRandomSample
-priorRandemSample (ToyTimeBias _) = toyPriorRandomSample
+priorRandomSample (ToyTimeBias _ _) = toyPriorRandomSample
 
 prior :: Model -> V.Vector Double -> Double
 prior Toy = toyPrior
 prior (ToyTimeVar _ _) = toyPrior
-prior (ToyTimeBias _) = toyPrior
+prior (ToyTimeBias _ _) = toyPrior
 
 --------
 -- Toy Model

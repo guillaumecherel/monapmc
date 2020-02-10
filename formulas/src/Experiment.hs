@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE TupleSections #-}
@@ -141,6 +142,12 @@ run (Simulation algo model stepMax) =
 getRunAlgo :: Run -> Algorithm
 getRunAlgo (Run algo _ _) = algo
 
+getRunSample :: Run -> Vector (Weight, Vector Double)
+getRunSample (Run _ _ runRes) = getRunResultSample runRes
+
+getRunSteps :: Run -> Int
+getRunSteps (Run _ _ runRes) = getRunResultSteps runRes
+
 data RunResult = RunResult (Duration, Duration) Int (Vector (Weight, Vector Double))
   -- RunResult (algoDuration, simDuration) nSteps sample
   deriving (Show, Read)
@@ -220,6 +227,11 @@ runResult _ Beaumont2009{} _ =
       0
       mempty)
 
+getRunResultSample :: RunResult -> Vector (Weight, Vector Double)
+getRunResultSample (RunResult _ _ sample) = sample
+
+getRunResultSteps :: RunResult -> Int
+getRunResultSteps (RunResult _ steps _) = steps
 
 
 ---- Simulation Steps ----
@@ -361,7 +373,15 @@ repliSteps n sim = Repli.repliM n $ steps sim
 
 
 
----- Stats histo steps ----
+---- Stats histo ----
+
+histogramRun :: Run -> DataSet (Double, Double)
+histogramRun run =
+    DataSet
+  $ Statistics.estPostDen (-10) 10 300
+  $ fmap (second Vector.head)
+  $ Vector.toList
+  $ getRunSample run
 
 histogramStep :: Step -> DataSet (Double, Double)
 histogramStep (Step _ _ _ _ sample') =

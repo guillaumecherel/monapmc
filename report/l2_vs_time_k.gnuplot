@@ -16,6 +16,9 @@ set xrange [0:*]
 set yrange [0:.25]
 set grid
 
+set ylabel "L2"
+set xlabel "time"
+
 set xtics border autofreq
 set format x "%.g" 
 

@@ -36,26 +36,26 @@ plot monApmc_kLow_vHigh u 1:4 with lines t 'MonAPMC', \
 
 
 set xrange [*:*]
-set xtics autofreq # 5000
+set xtics 50000
 set title "K 4 V Bias"
 plot monApmc_kLow_vBias u 1:4 with lines t 'MonAPMC', \
      apmc_kLow_vBias u 1:4 with lines t 'APMC'
 
 set xrange [0:700]
 set xtics 200
-set title "APMC K 100 V 1"
+set title "K 100 V 1"
 plot monApmc_kHigh_vLow u 1:4 with lines t 'MonAPMC', \
      apmc_kHigh_vLow u 1:4 with lines t 'APMC'
 
 set xrange [0:5000]
 set xtics 1000
-set title "APMC K 100 V 100"
+set title "K 100 V 100"
 plot monApmc_kHigh_vHigh u 1:4 with lines t 'MonAPMC', \
      apmc_kHigh_vHigh u 1:4 with lines t 'APMC'
 
 set xrange [*:*]
-set xtics autofreq # 200
-set title "APMC K 100 V Bias"
+set xtics 1000
+set title "K 100 V Bias"
 plot monApmc_kHigh_vBias u 1:4 with lines t 'MonAPMC', \
      apmc_kHigh_vBias u 1:4 with lines t 'APMC'
 

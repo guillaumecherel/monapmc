@@ -236,7 +236,7 @@ $(mean_std_l2_vs_nsimus_output): $(mean_std_l2_vs_nsimus_sentinel) ;
 $(mean_std_l2_vs_nsimus_sentinel): $(mean_std_l2_vs_nsimus_input)
 > mkdir -p output/formulas/figure_data/
 > $(haskfile) mean-std-l2-vs-nsimus \
->   $(foreach simu, $(std_l2_vs_nsimus_simus), --run output/formulas/repli/run/$(simu)) \
+>   $(foreach simu, $(mean_std_l2_vs_nsimus_simus), --run output/formulas/repli/run/$(simu)) \
 >   --out $(mean_std_l2_vs_nsimus_output)
 > mkdir -p $(@D)
 > touch $@
@@ -409,7 +409,8 @@ figures: \
   $(steps_output) \
   $(l2_vs_nsimus_output) \
   $(l2_vs_time_k_output) \
-  $(l2_vs_time_k_v_output)
+  $(l2_vs_time_k_v_output) \
+  $(time_bias_output)
 .PHONY: all-bottom
 
 setup: $(haskfile)

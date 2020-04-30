@@ -204,3 +204,11 @@ lundi 10 février 2020, 10:45:49 (UTC+0100)
 ==========================================
 
 J'ai complété la figure L2 vs Time K V en montrant aussi le cas pour chaque algo où le temps d'execution du modèle est dépendant des valeurs de paramètres de l'algo (ToyTimeBias), ce qui pourrait introduire un biais. La Figure Fig Steps Bias montre aussi l'histogramme de l'échantillon final pour APMC, MonApmc avec nGen = 40 et MonAPMC avec nGen = 1. Pas de biais visible.
+
+
+jeudi 30 avril 2020, 17:59:37 (UTC+0200)
+========================================
+
+Refactoring du Makefile pour que les paramètres qui contrôlent chaque figure soient mieux localisés ensemble et ne pas avoir à changer plusieurs parties du fichier (fichiers de stats et fichiers de simus par exemples) quand on veut modifier une figure. Pour cela, j'ai créé une unique liste des simulations à laquelle les différentes parties du fichier se réfèrent en utilisant la fonction make `foreach`. Harmonisation du format des recettes en "input, output, sentinel"
+
+Dans, L2 vs time K V, le L2 est élevé pour le cas ou le temps d'execution du modèle est biaisé. C'est que le L2 est calculé par rapport à une distribution théorique gaussienne! Il faut corriger ça.

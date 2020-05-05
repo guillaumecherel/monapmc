@@ -101,6 +101,8 @@ simulationFileName =
       try
        $  ToyTimeBias
       <$  lex (string "ToyTimeBias")
+      <*> lex positiveDouble
+      <*> lex double
       <*> lex double
       <*> lex positiveDouble
     stepMax =

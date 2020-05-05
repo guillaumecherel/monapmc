@@ -383,7 +383,7 @@ repliSteps n sim = Repli.repliM n $ steps sim
 
 postDensityEstimate Toy = Statistics.estPostDen (-10) 10 300
 postDensityEstimate (ToyTimeVar _ _) = Statistics.estPostDen (-10) 10 300
-postDensityEstimate (ToyTimeBias _ _) = Statistics.estPostDen (-2) 2 20
+postDensityEstimate (ToyTimeBias _ _ _ _) = Statistics.estPostDen (-2) 2 20
 
 histogramRun :: Run -> DataSet (Double, Double)
 histogramRun run =

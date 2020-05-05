@@ -46,10 +46,13 @@ In the second set, both K and V change to illustrate cases of low and high paral
 
 Fig L2 vs time K V
 
-:   A 2x2 grid of plots for each algorithm. On the left column K=4, on the 
-    right K=100. On the top row V = low, on the bottom V = high.
+:   A 2x3 grid of plots for each algorithm. On the top row parallelism
+    is low (K=4), on the bottom row it is high (K=100). On the leftmost
+    column, model run time is fixed, on the middle column it varies
+    (V=10) and is independant from the model parameter value and on the
+    rightmost column it also varies (V=10) and is biased.
 
-These figures illustrate that MonAPMC has an advantage over APMC when both are high and the model runtime is independant from the model parameter values.
+These figures illustrate that MonAPMC has an advantage over APMC when parallelism is high and the model run time variable (left and middle columns in Fig L2 vs time K V).
 
 At the core of MonAPMC's design is that we don't have to wait for the longer simulations to finish before going on with the algorithm. This is likely to introdue a bias in the posterior sample where the faster simulations will be more represented. We check for this bias by plotting a histogram of the posterior sample with the toy model where the higher values of theta lead to a higher simulation time.
 

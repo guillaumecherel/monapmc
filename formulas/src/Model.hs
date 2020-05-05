@@ -20,41 +20,44 @@ data Model
   = Toy
   | ToyTimeVar Double Double
   -- ToyTimeVar mean variance
-  | ToyTimeBias Double Double
-  -- ToyTimeBias power variance
+  | ToyTimeBias Double Double Double Double
+  -- ToyTimeBias bias_factor mean variance
   deriving (Eq, Show, Read)
 
 model :: (MonadRandom m) => Model -> V.Vector Double -> m (Duration, V.Vector Double)
 model Toy x = (fromSeconds 1,) <$> toyModel x
 model (ToyTimeVar mean var) x =
   (,) <$> (fromSeconds <$> gammaRandomSample mean var) <*> toyModel x
-model (ToyTimeBias power _) x =
-      (,)
-  <$> pure (fromSeconds $ if V.head x < 0 then 1 else power)
+model (ToyTimeBias biasFactor biasThreshold mean var) x =
+  (,) <$> (fromSeconds <$> biasedRandomSample (V.head x)) -- <*> toyModel x
   <*> (V.singleton <$> uniformRandomSample (V.head x - 1, V.head x + 1))
   -- (,) <$> (fromSeconds <$> gammaRandomSample (max 1 (power * (V.head x + 1))) var) <*> toyModel x
+  where
+    biasedRandomSample x' = if x' < biasThreshold
+      then gammaRandomSample mean var
+      else (biasFactor *) <$> gammaRandomSample mean var
 
 priorRandomSample :: (MonadRandom m) => Model -> m (V.Vector Double)
 priorRandomSample Toy = toyPriorRandomSample
 priorRandomSample (ToyTimeVar _ _) = toyPriorRandomSample
-priorRandomSample (ToyTimeBias _ _) = toyPriorRandomSample
+priorRandomSample (ToyTimeBias _ _ _ _) = toyPriorRandomSample
 
 prior :: Model -> V.Vector Double -> Double
 prior Toy = toyPrior
 prior (ToyTimeVar _ _) = toyPrior
-prior (ToyTimeBias _ _) = toyPrior
+prior (ToyTimeBias _ _ _ _) = toyPrior
 
 posterior :: Model -> V.Vector Double -> Double
 posterior Toy = toyPosteriorCDF 0 . V.head
 posterior (ToyTimeVar _ _) = toyPosteriorCDF 0 . V.head
-posterior (ToyTimeBias _ _) = uniformCDF (-1, 1) . V.head
+posterior (ToyTimeBias _ _ _ _) = uniformCDF (-1, 1) . V.head
 
 l2 :: Model -> V.Vector (Double, V.Vector Double) -> Double
 l2 m@(Toy) sample = posteriorL2 (-10) 10 300 (posterior m . V.singleton)
                  (V.toList $ second V.head <$> sample)
 l2 m@(ToyTimeVar _ _) sample = posteriorL2 (-10) 10 300 (posterior m . V.singleton)
                  (V.toList $ second V.head <$> sample)
-l2 m@(ToyTimeBias _ _) sample = posteriorL2 (-10) 10 300 (posterior m . V.singleton)
+l2 m@(ToyTimeBias _ _ _ _) sample = posteriorL2 (-10) 10 300 (posterior m . V.singleton)
                  (V.toList $ second V.head <$> sample)
 
 

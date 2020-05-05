@@ -37,8 +37,8 @@ all: figures
 
 #### Executables ####
 
-haskfile := formulas/.stack-work/install/x86_64-linux/lts-12.14/8.4.3/bin/haskfile
-template := formulas/.stack-work/install/x86_64-linux/lts-12.14/8.4.3/bin/template
+template := formulas/.stack-work/dist/x86_64-linux/Cabal-2.2.0.1/build/template/template
+haskfile := formulas/.stack-work/dist/x86_64-linux/Cabal-2.2.0.1/build/haskfile/haskfile
 
 ## Helpers ##
 
@@ -376,6 +376,7 @@ $(l2_vs_time_k_v_sentinel): $(l2_vs_time_k_v_input)
 > | gnuplot - $(l2_vs_time_k_v_gnuplot_script)
 > mkdir -p $(@D)
 > touch $@
+
 
 
 ## Figure Time Bias ##

@@ -212,3 +212,10 @@ jeudi 30 avril 2020, 17:59:37 (UTC+0200)
 Refactoring du Makefile pour que les paramètres qui contrôlent chaque figure soient mieux localisés ensemble et ne pas avoir à changer plusieurs parties du fichier (fichiers de stats et fichiers de simus par exemples) quand on veut modifier une figure. Pour cela, j'ai créé une unique liste des simulations à laquelle les différentes parties du fichier se réfèrent en utilisant la fonction make `foreach`. Harmonisation du format des recettes en "input, output, sentinel"
 
 Dans, L2 vs time K V, le L2 est élevé pour le cas ou le temps d'execution du modèle est biaisé. C'est que le L2 est calculé par rapport à une distribution théorique gaussienne! Il faut corriger ça.
+
+lundi 4 mai 2020, 18:48:44 (UTC+0200)
+=====================================
+
+Corrigé la distribution de référence pour le calcul du L2 avec le modèle uniforme ToyTimeBias. On retrouve bien des valeurs de L2 attendues dans la figure L2 vs time K V.
+
+Attention à bien recompiler les executables haskell quand je retouche du code, et à bien prendre les nouvelles versions.

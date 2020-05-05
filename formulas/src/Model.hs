@@ -14,6 +14,7 @@ import           Util.Duration (Duration, fromSeconds)
 -- import qualified Text.Parsec as P
 
 import Util.Distribution as Distribution
+import Statistics (posteriorL2)
 
 data Model
   = Toy
@@ -27,9 +28,10 @@ model :: (MonadRandom m) => Model -> V.Vector Double -> m (Duration, V.Vector Do
 model Toy x = (fromSeconds 1,) <$> toyModel x
 model (ToyTimeVar mean var) x =
   (,) <$> (fromSeconds <$> gammaRandomSample mean var) <*> toyModel x
-model (ToyTimeBias power var) x =
-      (fromSeconds $ if V.head x < 0 then 1 else power,)
-  <$> (V.singleton <$> uniformRandomSample (V.head x - 1, V.head x + 1))
+model (ToyTimeBias power _) x =
+      (,)
+  <$> pure (fromSeconds $ if V.head x < 0 then 1 else power)
+  <*> (V.singleton <$> uniformRandomSample (V.head x - 1, V.head x + 1))
   -- (,) <$> (fromSeconds <$> gammaRandomSample (max 1 (power * (V.head x + 1))) var) <*> toyModel x
 
 priorRandomSample :: (MonadRandom m) => Model -> m (V.Vector Double)
@@ -41,6 +43,19 @@ prior :: Model -> V.Vector Double -> Double
 prior Toy = toyPrior
 prior (ToyTimeVar _ _) = toyPrior
 prior (ToyTimeBias _ _) = toyPrior
+
+posterior :: Model -> V.Vector Double -> Double
+posterior Toy = toyPosteriorCDF 0 . V.head
+posterior (ToyTimeVar _ _) = toyPosteriorCDF 0 . V.head
+posterior (ToyTimeBias _ _) = uniformCDF (-1, 1) . V.head
+
+l2 :: Model -> V.Vector (Double, V.Vector Double) -> Double
+l2 m@(Toy) sample = posteriorL2 (-10) 10 300 (posterior m . V.singleton)
+                 (V.toList $ second V.head <$> sample)
+l2 m@(ToyTimeVar _ _) sample = posteriorL2 (-10) 10 300 (posterior m . V.singleton)
+                 (V.toList $ second V.head <$> sample)
+l2 m@(ToyTimeBias _ _) sample = posteriorL2 (-10) 10 300 (posterior m . V.singleton)
+                 (V.toList $ second V.head <$> sample)
 
 --------
 -- Toy Model

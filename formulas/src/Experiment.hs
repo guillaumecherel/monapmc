@@ -126,6 +126,9 @@ data Simulation = Simulation Algorithm Model Int
 getSimuAlgo :: Simulation -> Algorithm
 getSimuAlgo (Simulation a _ _) = a
 
+getSimuModel :: Simulation -> Model
+getSimuModel (Simulation _ m _) = m
+
 
 ---- Simulation Run ----
 
@@ -399,17 +402,17 @@ histogramSteps (Steps _ steps') = histogramStep <$> steps'
 ---- Stats mean std l2 vs nsimus ----
 
 l2VsNSimusSteps :: Steps -> DataSet (Int, Double)
-l2VsNSimusSteps (Steps (Simulation algo _ _) steps') =
+l2VsNSimusSteps (Steps (Simulation algo model _) steps') =
   DataSet $ l2VsNSimus' <$> steps'
   where l2VsNSimus' :: Step -> (Int, Double)
         l2VsNSimus' step =
           ( nSimus algo (getStepT step)
-          , Statistics.l2Toy . getStepSample $ step
+          , Model.l2 model . getStepSample $ step
           )
 
 l2VsNSimusRun :: Run -> DataSet (Int,Double)
-l2VsNSimusRun (Run algo _ (RunResult _ nSteps sample)) =
-  DataSet [( nSimus algo nSteps, Statistics.l2Toy sample)]
+l2VsNSimusRun (Run algo model (RunResult _ nSteps sample)) =
+  DataSet [( nSimus algo nSteps, Model.l2 model sample)]
 
 nSimus :: Algorithm -> Int -> Int
 nSimus APMC{nGen=nGen, nAlpha=nAlpha} step = nGen + nAlpha + nGen * step
@@ -465,7 +468,7 @@ l2VsTimeSteps steps =
           ( Duration.seconds $ getStepTotalTime step
           , Duration.seconds $ getStepAlgoTime step
           , Duration.seconds $ getStepSimTime step
-          , Statistics.l2Toy . getStepSample $ step)
+          , Model.l2 (getSimuModel . getStepsSimulation $ steps) . getStepSample $ step)
 
 l2VsTimeRepliSteps :: Repli Steps -> Repli (DataSet (Double, Double, Double, Double))
 l2VsTimeRepliSteps repliSteps = Repli.map l2VsTimeSteps repliSteps

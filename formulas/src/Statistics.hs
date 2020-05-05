@@ -10,8 +10,6 @@ import qualified Data.Map as Map
 import qualified Data.Vector as Vector
 import qualified Text.Parsec as P
 
-import Model (toyPosteriorCDF)
-
 absoluteError :: Double -> Double -> Double
 absoluteError expected x = abs (x - expected)
 
@@ -47,10 +45,6 @@ posteriorL2 lowerBound upperBound bins targetCDF weightsXs =
                           weightsXs
   in  sqrt $ sum $ fmap (\(b, e) -> (e - theoPostBin b) ** 2) estPostBin
                               
-l2Toy :: Vector.Vector (Double, Vector.Vector Double) -> Double
-l2Toy sample = posteriorL2 (-10) 10 300 (toyPosteriorCDF 0)
-                 (Vector.toList $ second Vector.head <$> sample)
-
 toBin :: Double -> Double -> Int -> Double -> Double
 toBin lowerBound upperBound bins x = lowerBound + width * fromIntegral (floor ((x - lowerBound) / width) :: Int)
   where width = (upperBound - lowerBound) / fromIntegral bins

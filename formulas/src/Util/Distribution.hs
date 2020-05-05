@@ -17,6 +17,7 @@ import Data.Word (Word64)
 import qualified Data.Vector as V
 import Statistics.Distribution hiding (mean)
 import Statistics.Distribution.Normal
+import Statistics.Distribution.Uniform
 import Statistics.Distribution.Gamma
 import qualified System.Random.MWC as MWC
 
@@ -30,6 +31,9 @@ uniformDensity (lowerBound, upperBound) x
 
 uniformRandomSample :: (MonadRandom m) => (Double, Double) -> m Double
 uniformRandomSample = getRandomR
+
+uniformCDF :: (Double, Double) -> Double -> Double
+uniformCDF (lower, upper) = cumulative (uniformDistr lower upper)
 
 normalDensity :: Double -> Double -> Double -> Double
 normalDensity mean var x =

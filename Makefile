@@ -298,11 +298,9 @@ l2_vs_time_k_gnuplot_script := report/l2_vs_time_k.gnuplot
 
 l2_vs_time_k_simus := \
 apmc_nGen4000_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
-apmc_nGen4000_nAlpha500_pAccMin0.01_parallel2_modelToy_stepMax100 \
 apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToy_stepMax100 \
 apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToy_stepMax100 \
 mon-apmc_nGen4000_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100 \
-mon-apmc_nGen2000_nAlpha500_pAccMin0.01_stepSize1_parallel2_stopSampleSize4500_modelToy_stepMax200 \
 mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToy_stepMax400 \
 mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToy_stepMax10000
 
@@ -318,14 +316,12 @@ $(l2_vs_time_k_sentinel): $(l2_vs_time_k_input)
 > mkdir -p output/report
 > echo -e ""\
 >   "output_path=\"$(l2_vs_time_k_output)\"\n" \
->   "apmc_k1=\"$(word 1, $(l2_vs_time_k_data))\"\n" \
->   "apmc_k2=\"$(word 2, $(l2_vs_time_k_data))\"\n" \
->   "apmc_k5=\"$(word 3, $(l2_vs_time_k_data))\"\n" \
->   "apmc_k10=\"$(word 4, $(l2_vs_time_k_data))\"\n" \
->   "monApmc_k1=\"$(word 5, $(l2_vs_time_k_data))\"\n" \
->   "monApmc_k2=\"$(word 6, $(l2_vs_time_k_data))\"\n" \
->   "monApmc_k5=\"$(word 7, $(l2_vs_time_k_data))\"\n" \
->   "monApmc_k10=\"$(word 8, $(l2_vs_time_k_data))\"\n" \
+>   "apmc_k_low=\"$(word 1, $(l2_vs_time_k_data))\"\n" \
+>   "apmc_k_med=\"$(word 2, $(l2_vs_time_k_data))\"\n" \
+>   "apmc_k_high=\"$(word 3, $(l2_vs_time_k_data))\"\n" \
+>   "monApmc_k_low=\"$(word 4, $(l2_vs_time_k_data))\"\n" \
+>   "monApmc_k_med=\"$(word 5, $(l2_vs_time_k_data))\"\n" \
+>   "monApmc_k_high=\"$(word 6, $(l2_vs_time_k_data))\"\n" \
 > | gnuplot - $(l2_vs_time_k_gnuplot_script)
 > mkdir -p $(@D)
 > touch $@

@@ -1,15 +1,13 @@
 # This script requires the following variables:
 # output_path
-# apmc_k1
-# apmc_k2
-# apmc_k5
-# apmc_k10
-# monApmc_k1
-# monApmc_k2
-# monApmc_k5
-# monApmc_k10
+# apmc_k_low
+# apmc_k_med
+# apmc_k_high
+# monApmc_k_low
+# monApmc_k_med
+# monApmc_k_high
 
-set terminal pngcairo truecolor size 700,1000 font ',12'
+set terminal pngcairo truecolor size 1000,300 font ',12'
 set output output_path
 
 set xrange [0:*]
@@ -20,41 +18,27 @@ set ylabel "L2"
 set xlabel "time"
 
 set xtics border autofreq
+set xtics rotate by -45
 set format x "%.g" 
 
-set multiplot layout 4,2 rowsfirst
+set multiplot layout 1,3 columnsfirst
 
-set xrange [0:8e4]
-set xtics 2e4
-set title "APMC K = 1"
-plot apmc_k1 u 1:4 with lines t ''
+#set xrange [0:8e4]
+#set xtics 2e4
+set title "K = 1"
+plot apmc_k_low u 1:4 with lines t 'APMC', \
+     monApmc_k_low u 1:4 with lines t 'MonAPMC'
 
-set title "MonAPMC K = 1"
-plot monApmc_k1 u 1:4 with lines t ''
+#set xrange [0:8e4]
+#set xtics 2e4
+set title "K = 4"
+plot apmc_k_med u 1:4 with lines t 'APMC', \
+     monApmc_k_med u 1:4 with lines t 'MonAPMC'
 
-set xrange [0:4e4]
-set xtics 1e4
-set title "APMC K = 2"
-plot apmc_k2 u 1:4 with lines t ''
-
-set title "MonAPMC K = 2"
-plot monApmc_k2 u 1:4 with lines t ''
-
-set xrange [0:2e4]
-set xtics 0.5e4
-set title "APMC K = 4"
-plot apmc_k5 u 1:4 with lines t ''
-
-set title "MonAPMC K = 4"
-plot monApmc_k5 u 1:4 with lines t ''
-
-set xrange [0:800]
-set xtics 200 # autofreq rotate
-unset format x
-set title "APMC K = 100"
-plot apmc_k10 u 1:4 with lines t ''
-
-set title "MonAPMC K = 100"
-plot monApmc_k10 u 1:4 with lines t ''
+#set xrange [0:8e4]
+#set xtics 2e4
+set title "K = 100"
+plot apmc_k_high u 1:4 with lines t 'APMC', \
+     monApmc_k_high u 1:4 with lines t 'MonAPMC'
 
 unset multiplot

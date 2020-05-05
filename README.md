@@ -31,12 +31,10 @@ In order to compare runs APMC and MonAPMC, we following the following rules when
 
 Fig L2 vs time K
 
-:   A two column grid of plots showing L2 vs time for replicated runs. 
-    Plots on the left column are runs of the APMC algorithm, plots on the right
-    are runs of MonAPMC. Rows correspond to different values of parallelism K: 
-    1, 2, 4, 100. For MonAPMC, nGen is set such that `nGen * K = 4000` to be closer to APMC's running conditions. The StepMax parameter must also be adapted such that `stepMax * nGen = 400000`.
+:   Three plots showing L2 vs time for replicated runs of APMC and MonAPMC for
+    different values of parallelism K: 1, 4 and 100. 
 
-The first set of plots (`l2_vs_realtime_k`) shows this evolution for both algorithms and different values of K in 1, 2, 4, 10. These plots illustrate that:
+The first set of plots (`l2_vs_time_k`) shows L2 vs time for both algorithms and different values of K in 1, 2, 4, 10. These plots illustrate that:
 
 - MonAPMC and APMC have a similar results in terms of time and quality,
 - There both benefit from additionnal cores.

@@ -57,6 +57,8 @@ l2 m@(ToyTimeVar _ _) sample = posteriorL2 (-10) 10 300 (posterior m . V.singlet
 l2 m@(ToyTimeBias _ _) sample = posteriorL2 (-10) 10 300 (posterior m . V.singleton)
                  (V.toList $ second V.head <$> sample)
 
+
+
 --------
 -- Toy Model
 --------

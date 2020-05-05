@@ -46,7 +46,7 @@ posteriorL2 lowerBound upperBound bins targetCDF weightsXs =
   in  sqrt $ sum $ fmap (\(b, e) -> (e - theoPostBin b) ** 2) estPostBin
                               
 toBin :: Double -> Double -> Int -> Double -> Double
-toBin lowerBound upperBound bins x = lowerBound + width * fromIntegral (floor ((x - lowerBound) / width) :: Int)
+toBin lowerBound upperBound bins x = lowerBound + width * fromIntegral (floor ((x - lowerBound) / width) :: Int) + width / 2
   where width = (upperBound - lowerBound) / fromIntegral bins
 
 

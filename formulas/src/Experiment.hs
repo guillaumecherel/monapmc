@@ -23,7 +23,7 @@ import qualified Data.Vector as Vector
 import           Data.Vector (Vector)
 import           Formatting
 import qualified Model 
-import           Model (Model)
+import           Model (Model(..))
 import qualified Numeric.LinearAlgebra as LA
 import           Util.DataSet (DataSet(..))
 import qualified Util.DataSet as DataSet
@@ -144,6 +144,9 @@ run (Simulation algo model stepMax) =
 
 getRunAlgo :: Run -> Algorithm
 getRunAlgo (Run algo _ _) = algo
+
+getRunModel :: Run -> Model
+getRunModel (Run _ model _) = model
 
 getRunSample :: Run -> Vector (Weight, Vector Double)
 getRunSample (Run _ _ runRes) = getRunResultSample runRes
@@ -378,23 +381,28 @@ repliSteps n sim = Repli.repliM n $ steps sim
 
 ---- Stats histo ----
 
+postDensityEstimate Toy = Statistics.estPostDen (-10) 10 300
+postDensityEstimate (ToyTimeVar _ _) = Statistics.estPostDen (-10) 10 300
+postDensityEstimate (ToyTimeBias _ _) = Statistics.estPostDen (-2) 2 20
+
 histogramRun :: Run -> DataSet (Double, Double)
 histogramRun run =
     DataSet
-  $ Statistics.estPostDen (-10) 10 300
+  $ postDensityEstimate (getRunModel run)
   $ fmap (second Vector.head)
   $ Vector.toList
   $ getRunSample run
 
-histogramStep :: Step -> DataSet (Double, Double)
-histogramStep (Step _ _ _ _ sample') =
+histogramStep :: Model -> Step -> DataSet (Double, Double)
+histogramStep model step =
     DataSet
-  $ Statistics.estPostDen (-10) 10 300
+  $ postDensityEstimate model
   $ fmap (second Vector.head)
-  $ Vector.toList sample'
+  $ Vector.toList (getStepSample step)
 
 histogramSteps :: Steps -> [DataSet (Double, Double)]
-histogramSteps (Steps _ steps') = histogramStep <$> steps'
+histogramSteps steps =
+  histogramStep (getSimuModel . getStepsSimulation $ steps) <$> getSteps steps
 
 
 

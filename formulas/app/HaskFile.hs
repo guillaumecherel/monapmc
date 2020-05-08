@@ -9,30 +9,32 @@ import Protolude
 import           Control.Monad.Random.Lazy
 import           Options.Applicative
 import           Experiment
+import           Text.Parsec (parse, ParseError)
 import           Util.HaskFile
 import           Util.DataSet (DataSet(..))
 import           Util.Repli (Repli(..))
 import qualified Util.Repli as Repli
 import           Util.Sample (Sample(..))
+import           Util.Parser (simulationFileName)
 
 data Cmd
   = Run
       Int        -- Seed
-      FilePath   -- Simulation
+      Text       -- Simulation
       FilePath   -- Run
   | Steps
       Int        -- Seed
-      FilePath   -- Simulation
+      Text       -- Simulation
       FilePath   -- Steps
   | RepliRun
       Int        -- Seed
       Int        -- Replications
-      FilePath   -- Simulation
+      Text       -- Simulation
       FilePath   -- Run
   | RepliSteps
       Int        -- Seed
       Int        -- Replications
-      FilePath   -- Simulation
+      Text       -- Simulation
       FilePath   -- Steps
   | HistoRun
       FilePath -- Run
@@ -141,24 +143,30 @@ parseOpts = execParser
   $ info (helper <*> cmd)
   ( fullDesc )
 
+parseSimulationSpecStringOrPanic :: Text -> Simulation
+parseSimulationSpecStringOrPanic txt =
+  case parse simulationFileName "" txt of
+    (Left e) -> panic ("Couldn't parse simulation spec " <> txt <> ": " <> show e)
+    (Right sim) -> sim
+
 main :: IO ()
 main = do
   cmd' <- parseOpts
   case cmd' of
     Main.Run seed input output -> do
-      sim <- readSingle input
+      let sim = parseSimulationSpecStringOrPanic input
       res <- evalRandT (run sim) (mkStdGen seed)
       writeSingle output res
     Main.Steps seed input output -> do
-      sim <- readSingle input
+      let sim = parseSimulationSpecStringOrPanic input
       res <- evalRandT (steps sim) (mkStdGen seed)
       writeSingle output res
     RepliRun seed replications input output -> do
-      sim <- readSingle input
+      let sim = parseSimulationSpecStringOrPanic input
       res <- evalRandT (repliRun replications sim) (mkStdGen seed)
       writeSingle output res
     RepliSteps seed replications input output -> do
-      sim <- readSingle input
+      let sim = parseSimulationSpecStringOrPanic input
       res <- evalRandT (repliSteps replications sim) (mkStdGen seed)
       writeSingle output res
     HistoRun pathRun pathHisto -> do

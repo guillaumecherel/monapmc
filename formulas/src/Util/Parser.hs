@@ -55,13 +55,11 @@ dirName =
   -- Parse many times a word ended by a /
   <$> many (try $ many (noneOf "/") <> string "/")
 
-simulationFileName
+simulationSpecString
   :: (Stream s m Char)
   => ParsecT s u m Simulation
-simulationFileName =
-  -- discard directory name
-  dirName
-  *> pure Simulation <*> algorithm <*> model <*> stepMax
+simulationSpecString =
+  pure Simulation <*> algorithm <*> model <*> stepMax
   where
     algorithm = apmc <|> monApmc
     apmc =
@@ -110,6 +108,10 @@ simulationFileName =
        $  lex (string "stepMax" *> int)
     lex p = p <* (many (char '_'))
 
+simulationFileName
+  :: (Stream s m Char)
+  => ParsecT s u m Simulation
+simulationFileName = dirName *> simulationSpecString
 
 read1DSample :: FilePath -> Text -> Either ParseError (Vector (Weight, Vector Double))
 read1DSample = --mapM ((fmap fst) . TR.double) (T.lines text)

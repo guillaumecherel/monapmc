@@ -263,6 +263,7 @@ stepsResult stepMax APMC{nGen, nAlpha, pAccMin, parallel} model =
         , APMC.priorSample = Model.priorRandomSample model
         , APMC.priorDensity = Model.prior model
         , APMC.observed = Vector.singleton 0
+        , APMC.stepMax = strictlyPositive stepMax
         }
       getStep (dur, r) = Step
          dur
@@ -288,6 +289,7 @@ stepsResult
               , APMC.priorSample = Model.priorRandomSample model
               , APMC.priorDensity = Model.prior model
               , APMC.observed = Vector.singleton 0
+              , APMC.stepMax = strictlyPositive stepMax
               }
           , MonAPMC._stopSampleSize=stopSampleSize
           }

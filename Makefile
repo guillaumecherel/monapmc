@@ -387,7 +387,6 @@ time_bias_gnuplot_script := report/time_bias.gnuplot
 time_bias_simus := \
 apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeBias_100_0_1_100_stepMax100 \
 mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4000_modelToyTimeBias_100_0_1_100_stepMax10000 \
-mon-apmc_nGen1_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4000_modelToyTimeBias_100_0_1_100_stepMax400000
 
 time_bias_data := $(foreach simu,$(time_bias_simus),output/formulas/figure_data/histo_run/$(simu))
   

@@ -17,11 +17,11 @@ import qualified Numeric.LinearAlgebra as LA
 import qualified Data.Vector as V
 import qualified Data.Text as T
 import           Util.Duration (Duration)
-import           Util.Execution (simEasyPar)
+import           Util.Execution (simEasyParRun, simEasyParScan)
+import           Util (StrictlyPositive, getStrictlyPositive)
 
 
 -- TODO. Dans Beaumont2009, le facteur 2 par lequel on multiplie la variance pondérée de l'échantillon pour calculer la nouvelle variance est fait composant par composant. Il faut peut-être considérer le noyau de transition composant par composant, plutôt que de le faire sur toutes les dimensions en utilisant une matrice de covariance comme c'est fait là. Ça veut dire qu'on utilise à la place un vecteur de variance et que les covariances entre les composants des thetas ne sont pas pris en compte pour les transitions. Ça peut accélerer le calcul et réduire l'emprunte mémoire.
-
 -- TODO. Mon implémentation est multidimensionnelle (pour theta), mais n'a
 -- pas été testée avec plusieurs dimensions.
 
@@ -34,6 +34,7 @@ data P m = P
   , priorSample :: m (V.Vector Double)
   , priorDensity :: V.Vector Double -> Double
   , observed :: V.Vector Double
+  , stepMax :: StrictlyPositive Int
   }
 
 instance NFData (P m) where
@@ -69,22 +70,6 @@ instance NFData S where
 pprintS :: S -> T.Text
 pprintS s = T.pack $ show $ thetas s
 
--- run :: (MonadRandom m) => P m -> (V.Vector Double -> m (Duration, V.Vector Double)) -> m S
--- run p f = stepOne p f >>= go
---   where go (dur, s) = do
---           s' <- step p f s
---           if stop p s'
---             then return s'
---             else go s'
--- 
--- scan :: (MonadRandom m) => P m -> (V.Vector Double -> m (Duration, V.Vector Double)) -> m [S]
--- scan p f =
---   stepOne p f >>= go
---   where go s = do
---           if stop p s
---             then return [s]
---             else step p f s >>= fmap (s:) . go
-
 scanPar
   :: Int
   -> P (Rand StdGen)
@@ -95,9 +80,25 @@ scanPar parallel p f
   | otherwise =
       -- Get rid of Maybes
       fmap catMaybes . (fmap . fmap) sequence
-    $ simEasyPar
-      -- stepPre :: (s -> Rand StdGen (z,[x]))
-      (\mbs -> case mbs of
+    $ simEasyParScan (stepPreSimEasy p) f (stepPostSimEasy p) (stopSimEasy p) parallel Nothing
+
+runPar
+  :: Int
+  -> P (Rand StdGen)
+  -> (V.Vector Double -> Rand StdGen (Duration, V.Vector Double))
+  -> RandT StdGen IO ((Duration, Duration), S)
+runPar parallel p f
+  | parallel < 1 = panic "Error function APMC.runPar: parallel argument must be strictly positive."
+  | otherwise =
+      -- Get rid of Maybe
+    (fmap . fmap) runMaybeOrPanic
+    $ simEasyParRun (stepPreSimEasy p) f (stepPostSimEasy p) (stopSimEasy p) parallel Nothing
+  where
+    runMaybeOrPanic (Just x) = x
+    runMaybeOrPanic Nothing = panic "Error in APMC.runPar: final state must be (Just s), got Nothing."
+
+stepPreSimEasy :: P (Rand StdGen) -> Maybe S -> Rand StdGen ((LA.Herm Double, LA.Matrix Double), [V.Vector Double])
+stepPreSimEasy p mbs = case mbs of
         Nothing -> do
           thetasV <- stepOnePre p
           return
@@ -111,23 +112,26 @@ scanPar parallel p f
             ( (sigmaSquared, newThetas)
             , fmap V.fromList . LA.toLists $ newThetas
             )
-      )
-      -- f :: (x -> Rand StdGen (Duration,y))
-      f
-      -- stepPost :: (s -> z -> [y] -> Rand StdGen s)
-      (\mbs (sigmaSquared, newThetas) xsV -> case mbs of
+
+stepPostSimEasy
+  :: P (Rand StdGen)
+  -> Maybe S
+  -> (LA.Herm Double, LA.Matrix Double)
+  -> [V.Vector Double]
+  -> Rand StdGen (Maybe S)
+stepPostSimEasy p mbs (sigmaSquared, newThetas) xsV =
+      case mbs of
         Nothing -> Just <$> stepOnePost p (fmap V.fromList . LA.toLists $ newThetas) xsV
         Just s -> Just <$> stepPost p s (sigmaSquared, newThetas) (LA.fromLists . fmap V.toList $ xsV)
-      )
-      -- stop :: (s -> Bool)
-      (\mbs -> case mbs of Nothing -> False; Just s -> stop p s)
-      -- parallel :: Int
-      parallel
-      -- init :: s
-      Nothing
+
+stopSimEasy
+  :: P (Rand StdGen)
+  -> (Maybe S -> Bool)
+stopSimEasy p mbs = case mbs of Nothing -> False; Just s -> stop p s
+
 
 stop :: (Monad m) => P m -> S -> Bool
-stop p s = pAcc s <= pAccMin p
+stop p s = t s >= getStrictlyPositive (stepMax p) || pAcc s <= pAccMin p
 
 stepOne :: (Monad m) => P m -> (V.Vector Double -> m (Duration, V.Vector Double)) -> m (Duration, S)
 stepOne p f = do

@@ -21,8 +21,8 @@ import Util.Duration (Duration, fromPicoSeconds)
 import System.CPUTime (getCPUTime)
 import           Util (generalizeRand)
 
--- Simulate running the argorithm with the naive parallelisation scheme.
-simEasyPar
+-- Simulate naive parallelisation scheme.
+simEasyParScan
   :: forall s z x y. (NFData s)
   => (s -> Rand StdGen (z,[x]))
   -> (x -> Rand StdGen (Duration,y))
@@ -31,7 +31,7 @@ simEasyPar
   -> Int
   -> s
   -> RandT StdGen IO [((Duration, Duration), s)]
-simEasyPar !stepPre !f !stepPost !stop !parallel !init
+simEasyParScan !stepPre !f !stepPost !stop !parallel !init
   = do
       start <- fromPicoSeconds <$> liftIO getCPUTime
       go init start 0
@@ -43,34 +43,76 @@ simEasyPar !stepPre !f !stepPost !stop !parallel !init
         else do
           -- Use evaluate and force to make sure computation is done before the
           -- next call to getCPUTime.
-          stepRes <- liftRandT $ fmap return $ runRand $ step s
+          stepRes <- liftRandT $ fmap return $ runRand $ simEasyStep parallel stepPre f stepPost s
           (simElapsed, s') <- liftIO $ evaluate $ force stepRes
           now <- fromPicoSeconds <$> liftIO getCPUTime
-          fmap (((now - startTime, accSimTime + simElapsed), s'):) $ go s' startTime (accSimTime + simElapsed)
-    step :: s -> Rand StdGen (Duration, s)
-    step s = do
-      (z, xs) <- stepPre s
-      (simElapsed, ys) <- simScheduler xs
-      s' <- stepPost s z ys
-      return (simElapsed, s')
-    -- Preserve order of input and output!
-    simScheduler :: [x] -> Rand StdGen (Duration, [y])
-    simScheduler xs = do
-      ys <- traverse f xs
-      let durationsSorted = List.sort $ fmap fst ys
-      return (simRunTimeSorted durationsSorted, fmap snd ys)
-    simRunTimeSorted :: [Duration] -> Duration
-    simRunTimeSorted [] = 0
-    simRunTimeSorted (shortestDuration:rest) =
-      let (running, waiting) = List.splitAt (parallel - 1) rest
-          duration = simRunTimeSorted
-               ( fmap (subtract shortestDuration) running
-              ++ waiting
-               )
-      in  duration + shortestDuration
+          fmap (((now - startTime, accSimTime + simElapsed), s'):)
+            (go s' startTime (accSimTime + simElapsed))
+
+simEasyParRun
+  :: forall s z x y. (NFData s)
+  => (s -> Rand StdGen (z,[x]))
+  -> (x -> Rand StdGen (Duration,y))
+  -> (s -> z -> [y] -> Rand StdGen s)
+  -> (s -> Bool)
+  -> Int
+  -> s
+  -> RandT StdGen IO ((Duration, Duration), s)
+simEasyParRun !stepPre !f !stepPost !stop !parallel !init
+  = do
+      start <- fromPicoSeconds <$> liftIO getCPUTime
+      go init start 0
+  where
+    go :: s -> Duration -> Duration -> RandT StdGen IO ((Duration, Duration), s)
+    go !s !startTime !accSimTime =
+      if stop s
+        then do
+          now <- fromPicoSeconds <$> liftIO getCPUTime
+          return ((now - startTime, accSimTime), s)
+        else do
+          -- Use evaluate and force to make sure computation is done before the
+          -- next call to getCPUTime.
+          stepRes <- liftRandT $ fmap return $ runRand $ simEasyStep parallel stepPre f stepPost s
+          (simElapsed, s') <- liftIO $ evaluate $ force stepRes
+          go s' startTime (accSimTime + simElapsed)
+
+simEasyStep
+  :: Int
+  -> (s -> Rand StdGen (z,[x]))
+  -> (x -> Rand StdGen (Duration,y))
+  -> (s -> z -> [y] -> Rand StdGen s)
+  -> s
+  -> Rand StdGen (Duration, s)
+simEasyStep parallel stepPre f stepPost s = do
+  (z, xs) <- stepPre s
+  (simElapsed, ys) <- simScheduler parallel f xs
+  s' <- stepPost s z ys
+  return (simElapsed, s')
+
+-- Preserve order of input and output!
+simScheduler
+  :: Int
+  -> (x -> Rand StdGen (Duration,y))
+  -> [x]
+  -> Rand StdGen (Duration, [y])
+simScheduler parallel f xs = do
+  ys <- traverse f xs
+  let durationsSorted = List.sort $ fmap fst ys
+  return (simRunTimeSorted parallel durationsSorted, fmap snd ys)
+
+simRunTimeSorted :: Int -> [Duration] -> Duration
+simRunTimeSorted _ [] = 0
+simRunTimeSorted parallel (shortestDuration:rest) =
+  let (running, waiting) = List.splitAt (parallel - 1) rest
+      duration = simRunTimeSorted parallel
+           ( fmap (subtract shortestDuration) running
+          ++ waiting
+           )
+  in  duration + shortestDuration
 
 
-simPlasticPar
+-- Simulate plastic parallelisation scheme
+simPlasticParScan
   :: forall s. (Monoid s, NFData s)
   => (Rand StdGen s -> Rand StdGen (s, s))
   -> (Rand StdGen s -> Rand StdGen (Duration, s))
@@ -79,13 +121,13 @@ simPlasticPar
   -> Int
   -> s
   -> RandT StdGen IO [((Duration, Duration), s)]
-simPlasticPar !split !step !stop !stepSize !parallel !init
+simPlasticParScan !split !step !stop !stepSize !parallel !init
   | stepSize < 1 = panic "Error, function Execution.simPlasticPar: argument stepSize must be strictly positive."
   | parallel < 1 = panic "Error, function Execution.simPlasticPar: argument parallel must be strictly positive."
   | otherwise = do
       startTime <- fromPicoSeconds <$> liftIO getCPUTime
       (startState, runners) <-
-        generalizeRand $ simStartRunnersSorted init parallel
+        generalizeRand $ simStartRunnersSorted step stepSize split init parallel
       go startTime 0 startState runners
   where
     go :: Duration -> Duration -> s -> (NonEmpty (Duration, s)) -> RandT StdGen IO [((Duration, Duration), s)]
@@ -101,50 +143,105 @@ simPlasticPar !split !step !stop !stepSize !parallel !init
           let newState = curState <> res
           (new1, new2) <- generalizeRand $ split (pure newState)
           newRunning <- generalizeRand $ case left of
-                Nothing -> pure <$> simFullStep new2
+                Nothing -> pure <$> simFullStep step stepSize new2
                 Just l -> liftM2 insertSorted
-                  (simFullStep new2)
+                  (simFullStep step stepSize new2)
                   (return l)
           -- Make sure all computation is performed before calling getCPUTime
           new1NF <- liftIO $ evaluate $ force new1
           newRunningNF <- liftIO $ evaluate $ force newRunning
           now <- fromPicoSeconds <$> liftIO getCPUTime
-          (((now - startTime, accSimTime + simElapsed), new1NF) :)
-            <$> (go startTime (accSimTime + simElapsed) new1NF newRunningNF))
-    simStartRunnersSorted
-      :: s -> Int -> Rand StdGen (s, NonEmpty (Duration, s))
-    simStartRunnersSorted s n = do
-      (s1, s2) <- split (pure s)
-      if n == 1
-        then
-          (s1,) . pure <$> simFullStep s2
-        else do
-          newRunning <- simFullStep s2
-          (sFinal, otherRunning) <- simStartRunnersSorted s1 (n - 1)
-          return $ (sFinal, insertSorted newRunning otherRunning)
-    simWaitForNextSorted
-      :: (NonEmpty (Duration, s))
-      -> (Duration, (s, Maybe (NonEmpty (Duration, s))))
-    simWaitForNextSorted running =
-      let ((duration, s), rest) = NonEmpty.uncons running
-          rest' = (fmap . fmap . first) (subtract duration) rest
-      in (duration, (s, rest'))
-    simFullStep :: s -> Rand StdGen (Duration, s)
-    simFullStep curState = simFullStepGo stepSize 0 curState
-    simFullStepGo :: Int -> Duration -> s -> Rand StdGen (Duration, s)
-    simFullStepGo n accDur curState =
-      if n <= 0
-        then return (accDur, curState)
-        else do
-          (dur, newState) <- step $ pure curState
-          simFullStepGo (n - 1) (accDur + dur) newState
-    insertSorted
-      :: (Duration, s) -> NonEmpty (Duration, s) -> NonEmpty (Duration, s)
-    insertSorted ds dss =
-      NonEmpty.fromList
-      $ List.insertBy (comparing fst) ds
-      $ NonEmpty.toList dss
+          fmap (((now - startTime, accSimTime + simElapsed), new1NF) :)
+            (go startTime (accSimTime + simElapsed) new1NF newRunningNF))
 
+simPlasticParRun
+  :: forall s. (Monoid s, NFData s)
+  => (Rand StdGen s -> Rand StdGen (s, s))
+  -> (Rand StdGen s -> Rand StdGen (Duration, s))
+  -> (Rand StdGen s -> Rand StdGen Bool)
+  -> Int
+  -> Int
+  -> s
+  -> RandT StdGen IO ((Duration, Duration), s)
+simPlasticParRun !split !step !stop !stepSize !parallel !init
+  | stepSize < 1 = panic "Error, function Execution.simRunPlasticPar: argument stepSize must be strictly positive."
+  | parallel < 1 = panic "Error, function Execution.simRunPlasticPar: argument parallel must be strictly positive."
+  | otherwise = do
+      startTime <- fromPicoSeconds <$> liftIO getCPUTime
+      (startState, runners) <-
+        generalizeRand $ simStartRunnersSorted step stepSize split init parallel
+      go startTime 0 startState runners
+  where
+    go :: Duration -> Duration -> s -> (NonEmpty (Duration, s)) -> RandT StdGen IO ((Duration, Duration), s)
+    go !startTime !accSimTime !curState !running =
+      ifM (generalizeRand $ stop $ return curState)
+        (do
+          (accSimTimeNF, curStateNF) <-
+            liftIO $ evaluate $ force (accSimTime, curState)
+          now <- fromPicoSeconds <$> liftIO getCPUTime
+          return (( now - startTime, accSimTimeNF), curStateNF))
+        (do
+          let (simElapsed, (res, left)) = simWaitForNextSorted running
+          let newState = curState <> res
+          (new1, new2) <- generalizeRand $ split (pure newState)
+          newRunning <- generalizeRand $ case left of
+                Nothing -> pure <$> simFullStep step stepSize new2
+                Just l -> liftM2 insertSorted
+                  (simFullStep step stepSize new2)
+                  (return l)
+          -- Make sure all computation is performed before calling getCPUTime
+          new1NF <- liftIO $ evaluate $ force new1
+          newRunningNF <- liftIO $ evaluate $ force newRunning
+          go startTime (accSimTime + simElapsed) new1NF newRunningNF)
+ 
+simStartRunnersSorted
+  :: (Rand StdGen s -> Rand StdGen (Duration, s))
+  -> Int
+  -> (Rand StdGen s -> Rand StdGen (s, s))
+  -> s
+  -> Int
+  -> Rand StdGen (s, NonEmpty (Duration, s))
+simStartRunnersSorted step stepSize split s n = do
+  (s1, s2) <- split (pure s)
+  if n == 1
+    then
+      (s1,) . pure <$> simFullStep step stepSize s2
+    else do
+      newRunning <- simFullStep step stepSize s2
+      (sFinal, otherRunning) <- simStartRunnersSorted step stepSize split s1 (n - 1)
+      return $ (sFinal, insertSorted newRunning otherRunning)
+
+simWaitForNextSorted
+  :: (NonEmpty (Duration, s))
+  -> (Duration, (s, Maybe (NonEmpty (Duration, s))))
+simWaitForNextSorted running =
+  let ((duration, s), rest) = NonEmpty.uncons running
+      rest' = (fmap . fmap . first) (subtract duration) rest
+  in (duration, (s, rest'))
+
+simFullStep
+  :: (Rand StdGen s -> Rand StdGen (Duration, s))
+  -> Int
+  -> s
+  -> Rand StdGen (Duration, s)
+simFullStep step stepSize curState = simFullStepGo step stepSize 0 curState
+
+simFullStepGo
+  :: (Rand StdGen s -> Rand StdGen (Duration, s))
+  -> Int -> Duration -> s -> Rand StdGen (Duration, s)
+simFullStepGo step n accDur curState =
+  if n <= 0
+    then return (accDur, curState)
+    else do
+      (dur, newState) <- step $ pure curState
+      simFullStepGo step (n - 1) (accDur + dur) newState
+
+insertSorted
+  :: (Duration, s) -> NonEmpty (Duration, s) -> NonEmpty (Duration, s)
+insertSorted ds dss =
+  NonEmpty.fromList
+  $ List.insertBy (comparing fst) ds
+  $ NonEmpty.toList dss
 
 
 -- !TO BE REMOVED!

@@ -18,6 +18,7 @@ import qualified ABC.Lenormand2012 as APMC
 import qualified Util.Execution as Execution
 
 import           Util.Duration (Duration)
+import           Util (getStrictlyPositive)
 
 data P m = P {_apmcP :: APMC.P m,
               _stopSampleSize :: Int}
@@ -133,17 +134,17 @@ stop P{_apmcP=apmcP, _stopSampleSize=sss} ms = do
   s <- ms
   case s of
     E -> return False
-    S{_s=s'} ->
+    S{_s=apmcS} ->
       let tSpan :: Int
           tSpan = ceiling (fromIntegral sss / fromIntegral (APMC.nGen apmcP) :: Double)
           count :: Int
           count = getSum $ foldMap
-                             (\t -> if t > APMC.t s' - tSpan then Sum 1 else Sum 0)
-                             (APMC.ts s')
+                             (\t -> if t > APMC.t apmcS - tSpan then Sum 1 else Sum 0)
+                             (APMC.ts apmcS)
           pAcc :: Double
           pAcc = (fromIntegral count) / (fromIntegral (tSpan * (APMC.nGen apmcP)))
-      in return ( APMC.t s' >= tSpan
-               && (APMC.pAccMin apmcP :: Double) >= (pAcc :: Double)
+      in return ( APMC.t apmcS >= getStrictlyPositive (APMC.stepMax apmcP)
+               || ( APMC.t apmcS >= tSpan && APMC.pAccMin apmcP >= pAcc )
                 )
 
 -- Parallel Monoid APMC
@@ -168,7 +169,24 @@ scanPar
 scanPar stepSize parallel p f
   | parallel < 1 = panic "Error function MonAPMC.scanPar: parallel argument must be strictly positive."
   | otherwise =
-  Execution.simPlasticPar
+  Execution.simPlasticParScan
+      split
+      (step p f)
+      (stop p)
+      stepSize
+      parallel
+      mempty
+
+runPar
+  :: Int
+  -> Int
+  -> P (Rand StdGen)
+  -> (V.Vector Double -> Rand StdGen (Duration, V.Vector Double))
+  -> RandT StdGen IO ((Duration, Duration), S (Rand StdGen))
+runPar stepSize parallel p f
+  | parallel < 1 = panic "Error function MonAPMC.runPar: parallel argument must be strictly positive."
+  | otherwise =
+  Execution.simPlasticParRun
       split
       (step p f)
       (stop p)

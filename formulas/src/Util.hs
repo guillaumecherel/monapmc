@@ -18,6 +18,18 @@ import           Data.Vector (Vector)
 import qualified Text.Parsec as P
 import Formatting
 
+newtype StrictlyPositive a = StrictlyPositive a
+  deriving (Eq, Ord, Show, Read, Num)
+
+strictlyPositive :: (Ord a, Num a) => a -> StrictlyPositive a
+strictlyPositive x =
+  if x <= 0
+    then panic "Error in strictlyPositive: argument must be strictly positive."
+    else StrictlyPositive x
+
+getStrictlyPositive :: StrictlyPositive x -> x
+getStrictlyPositive (StrictlyPositive x) = x
+
 type Weight = Double
 
 liftC :: (Applicative h)

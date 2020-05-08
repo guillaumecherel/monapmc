@@ -26,6 +26,7 @@ import qualified Model
 import           Model (Model(..))
 import qualified Numeric.LinearAlgebra as LA
 import           Util.DataSet (DataSet(..))
+import           Util (strictlyPositive)
 import qualified Util.DataSet as DataSet
 import           Util.Duration (Duration)
 import qualified Util.Duration as Duration
@@ -160,8 +161,8 @@ data RunResult = RunResult (Duration, Duration) Int (Vector (Weight, Vector Doub
 
 runResult :: Int -> Algorithm -> Model -> RandT StdGen IO RunResult
 runResult stepMax APMC{nGen, nAlpha, pAccMin} model =
-  let steps' :: RandT StdGen IO [(Int, ((Duration, Duration), APMC.S))]
-      steps' = zip [1..stepMax] <$> APMC.scanPar 1 p (Model.model model)
+  let res :: RandT StdGen IO ((Duration, Duration), APMC.S)
+      res = APMC.runPar 1 p (Model.model model)
       p = APMC.P
         { APMC.nGen = nGen
         , APMC.nAlpha = nAlpha
@@ -169,19 +170,19 @@ runResult stepMax APMC{nGen, nAlpha, pAccMin} model =
         , APMC.priorSample = Model.priorRandomSample model
         , APMC.priorDensity = Model.prior model
         , APMC.observed = Vector.singleton 0
+        , APMC.stepMax = strictlyPositive stepMax
         }
-      getRun (i, (dur, r)) = RunResult dur i
+      getRun (dur, r) = RunResult dur (APMC.t r)
         $ Vector.zip (Vector.fromList $ LA.toList $ APMC.weights r)
                           (Vector.fromList $ fmap Vector.fromList $ LA.toLists
                             $ APMC.thetas r)
-  in getRun . List.last <$>  steps'
+  in getRun <$> res
 runResult
   stepMax
   MonAPMC{nGen ,nAlpha ,pAccMin ,stepSize ,parallel ,stopSampleSize}
   model =
   let result :: RandT StdGen IO ((Duration, Duration), MonAPMC.S (Rand StdGen))
-      result = List.last . take stepMax
-        <$> MonAPMC.scanPar stepSize parallel p (Model.model model)
+      result = MonAPMC.runPar stepSize parallel p (Model.model model)
       p = MonAPMC.P
           { MonAPMC._apmcP=APMC.P
               { APMC.nGen = nGen
@@ -190,6 +191,7 @@ runResult
               , APMC.priorSample = Model.priorRandomSample model
               , APMC.priorDensity = Model.prior model
               , APMC.observed = Vector.singleton 0
+              , APMC.stepMax = strictlyPositive stepMax
               }
           , MonAPMC._stopSampleSize=stopSampleSize
           }

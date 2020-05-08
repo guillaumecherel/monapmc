@@ -19,9 +19,9 @@ import Statistics (posteriorL2)
 data Model
   = Toy
   | ToyTimeVar Double Double
-  -- ToyTimeVar mean variance
+  -- ToyTimeVar mean_run_time variance_run_time
   | ToyTimeBias Double Double Double Double
-  -- ToyTimeBias bias_factor mean variance
+  -- ToyTimeBias bias_factor mean_run_time variance_run_time
   deriving (Eq, Show, Read)
 
 model :: (MonadRandom m) => Model -> V.Vector Double -> m (Duration, V.Vector Double)

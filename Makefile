@@ -151,7 +151,7 @@ output/formulas/steps/%:
 
 ## Simulation Repli Run ##
 
-: output/formulas/repli/run/%:
+output/formulas/repli/run/%:
 > mkdir -p $(@D)
 > $(haskfile) repli-run $(SEED) $(REPLICATIONS) `basename $@` $@
 
@@ -403,7 +403,7 @@ figures: \
   $(l2_vs_time_k_output) \
   $(l2_vs_time_k_v_output) \
   $(time_bias_output)
-.PHONY: all-bottom
+.PHONY: figures
 
 setup: $(haskfile)
 .PHONY: setup

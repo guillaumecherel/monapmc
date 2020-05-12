@@ -1,35 +1,68 @@
-This repository contains the numerical experiments to test the algorithm MonAPMC. This algorithm is an attempt to implement an APMC algorithm that scales well with the number of computing cores available to perform simulations and the complexity of the simulation model. It is essentially the algorithm APMC equipped with a specific parallelization scheme.
+This repository contains the numerical experiments to test the algorithm
+MonAPMC. This algorithm is an attempt to implement an APMC algorithm that scales
+well with the number of computing cores available to perform simulations and the
+complexity of the simulation model. It is essentially the algorithm APMC
+equipped with a specific parallelization scheme.
 
-The initial problem of a straightforward parallelization scheme like map-reduce is that at each iterations, as the simulations terminate one after an other, some computing cores become idle while we wait for the remaining simulation to complete before we can proceed to the next iteration of the algorithm and run a new batch of simulations. This induces a waste of computing power.
+The initial problem of a straightforward parallelization scheme like map-reduce
+is that at each iterations, as the simulations terminate one after an other,
+some computing cores become idle while we wait for the remaining simulation to
+complete before we can proceed to the next iteration of the algorithm and run a
+new batch of simulations. This induces a waste of computing power.
 
-The potential loss grows with the number of computing cores available. The more core we have, the more we can leave some idle. With only one core, there is no loss possible: simulations are simply run one after another without any gap. With two cores, if we have only 2 simulations to run, the one that finishes first leaves its core idle until the other finishes. The problem keeps going as the number of cores grows.
+The potential loss grows with the number of computing cores available. The more
+core we have, the more we can leave some idle. With only one core, there is no
+loss possible: simulations are simply run one after another without any gap.
+With two cores, if we have only 2 simulations to run, the one that finishes
+first leaves its core idle until the other finishes. The problem keeps going as
+the number of cores grows.
 
-The loss is potentially dampened if there are more simulations to run at each iteration than computing units. For example, if there are 10 cores and a 100 simulations, as the first 10 simulations terminate, the released core can be filled with the remaining simulations. The loss appears only at the 10 last simulations. Thus, the potential loss is not only affected by the number of cores, but by the ratio of the number of simulations and the number of cores. The worse case is when the number of simulations is equal to the number of cores and both are high.
+The loss is potentially dampened if there are more simulations to run at each
+iteration than computing units. For example, if there are 10 cores and a 100
+simulations, as the first 10 simulations terminate, the released core can be
+filled with the remaining simulations. The loss appears only at the 10 last
+simulations. Thus, the potential loss is not only affected by the number of
+cores, but by the ratio of the number of simulations and the number of cores.
+The worse case is when the number of simulations is equal to the number of cores
+and both are high.
 
-The loss is also aggravated when some simulations take longer than others. An extreme case is when we have thousands of computing cores, most simulations running very quickly and a few taking very long. The algorithm will have to wait for the longer simulations and the computing power not properly be harnessed.
+The loss is also aggravated when some simulations take longer than others. An
+extreme case is when we have thousands of computing cores, most simulations
+running very quickly and a few taking very long. The algorithm will have to wait
+for the longer simulations and the computing power not properly be harnessed.
 
-We designed the algorithm MonAPMC to answer to this loss problem. We thus need to test that it is effectively more efficient than an easy to implement parallelisation scheme as the number of computing cores grows, as the ratio of number of simulations over the number of cores shrinks and as the variance of simulation duration grows.
+We designed the algorithm MonAPMC to answer to this loss problem. We thus need
+to test that it is effectively more efficient than an easy to implement
+parallelisation scheme as the number of computing cores grows, as the ratio of
+number of simulations over the number of cores shrinks and as the variance of
+simulation duration grows.
 
-For a first check of these three claims, we plot the evolution of L2 against time for a replicated run of both APMC and MonAPMC, varying some variables while keeping the others fixed at the following default values: nGen=4000, nAlpha=500, pAccMin=0.01, parallel=1, stepSize=1, stopSampleSize=4500. 
+For a first check of these three claims, we plot the evolution of L2 against
+time for a replicated run of both APMC and MonAPMC, varying some variables while
+keeping the others fixed at the following default values: nGen=4000, nAlpha=500,
+pAccMin=0.01, parallel=1, stepSize=1, stopSampleSize=4500. 
 
-In order to compare runs APMC and MonAPMC, we make the following rules when setting up the parameter values:
+In order to compare runs APMC and MonAPMC, we make the following rules when
+setting up the parameter values:
 
-- At each step, APMC dispatches nGen simulations to K cores,
-  while MonAPMC runs nGen simulations on a single core and runs K steps in
-  parallel. If we were to set those parameters equal with both algorithm,
-  APMC would start by sampling nGen parameter values from the prior, and
-  then refine the sample by resampling parameter values nGen at a time,
-  while MonAPMC would first sample nGen * parallel parameter values from
-  the prior and then run K long jobs made of nGen model run. To balance the
-  initial draw from the prior and to make the update cycle in MonAPMC more
-  frequent, we set nGen in each algorithm differently such that:
-  `nGen(apmc) = nGen(monApmc) * parallel(monApmc)`.
-- The maximum number of simulations allowed for each must be equal, thus
-  stepMax is set such that:
+- At each step, APMC dispatches nGen simulations to K cores, while MonAPMC runs
+  nGen simulations on a single core and runs K steps in parallel. If we were to
+  set those parameters equal with both algorithm, APMC would start by sampling
+  nGen parameter values from the prior, and then refine the sample by resampling
+  parameter values nGen at a time, while MonAPMC would first sample nGen *
+  parallel parameter values from the prior and then run K long jobs made of nGen
+  model run. To balance the initial draw from the prior and to make the update
+  cycle in MonAPMC more frequent, we set nGen in each algorithm differently such
+  that: `nGen(apmc) = nGen(monApmc) * parallel(monApmc)`.
+- The maximum number of simulations allowed for each must be equal, thus stepMax
+  is set such that: 
   `nGen(apmc) * stepMax(apmc) = nGen(mon-apmc) * stepMax(mon-apmc)`
 - The rest of the homonymous parameters are equal one to the other.
 
-As a consequence, we can parameterize a pair of comparable algorithms runs with the parameters `nGen(pair), nAlpha(pair), parallel(pair), stepMax(pair), model(pair)` from which we derive each algorithms parameter value:
+As a consequence, we can parameterize a pair of comparable algorithms runs with
+the parameters 
+`nGen(pair), nAlpha(pair), parallel(pair), stepMax(pair), model(pair)`
+from which we derive each algorithms parameter value:
 
 - `nGen(apmc) = nGen(pair) `
 - `nGen(mon-apmc) = nGen(pair) / parallel(pair)`
@@ -51,15 +84,25 @@ Fig L2 vs time K
 :   Three plots showing L2 vs time for replicated runs of APMC and MonAPMC for
     different values of parallelism K: 1, 4 and 100. 
 
-The first set of plots (`l2_vs_time_k`) shows L2 vs time for both algorithms and different values of K in 1, 2, 4, 10. These plots illustrate that:
+The first set of plots (`l2_vs_time_k`) shows L2 vs time for both algorithms and
+different values of K in 1, 2, 4, 10. These plots illustrate that:
 
 - MonAPMC and APMC have a similar results in terms of time and quality,
 - There both benefit from additionnal cores.
 - They remain similar in quality and speed with more cores. 
 
-MonAPMC offers no clear advantage here. It is expected from the absence of variance in the model run time and the fact that the number of simulation per iteration is a multiple of the number of cores. As a consequence the loss mentionned above should be absent: no cpu ever idles in APMC. The two following sets of figures will illustrate what happens when the number of simulations per run does not divide into the number of cores, and when the variance of the model run time increases.
+MonAPMC offers no clear advantage here. It is expected from the absence of
+variance in the model run time and the fact that the number of simulation per
+iteration is a multiple of the number of cores. As a consequence the loss
+mentionned above should be absent: no cpu ever idles in APMC. The two following
+sets of figures will illustrate what happens when the number of simulations per
+run does not divide into the number of cores, and when the variance of the model
+run time increases.
 
-In the second set, both K and V change to illustrate cases of low and high parallelism (respectively K=4 and K=100) and of low and high model run time variance and a case where the model running time depends on the model parameter value creating a bias (TODO détailler).
+In the second set, both K and V change to illustrate cases of low and high
+parallelism (respectively K=4 and K=100) and of low and high model run time
+variance and a case where the model running time depends on the model parameter
+value creating a bias (TODO détailler).
 
 Fig L2 vs time K V
 
@@ -69,9 +112,17 @@ Fig L2 vs time K V
     (V=10) and is independant from the model parameter value and on the
     rightmost column it also varies (V=10) and is biased.
 
-These figures illustrate that MonAPMC has an advantage over APMC when parallelism is high and the model run time variable (left and middle columns in Fig L2 vs time K V).
+These figures illustrate that MonAPMC has an advantage over APMC when
+parallelism is high and the model run time variable (left and middle columns in
+Fig L2 vs time K V).
 
-At the core of MonAPMC's design is that we don't have to wait for the longer simulations to finish before going on with the algorithm. We need to take care that it doesn't introdue a bias in the posterior sample where the faster simulations will be more represented. We check for this bias by plotting a histogram of the posterior sample with the uniform model where the higher values of theta lead to a higher simulation time and compare APMC and MonAPMC with the default values. 
+At the core of MonAPMC's design is that we don't have to wait for the longer
+simulations to finish before going on with the algorithm. We need to take care
+that it doesn't introdue a bias in the posterior sample where the faster
+simulations will be more represented. We check for this bias by plotting a
+histogram of the posterior sample with the uniform model where the higher values
+of theta lead to a higher simulation time and compare APMC and MonAPMC with the
+default values. 
 
 Fig Time Bias
 
@@ -81,48 +132,76 @@ This figure shows no visible bias in the posterior sample.
 
 The previous results gave us a first check that:
 
-- MonAPMC is at least as efficient as APMC, i.e. MonAPMC's parallelisation scheme has no cost over the speed of the algorithm or quality of the posterior sample. 
+- MonAPMC is at least as efficient as APMC, i.e. MonAPMC's parallelisation
+  scheme has no cost over the speed of the algorithm or quality of the posterior
+  sample. 
 - MonAPMC more efficient when parallelism and model run time variance grows,
 - The bias in the model run time does not propagate to the posterior sample.
 
-But they use a limited set of chosen parameter values and we would like to verify those claims over a more comprehensive range of those.
+But they use a limited set of chosen parameter values and we would like to
+verify those claims over a more comprehensive range of those.
 
-To measure the efficiency of the parallelization scheme, we compare the algorithm to APMC with a simple parallelisation scheme and measure the ratio of the time required for each algorithm to reach an inferred posterior distribution is considered close enough to the theoretical posterior: 
+To measure the efficiency of the parallelization scheme, we compare the
+algorithm to APMC with a simple parallelisation scheme and measure the ratio of
+the time required for each algorithm to reach an inferred posterior distribution
+is considered close enough to the theoretical posterior: 
 
 ```
 T(ParApmc, ParMonApmc) = Ta(ParApmc) / Tm(ParMonApmc)
 ```
  
-We measure that the posterior sample is not biased by ensuring that the value of L2 does not increased compared to the settings where the model run time is
+We check that the posterior sample is not biased by ensuring that the value of
+L2 does not increased compared to the settings where the model run time is
 independant from the model parameter values, i.e. as the bias factor increases.
-TODO: mesurer le biais avec le modèle gaussien aussi pour tester cet effet du bias factor avec un modèle pas trop facile (pas uniforme).
+TODO: mesurer le biais avec le modèle gaussien aussi pour tester cet effet du
+bias factor avec un modèle pas trop facile (pas uniforme).
 
-The measure of the relative efficiency of MonAPMC over APMC above is defined over a pair of simulation run: one for each algorithm. Thus, one such measure requires parameter values for each algorithms. We described above how such a pair is parameterized with 5 parameters: `nGen(pair), nAlpha(pair), parallel(pair), stepMax(pair), model(pair)`. The model we are using takes
-additionnal parameters controlling the run time: `biasFactor, meanRunTime and varRunTime`. We thus have an 8 dimensional parameter space to explore.
+The measure of the relative efficiency of MonAPMC over APMC above is defined
+over a pair of simulation run: one for each algorithm. Thus, one such measure
+requires parameter values for each algorithms. We described above how such a
+pair is parameterized with 5 parameters: `nGen(pair), nAlpha(pair),
+parallel(pair), stepMax(pair), model(pair)`. The model we are using takes
+additionnal parameters controlling the run time: `biasFactor, meanRunTime and
+varRunTime`. We thus have an 8 dimensional parameter space to explore.
 
-We sample this parameter space uniformly using a latin hypercube sampling to cover the space efficiently. We draw `lhsN` samples and for each run each algorithm with the corresponding parameter values and measure `T(apmc, mon-apmc)` and `L2(mon-apmc)`.
+We sample this parameter space uniformly using a latin hypercube sampling to
+cover the space efficiently. We draw `lhsN` samples and for each run each
+algorithm with the corresponding parameter values and measure 
+`T(apmc, mon-apmc)` and `L2(mon-apmc)`.
 
 Fig L2 vs biasFactor
 
-: A scatter plot of L2 vs biasFactor where each point corresponds to the run of MonAPMC parameterized by the lhs sampling.
+:   A scatter plot of L2 vs biasFactor where each point corresponds to the run 
+    of MonAPMC parameterized by the lhs sampling.
 
-This figure shows that the L2 value remains constant as the bias in the model run time increases.
+This figure shows that the L2 value remains constant as the bias in the model
+run time increases.
 
 Fig T vs K V
 
-: 3 heatmaps showing respectively the median, 5th and 95th percentile of T
+:   3 heatmaps showing respectively the median, 5th and 95th percentile of T
 
-This figure shows that MonAPMC is at least as efficient as APMC for all sampled values of the parameter space and that it gets better as the parallelism and 
+This figure shows that MonAPMC is at least as efficient as APMC for all sampled
+values of the parameter space and that it gets better as the parallelism and
 model run time variance increase, averaged over the other parameter values. 
 
 Fig T vs K nGen
 
-This figure shows that the advantage of MonAPMC is stronger as the level of parallelism is close to the number of simulations performed per iteration in APMC.
+This figure shows that the advantage of MonAPMC is stronger as the level of
+parallelism is close to the number of simulations performed per iteration in
+APMC.
 
 
-In what setting is MonAPMC's parallelism scheme actually an advantage? Are these conditions interesting in practice? How much is gained? Case studies accross predefined parameter values representing different settings: computing resources (multi-core laptop with 4 cores, multi-core desktop machine with 16 cores, hi performance cluster ~ 100 cores, grid 1000 cores), model averange run time (toy model to ABM), model run time variance. Measure `T(ParApmc, ParMonApmc)` over a full factorial design of these conditions.
+In what setting is MonAPMC's parallelism scheme actually an advantage? Are these
+conditions interesting in practice? How much is gained? Case studies accross
+predefined parameter values representing different settings: computing resources
+(multi-core laptop with 4 cores, multi-core desktop machine with 16 cores, hi
+performance cluster ~ 100 cores, grid 1000 cores), model averange run time (toy
+model to ABM), model run time variance. Measure `T(ParApmc, ParMonApmc)` over a
+full factorial design of these conditions.
 
-MonAPMC's Memory requirement over the same conditions as before. Local memory and memory on each node.
+MonAPMC's Memory requirement over the same conditions as before. Local memory
+and memory on each node.
 
 
 

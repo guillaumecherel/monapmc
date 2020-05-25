@@ -73,7 +73,8 @@ from which we derive each algorithms parameter value:
 - `parallel(apmc) = parallel(pair)`
 - `parallel(mon-apmc) = parallel(pair)`
 - `stepMax(apmc) = stepMax(pair)`
-- `stepMax(mon-apmc) = nGen(apmc) * stepMax(apmc) / nGen(mon-apmc)`
+- `stepMax(mon-apmc) = nGen(apmc) * stepMax(apmc) / nGen(mon-apmc) =
+  stepMax(pair) * parallel(pair)`
 - `model(apmc) = model(mon-apmc)`
 - `stepSize(mon-apmc) = 1`
 - `stopSampleSize(mon-apmc) = nGen(pair) + nAlpha(pair)`
@@ -141,56 +142,178 @@ The previous results gave us a first check that:
 But they use a limited set of chosen parameter values and we would like to
 verify those claims over a more comprehensive range of those.
 
-To measure the efficiency of the parallelization scheme, we compare the
-algorithm to APMC with a simple parallelisation scheme and measure the ratio of
-the time required for each algorithm to reach an inferred posterior distribution
-is considered close enough to the theoretical posterior: 
+We compare MonAPMC and APMC on the L2 error of the posterior sample relative to
+the theoretical posterior distribution and their run time. We can only compare
+two algorithms if their parameters respect the constraints specified above
+(TODO:link). The parameter values for 2 comparable algorithms can be derived
+from the 4 parameter values `nGen`, `nAlpha`, `parallel` and a model. The toy
+model we are using takes additionnal parameters controlling the run
+time: `biasFactor`, `meanRunTime` and `varRunTime`. We thus have an 7 dimensional
+parameter space to explore.
 
-```
-T(ParApmc, ParMonApmc) = Ta(ParApmc) / Tm(ParMonApmc)
-```
- 
-We check that the posterior sample is not biased by ensuring that the value of
-L2 does not increased compared to the settings where the model run time is
-independant from the model parameter values, i.e. as the bias factor increases.
-TODO: mesurer le biais avec le modèle gaussien aussi pour tester cet effet du
-bias factor avec un modèle pas trop facile (pas uniforme).
+Comp
 
-The measure of the relative efficiency of MonAPMC over APMC above is defined
-over a pair of simulation run: one for each algorithm. Thus, one such measure
-requires parameter values for each algorithms. We described above how such a
-pair is parameterized with 5 parameters: `nGen(pair), nAlpha(pair),
-parallel(pair), stepMax(pair), model(pair)`. The model we are using takes
-additionnal parameters controlling the run time: `biasFactor, meanRunTime and
-varRunTime`. We thus have an 8 dimensional parameter space to explore.
+:   Let's define a pair of comparable APMC and MonAPMC algorithms:
 
-We sample this parameter space uniformly using a latin hypercube sampling to
-cover the space efficiently. We draw `lhsN` samples and for each run each
-algorithm with the corresponding parameter values and measure 
-`T(apmc, mon-apmc)` and `L2(mon-apmc)`.
+        comp(nGen, nAlpha, pAccMin, parallel, stepMax, biasFactor, meanRunTime, varRunTime) = (a, m)
+
+    where:
+
+        a = apmc(nGen, nAlpha, pAccMin, parallel, stepMax, model)
+        m = mon-apmc(nGen_mon_apmc, nAlpha, pAccMin, parallel, stepMax_mon_apmc, model)
+        nGen_mon_apmc = nGen / parallel
+        stepMax_mon_apmc = nGen * stepMax / nGen
+        model = toy(biasFactor, meanRunTime, varRunTime)
+
+:  Code definition: Haskell
+
+L2 Ratio
+
+:   For any pair of comparable algorithms `(a, m)`, the ratio of L2 errors is: 
+    `l2Ratio((a, m)) = l2(a) / l2(m)`
+
+:   Code def: Haskell.
+
+Time Ratio
+
+:   For any comparable algorithms `(a, m)`, the ratio of run times is: 
+    `timeRatio((a, m)) = time(a) / time(m)`
+
+:   Code def: Haskell.
+
+We sample the 7 dimensional parameter space uniformly using a latin hypercube
+sampling to cover the space efficiently. A point in this space represents a
+value for each variable needed to define a `Comp`. We draw `lhsN` sample points
+and get as many comparable pairs of algorithms and their respective posterior
+samples.
+
+LHS
+
+:   Let `lhs` be a sequence of `lhsN` points 
+
+        ((nGen_lhs(i), nAlpha_lhs(i), parallel_lhs(i), stepMax_lhs(i),
+        biasFactor_lhs(i), meanRunTime_lhs(i), varRunTime_lhs(i))), 1 <= i <= lhsN
+
+Run Comp LHS
+
+:   For all `i, 1 <= i <= lhsN`, let `(a(i), m(i))` be a pair of comparable 
+    algorithms:
+
+        (a(i), m(i)) = comp(nGen_lhs(i), nAlpha_lhs(i), pAccMin(i), parallel_lhs(i),
+                            stepMax_lhs(i), biasFactor_lhs(i), 
+                            meanRunTime_lhs(i), varRunTime_lhs(i))
+
+    `Run Comp LHS` is the sequence of `lhsN` pairs of comparable posterior
+    samples:
+
+        ((run_lhs_a(i), run_lhs_m(i))), 1 <= i <= lhsN
+
+:   Code def: OpenMOLE.
+:   Files: One file per pair `(apmc, mon_apmc)`, one per simulation, in 
+    <file:///output/formulas/run_comp_lhs/>. Each file is the 
+    corresponding haskell value `(comp, (run_apmc, run_mon_apmc))` formatted 
+    via its Show instance, such that it can be read again easily in haskell.
+
+For each posterior sample in each pair in `Run Comp LHS`, we compute the `L2
+Error` and `Run Time`. For each pair, we compute the `L2 ratio` and `Time
+Ratio`.
+
+Stats Comp LHS 
+
+:   For each pair of run `(run_lhs_a(i), run_lhs_m(i))` in `Run Comp LHS`, `1 <= i <= lhsN`,
+    `l2_lhs_a(i)`, `time_lhs_a(i)`, `l2_lhs_m(i)` and `time_lhs_m(i)` give the 
+    `L2 Error` and `Run Time` for each corresponding algorithm. 
+    `l2Ratio_lhs(i)` and `timeRatio_lhs(i)` give 
+    their `L2 Ratio` and `Time Ratio`. They constitute the sample of statistics
+    `Stats Comp LHS` computed on the each pair of simulation run in 
+    `Run Comp LHS`.
+
+:   Code def: Haskell
+:   Files: <file://./output/formulas/figure_data/ratio_l2_time>. 
+    A table where each line corresponds to a point in the LHS, 7 columns give
+    the values for each parameter to comp and six additionnal columns the l2
+    error and runtime for each algorithm and l2 ratio and time ratio.  The
+    first line gives the columns labels.
 
 Fig L2 vs biasFactor
 
-:   A scatter plot of L2 vs biasFactor where each point corresponds to the run 
-    of MonAPMC parameterized by the lhs sampling.
+:   A scatter plot of L2 Errors vs biasFactor for the MonAPMC simulation runs in
+    `Stats Comp LHS`.
+:   File: <file://./output/report/l2_vs_bias_factor.png>.
+:   Code def: Gnuplot 
 
-This figure shows that the L2 value remains constant as the bias in the model
-run time increases.
+This figure confirms that, with MonAPMC, the L2 value remains constant as the
+bias in the model run time increases.
 
-Fig T vs K V
+Fig Scatter L2 Time LHS
 
-:   3 heatmaps showing respectively the median, 5th and 95th percentile of T
+:   Two scatter plots of respectively L2 errors and run time for each algorithm 
+    of each comparison in `Stat Ratio L2 Time`.
+:   File: <file:///output/report/l2_time_lhs.png>. 
+:   Exe: `gnuplot -c report/l2_vs_bias_fuctor.gnuplot File(Stat LHS) File(Fig Scatter L2 Time LHS)`
+
+This scatter plot shows that the L2 errors made by both algorithms are comparable. We
+can thus focus on comparing them on their run time.
+
+Stat Time Ratio vs K V
+
+:   Let's define the subset of time ratios in `Stats Comp LHS` whose
+    corresponding run was parameterized with a parallelism
+    level `k` and a model run time variance close to `v`:
+
+        timeRatio_lhs_k_v(k, v, epsilon) = 
+          {timeRatio_lhs(i) | 1 <= i <= lhsN, 
+                              parallel_lhs(i) == k, varRunTime_lhs(i) - v < epsilon}
+
+    We define the function `min` which, given such a subset, returns its
+    smallest element. Likewise, we will use the functions `max, mean, 5p and 95p`
+    which give respectively the biggest element, the mean, the 5th percentile
+    and 95th percentile.
+
+:   Code def: Haskell
+:   File: <file:///output/formulas/figure_data/time_ratio_vs_k_v>
+
+Fig Time Ratio vs K V
+
+:   3 heatmaps showing respectively minimum and mean run time ratio as a 
+    function of K and V, binned.
+:   Code def: Gnuplot
+:   File: <file:///output/report/time_vs_k_v.png>.
 
 This figure shows that MonAPMC is at least as efficient as APMC for all sampled
 values of the parameter space and that it gets better as the parallelism and
 model run time variance increase, averaged over the other parameter values. 
 
+Stat Time Ratio vs K nGen
+
+:   This definition is similar to `Stat Time Ratio` where the model run time
+    variance is replaced with the number of generated simulation per step in
+    APMC.
+
+        timeRatio_lhs_k_nGen(k, g, epsilon) = 
+          {timeRatio_lhs(i) | 1 <= i <= lhsN, 
+                              parallel_lhs(i) == k, nGen_lhs(i) - g < epsilon}
+:   Code def: Haskell
+:   File: <file:///output/formulas/figure_data/time_ratio_vs_k_nGen>
+
 Fig T vs K nGen
+
+:   3 heatmaps showing respectively the minimum and mean run time as a 
+    function of K and nGen, binned.
+:   File: <file://./output/formulas/figure_data/t_vs_k_nGen_minimum>,
+    <file://./output/formulas/figure_data/t_vs_k_nGen_mean>. Each file has 3
+    columns: k, nGen and the median or corresponding percentile for t.
+:   Exe: `gnuplot -c report/time_ratio_vs_k_nGen.gnuplot File(Stat Time Ratio vs K V) File(Fig Time Ratio vs K V)`.
 
 This figure shows that the advantage of MonAPMC is stronger as the level of
 parallelism is close to the number of simulations performed per iteration in
 APMC.
 
+We check that the posterior sample is not biased by ensuring that the value of
+L2 does not increase compared to the settings where the model run time is
+independant from the model parameter values, i.e. as the bias factor increases.
+TODO: mesurer le biais avec le modèle gaussien aussi pour tester cet effet du
+bias factor avec un modèle pas trop facile (pas uniforme).
 
 In what setting is MonAPMC's parallelism scheme actually an advantage? Are these
 conditions interesting in practice? How much is gained? Case studies accross

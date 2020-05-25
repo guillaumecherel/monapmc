@@ -227,7 +227,7 @@ La version scan de simEasyPar prend beaucoup de mémoire en gardant toutes les i
 
 TODO: 
 - faire la même chose avec simEasyPar et tester si ça change l'utilisation de la mémoire
-- ajouter le critère stepMax directement aux fonctions sim* plutôt que de les traiter avec take stepMax dans Experiment.
+- ajouter le critère stepMax directement aux fonctions `sim*` plutôt que de les traiter avec take stepMax dans Experiment.
  
 
 vendredi 8 mai 2020, 12:10:19 (UTC+0200)
@@ -237,7 +237,7 @@ Corrigé aussi la même fuite mémoire dans simEasyPar en créant deux versions 
 
 L'utilisation de fichiers de spécification de simulation dans `input/simu/` est trop rigide, nécessite de gérér une longue liste de simulations dans le makefile pour que ces fichiers soient générés quand nécessaire, et de créér ces fichier quand je veux lancer une simulation automatiquement ou à la main. J'ai éliminé l'utilisation de fichier input, remplacer par un string qui spécifie la simulation passé aux commandes `haskfile run`, `haskfile steps`, ...
 
-Lors d'un run MonAPMC consome constamment autant de mémoire que APMC en consomme lors des pics. Est-ce que MonAPMC garde en mémoire toute la population? Il semble plutôt que ça soit du au parallélisme de MonAPMC. 
+Lors d'un run MonAPMC consomme constamment autant de mémoire que APMC en consomme lors des pics. Est-ce que MonAPMC garde en mémoire toute la population? Il semble plutôt que ça soit du au parallélisme de MonAPMC. 
 L'empreinte mémoire est grande et constante quand le parallelisme est grand (100) et nGen petit (40), mais plus petite et en pics quand le parallelisme
 est petit (4) est nGen grand (1000). MonAPMC maintient
 un nombre d'états complets de l'algorithme égal au le niveau de parallélisme et chacun contient un échantillon de taille nAlpha (500). C'est normal que l'empreinte mémoire totale soit plus importante quand le parallélisme est grand. Il faut noter qu'en situation de parallélisation à distance, l'empreinte mémoire sera aussi divisée entre les différents nœuds en parallèle. 

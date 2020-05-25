@@ -247,6 +247,12 @@ output/formulas/figure_data/l2_vs_time/%: output/formulas/repli/steps/%
 > $(haskfile) l2-vs-time $< $@
 
 
+## Stat Ratio L2 Time ##
+
+ratio_l2_time := 
+
+
+
 ## Figure Steps ##
 
 steps_simus := \

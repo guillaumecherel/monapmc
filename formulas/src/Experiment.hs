@@ -149,6 +149,9 @@ getRunAlgo (Run algo _ _) = algo
 getRunModel :: Run -> Model
 getRunModel (Run _ model _) = model
 
+getRunRunResult :: Run -> RunResult
+getRunRunResult (Run _ _ rr) = rr
+
 getRunSample :: Run -> Vector (Weight, Vector Double)
 getRunSample (Run _ _ runRes) = getRunResultSample runRes
 
@@ -240,6 +243,15 @@ getRunResultSample (RunResult _ _ sample) = sample
 
 getRunResultSteps :: RunResult -> Int
 getRunResultSteps (RunResult _ steps _) = steps
+
+getRunResultAlgoTime :: RunResult -> Duration
+getRunResultAlgoTime (RunResult (algoTime, _) _ _) = algoTime
+
+getRunResultSimTime :: RunResult -> Duration
+getRunResultSimTime (RunResult (_, simTime) _ _) = simTime
+
+getRunResultTotalTime :: RunResult -> Duration
+getRunResultTotalTime step = getRunResultAlgoTime step + getRunResultSimTime step
 
 
 ---- Simulation Steps ----
@@ -382,6 +394,41 @@ repliSteps n sim = Repli.repliM n $ steps sim
 
 
 
+---- Simulation Comp ----
+
+data Comp = Comp 
+  { getCompNGen :: Int
+  , getCompNAlpha :: Int 
+  , getCompParallel :: Int 
+  , getCompStepMax :: Int 
+  , getCompBiasFactor :: Double 
+  , getCompMeanRunTime :: Double 
+  , getCompVarRunTime :: Double 
+  , getCompApmcRun :: Run
+  , getCompMonApmcRun :: Run
+  , getCompModel :: Model
+  }
+  deriving (Show, Read)
+
+comp :: Int -> Int -> Double -> Int -> Int -> Double -> Double -> Double 
+     -> RandT StdGen IO Comp
+comp nGen nAlpha pAccMin parallel stepMax biasFactor meanRunTime varRunTime = 
+  Comp nGen nAlpha parallel stepMax biasFactor meanRunTime varRunTime
+  <$> runApmc <*> runMonApmc <*> pure model
+  where
+    runApmc = run (Simulation algoApmc model stepMaxApmc)
+    runMonApmc = run (Simulation algoMonApmc model stepMaxMonApmc)
+    algoApmc = APMC nGen nAlpha pAccMin parallel
+    stepMaxApmc = stepMax
+    algoMonApmc = MonAPMC (nGen `div` parallel) nAlpha pAccMin stepSize parallel (nGen + nAlpha)
+    stepSize = 1
+    stepMaxMonApmc = stepMax * parallel 
+    model = ToyTimeBias biasFactor 0 meanRunTime varRunTime
+
+getCompSampleApmc = getRunSample . getCompApmcRun
+getCompSampleMonApmc = getRunSample . getCompMonApmcRun
+getCompTimeApmc = getRunResultTotalTime . getRunRunResult . getCompApmcRun
+getCompTimeMonApmc = getRunResultTotalTime . getRunRunResult . getCompMonApmcRun
 
 ---- Stats histo ----
 
@@ -486,6 +533,29 @@ l2VsTimeRepliSteps :: Repli Steps -> Repli (DataSet (Double, Double, Double, Dou
 l2VsTimeRepliSteps repliSteps = Repli.map l2VsTimeSteps repliSteps
 
 
+
+---- Stat Comp LHS ----
+
+l2Ratio :: Comp -> Double 
+l2Ratio c = l2Apmc / l2MonApmc 
+  where 
+    l2Apmc = Model.l2 (getCompModel c) (getCompSampleApmc c)
+    l2MonApmc = Model.l2 (getCompModel c) (getCompSampleMonApmc c)
+
+timeRatio :: Comp -> Double 
+timeRatio c = Duration.seconds (getCompTimeApmc c) / Duration.seconds (getCompTimeMonApmc c)
+
+statsComp :: Comp -> (Double, Double, Double, Double, Double, Double)
+statsComp c =
+  let 
+      l2LhsA = Model.l2 (getCompModel c) (getCompSampleApmc c)
+      timeLhsA = Duration.seconds (getCompTimeApmc c)
+      l2LhsM = Model.l2 (getCompModel c) (getCompSampleMonApmc c)
+      timeLhsM = Duration.seconds (getCompTimeMonApmc c)
+   in (l2LhsA, timeLhsA, l2LhsM, timeLhsM, l2Ratio c, timeRatio c)
+
+statsCompLhs :: [Comp] -> [(Double, Double, Double, Double, Double, Double)]
+statsCompLhs cs = fmap statsComp cs
 
 -- TO BE REMOVED
 -- Plotting

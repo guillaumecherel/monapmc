@@ -97,6 +97,9 @@ writeListWith toText filePaths xs =
 writeOneFile :: (a -> Text) -> FilePath -> a -> IO ()
 writeOneFile toText path x = writeFile path $ toText x
 
+
+-- Construct gnuplot format from DataSets --
+
 gnuplotData :: (a -> Text) -> [(Maybe Text, DataSet a)] -> Text
 gnuplotData formatRecord dataSets =
      Text.intercalate "\n\n"

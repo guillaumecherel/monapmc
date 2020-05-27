@@ -55,10 +55,11 @@ val mkParams = ScalaTask(
     )
   
 
-val env = LocalEnvironment(3)
+// val env = LocalEnvironment(3)
+val env = EGIEnvironment("vo.complex-systems.eu")
 
 val lhs = DirectSampling(
-  sampling = LHS( 10,
+  sampling = LHS( 100000,
     seed_d in (Double.MinValue, Double.MaxValue),
     nGen_d in (1.0, 10000.0),
     alpha in (0.001, 0.9),
@@ -69,7 +70,7 @@ val lhs = DirectSampling(
     meanRunTime in (0.0, 100.0), 
     varRunTime in (0.0, 100.0)),
   evaluation =
-    mkParams -- (container on env hook CopyFileHook(outFile, workDirectory / "run_comp_lhs/comp_nGen${nGen}_nAlpha${nAlpha}_pAccMin${pAccMin}_parallel${parallel}_stepMax${stepMax}_biasFactor${biasFactor}_meanRunTime${meanRunTime}_varRunTime${varRunTime}"))
+    mkParams -- (container on env by 100 hook CopyFileHook(outFile, workDirectory / "run_comp_lhs/comp_nGen${nGen}_nAlpha${nAlpha}_pAccMin${pAccMin}_parallel${parallel}_stepMax${stepMax}_biasFactor${biasFactor}_meanRunTime${meanRunTime}_varRunTime${varRunTime}"))
 )
 
 //defaultValues -- (container on env)

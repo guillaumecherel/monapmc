@@ -8,7 +8,7 @@ import Protolude hiding ((<|>), option, try, many, optional)
 import Text.Parsec
 import Text.Parsec.Token
 
-import Experiment (Simulation(..), Algorithm(..))
+import Experiment (Simulation(..), Algorithm(..), CompParams(..))
 import Model (Model(..))
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
@@ -31,6 +31,12 @@ emptyDef = LanguageDef
 
 emptyTokenParser :: (Stream s m Char) => GenTokenParser s u m
 emptyTokenParser = makeTokenParser emptyDef
+
+-- Parse p followed by many c.
+lex 
+  :: (Stream s m Char) 
+  => Char -> ParsecT s u m a -> ParsecT s u m a
+lex c p = p <* (many (char c))
 
 int :: (Stream s m Char, Num a) => ParsecT s u m a
 int = fromIntegral <$> integer emptyTokenParser
@@ -55,63 +61,76 @@ dirName =
   -- Parse many times a word ended by a /
   <$> many (try $ many (noneOf "/") <> string "/")
 
-simulationSpecString
-  :: (Stream s m Char)
-  => ParsecT s u m Simulation
+simulationSpecString :: (Stream s m Char) => ParsecT s u m Simulation
 simulationSpecString =
-  pure Simulation <*> algorithm <*> model <*> stepMax
+  Simulation <$> algorithm <*> model <*> stepMax
   where
     algorithm = apmc <|> monApmc
     apmc =
       try
        $  APMC
-      <$  lex (string "apmc")
-      <*> lex (string "nGen" *> int)
-      <*> lex (string "nAlpha" *> int)
-      <*> lex (string "pAccMin" *> positiveDouble)
-      <*> lex (string "parallel" *> int)
+      <$  lex '_' (string "apmc")
+      <*> lex '_' (string "nGen" *> int)
+      <*> lex '_' (string "nAlpha" *> int)
+      <*> lex '_' (string "pAccMin" *> positiveDouble)
+      <*> lex '_' (string "parallel" *> int)
     monApmc =
       try
        $  MonAPMC
-      <$  lex (string "mon-apmc")
-      <*> lex (string "nGen" *> int)
-      <*> lex (string "nAlpha" *> int)
-      <*> lex (string "pAccMin" *> positiveDouble)
-      <*> lex (string "stepSize" *> int)
-      <*> lex (string "parallel" *> int)
-      <*> lex (string "stopSampleSize" *> int)
+      <$  lex '_' (string "mon-apmc")
+      <*> lex '_' (string "nGen" *> int)
+      <*> lex '_' (string "nAlpha" *> int)
+      <*> lex '_' (string "pAccMin" *> positiveDouble)
+      <*> lex '_' (string "stepSize" *> int)
+      <*> lex '_' (string "parallel" *> int)
+      <*> lex '_' (string "stopSampleSize" *> int)
     model =
       try
-       $  lex ( string "model"
+       $  lex '_' ( string "model"
                 *> choice [toyTimeVar, toyTimeBias, toy]
               )
     toy =
       try
        $  Toy
-      <$  lex (string "Toy")
+      <$  lex '_' (string "Toy")
     toyTimeVar =
       try
        $  ToyTimeVar
-      <$  lex (string "ToyTimeVar")
-      <*> lex positiveDouble
-      <*> lex positiveDouble
+      <$  lex '_' (string "ToyTimeVar")
+      <*> lex '_' positiveDouble
+      <*> lex '_' positiveDouble
     toyTimeBias =
       try
        $  ToyTimeBias
-      <$  lex (string "ToyTimeBias")
-      <*> lex positiveDouble
-      <*> lex double
-      <*> lex double
-      <*> lex positiveDouble
+      <$  lex '_' (string "ToyTimeBias")
+      <*> lex '_' positiveDouble
+      <*> lex '_' double
+      <*> lex '_' double
+      <*> lex '_' positiveDouble
     stepMax =
       try
-       $  lex (string "stepMax" *> int)
-    lex p = p <* (many (char '_'))
+       $  lex '_' (string "stepMax" *> int)
 
 simulationFileName
   :: (Stream s m Char)
   => ParsecT s u m Simulation
 simulationFileName = dirName *> simulationSpecString
+
+compSpecString :: (Stream s m Char) => ParsecT s u m CompParams
+compSpecString =
+          CompParams
+      <$  lex '_' (string "comp")
+      <*> lex '_' (string "nGen" *> int)
+      <*> lex '_' (string "nAlpha" *> int)
+      <*> lex '_' (string "pAccMin" *> positiveDouble)
+      <*> lex '_' (string "parallel" *> int)
+      <*> lex '_' (string "stepMax" *> int)
+      <*> lex '_' (string "biasFactor" *> positiveDouble)
+      <*> lex '_' (string "meanRunTime" *> positiveDouble)
+      <*> lex '_' (string "varRunTime" *> positiveDouble)
+
+compFileName :: (Stream s m Char) => ParsecT s u m CompParams
+compFileName = dirName *> compSpecString
 
 read1DSample :: FilePath -> Text -> Either ParseError (Vector (Weight, Vector Double))
 read1DSample = --mapM ((fmap fst) . TR.double) (T.lines text)

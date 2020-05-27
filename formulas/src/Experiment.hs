@@ -397,24 +397,28 @@ repliSteps n sim = Repli.repliM n $ steps sim
 ---- Simulation Comp ----
 
 data Comp = Comp 
-  { getCompNGen :: Int
-  , getCompNAlpha :: Int 
-  , getCompParallel :: Int 
-  , getCompStepMax :: Int 
-  , getCompBiasFactor :: Double 
-  , getCompMeanRunTime :: Double 
-  , getCompVarRunTime :: Double 
+  { getCompParams :: CompParams
   , getCompApmcRun :: Run
   , getCompMonApmcRun :: Run
   , getCompModel :: Model
   }
   deriving (Show, Read)
 
-comp :: Int -> Int -> Double -> Int -> Int -> Double -> Double -> Double 
-     -> RandT StdGen IO Comp
-comp nGen nAlpha pAccMin parallel stepMax biasFactor meanRunTime varRunTime = 
-  Comp nGen nAlpha parallel stepMax biasFactor meanRunTime varRunTime
-  <$> runApmc <*> runMonApmc <*> pure model
+data CompParams = CompParams
+  { getCompParamsNGen :: Int
+  , getCompParamsNAlpha :: Int 
+  , getCompParamsPAccMin :: Double
+  , getCompParamsParallel :: Int 
+  , getCompParamsStepMax :: Int 
+  , getCompParamsBiasFactor :: Double 
+  , getCompParamsMeanRunTime :: Double 
+  , getCompParamsVarRunTime :: Double 
+  }
+  deriving (Eq, Show, Read)
+
+comp :: CompParams -> RandT StdGen IO Comp
+comp c@(CompParams nGen nAlpha pAccMin parallel stepMax biasFactor meanRunTime varRunTime) = 
+  Comp c <$> runApmc <*> runMonApmc <*> pure model
   where
     runApmc = run (Simulation algoApmc model stepMaxApmc)
     runMonApmc = run (Simulation algoMonApmc model stepMaxMonApmc)

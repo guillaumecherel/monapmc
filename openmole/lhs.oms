@@ -1,0 +1,74 @@
+val nGen = Val[Int]
+val nAlpha = Val[Int]
+val pAccMin = Val[Double]
+val parallel = Val[Int]
+val stepMax = Val[Int]
+val biasFactor = Val[Double]
+val meanRunTime = Val[Double]
+val varRunTime = Val[Double]
+
+
+
+val outFile = Val[File]
+
+val container =
+  ContainerTask(
+    workDirectory / "formulas.container.tgz",
+    """
+    stack run -- haskfile comp comp_nGen${nGen}_nAlpha${nAlpha}_pAccMin${pAccMin}_parallel${parallel}_stepMax${stepMax}_biasFactor${biasFactor}_meanRunTime${meanRunTime}_varRunTime${varRunTime} output.data
+    """
+  ) set (
+    inputs += (nGen, nAlpha, pAccMin, parallel, stepMax, biasFactor, meanRunTime, varRunTime),
+    outputs += (nGen, nAlpha, pAccMin, parallel, stepMax, biasFactor, meanRunTime, varRunTime),
+    outputFiles += ("output.data", outFile)
+  )
+
+/*val defaultValues = EmptyTask() set (
+    outputs += (nGen, alpha, pAccMin, parallel, stepMax, biasFactor, meanRunTime, varRunTime),
+    nGen := 4000,
+    alpha := 0.1,
+    pAccMin := 0.01,
+    parallel := 1,
+    stepMax := 100,
+    biasFactor := 1,
+    meanRunTime := 1,
+    varRunTime := 1,
+  )*/
+  
+val nGen_d = Val[Double]
+val alpha = Val[Double]
+val nAlpha_d = Val[Double]
+val parallel_d = Val[Double]
+val stepMax_d = Val[Double]
+  
+val lhs = DirectSampling(
+  sampling = LHS( 10,
+    nGen_d in (1.0, 10000.0),
+    alpha in (0.001, 0.9),
+    pAccMin in (0.1, 0.001), 
+    parallel_d in (1.0, 1000.0), 
+    stepMax_d in (100.0, 100.0),
+    biasFactor in (0.0, 100.0), 
+    meanRunTime in (0.0, 100.0), 
+    varRunTime in (0.0, 100.0)),
+  evaluation =
+    mkParams -- (container on env hook CopyFileHook(outFile, workDirectory / "run_comp_lhs/comp_nGen${nGen}_nAlpha${nAlpha}_pAccMin${pAccMin}_parallel${parallel}_stepMax${stepMax}_biasFactor${biasFactor}_meanRunTime${meanRunTime}_varRunTime${varRunTime}"))
+)
+
+val mkParams = ScalaTask(
+    """
+    val nGen = nGen_d.toInt
+    val nAlpha = (alpha * nGen).toInt
+    val parallel = parallel_d.toInt
+    val stepMax = stepMax_d
+    """) set (
+    inputs += (nGen_d, alpha, pAccMin, parallel_d, stepMax_d, biasFactor, meanRunTime, varRunTime),
+    outputs += (nGen, nAlpha, pAccMin, parallel, stepMax, biasFactor, meanRunTime, varRunTime),
+    )
+  
+
+val env = LocalEnvironment(1)
+
+//defaultValues -- (container on env)
+
+lhs

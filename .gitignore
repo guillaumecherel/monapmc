@@ -1,16 +1,25 @@
+# Temp files
 .#*
-**/.ensime*
+
+# Cache
 .RData
 .Rhistory
-.projectile
-*.class
+
+# Logs
 *.log
+
+# Builds
+*.class
 .shake/
-formulas.prof*
+formulas/.shake/
 blocks-simulations/target/
 blocks-simulations/project/target/
 formulas/.stack-work/
-formulas/.shake/
+
+# Output 
 formulas/test-output/
 output/
 report/*.png
+
+# Docker container
+openmole/formulas.container.tgz

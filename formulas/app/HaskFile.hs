@@ -9,13 +9,13 @@ import Protolude
 import           Control.Monad.Random.Lazy
 import           Options.Applicative
 import           Experiment
-import           Text.Parsec (parse, ParseError)
+import           Text.Parsec (parse)
 import           Util.HaskFile
 import           Util.DataSet (DataSet(..))
 import           Util.Repli (Repli(..))
 import qualified Util.Repli as Repli
 import           Util.Sample (Sample(..))
-import           Util.Parser (simulationFileName)
+import           Util.Parser (simulationFileName, compFileName)
 
 data Cmd
   = Run
@@ -36,6 +36,10 @@ data Cmd
       Int        -- Replications
       Text       -- Simulation
       FilePath   -- Steps
+  | Comp
+      Int        -- Seed
+      Text       -- Comp spec
+      FilePath   -- Comp value output file
   | HistoRun
       FilePath -- Run
       FilePath -- Histogram
@@ -87,6 +91,15 @@ cmd = subparser
          <*> argument auto (metavar "Replications")
          <*> argument str (metavar "Simulation")
          <*> argument str (metavar "Run")
+       )
+       mempty
+     )
+  <> command "comp"
+     ( info
+       ( Main.Comp
+         <$> argument auto (metavar "Seed")
+         <*> argument str (metavar "Comp")
+         <*> argument str (metavar "FilePath")
        )
        mempty
      )
@@ -149,6 +162,11 @@ parseSimulationSpecStringOrPanic txt =
     (Left e) -> panic ("Couldn't parse simulation spec " <> txt <> ": " <> show e)
     (Right sim) -> sim
 
+parseCompSpecStringOrPanic txt =
+  case parse compFileName "" txt of
+    (Left e) -> panic ("Couldn't parse comp spec " <> txt <> ": " <> show e)
+    (Right x) -> x
+
 main :: IO ()
 main = do
   cmd' <- parseOpts
@@ -168,6 +186,10 @@ main = do
     RepliSteps seed replications input output -> do
       let sim = parseSimulationSpecStringOrPanic input
       res <- evalRandT (repliSteps replications sim) (mkStdGen seed)
+      writeSingle output res
+    Main.Comp seed input output -> do
+      let compParams = parseCompSpecStringOrPanic input
+      res <- evalRandT (comp compParams) (mkStdGen seed)
       writeSingle output res
     HistoRun pathRun pathHisto -> do
       run <- readSingle pathRun

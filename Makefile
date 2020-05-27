@@ -17,117 +17,37 @@ SEED = $(shell od -An -N2 -i /dev/random | tr -d ' ')
 REPLICATIONS = 10
 ##################
 
-#### Rules
-
-# Avant de pouvoir générer les figures, les spécifications de
-# simulations et les répertoires doivent exister et l'executable haskfile
-# doit être compilé.  Les règles de simulation sont implicites
-# et nécessitent que les fichiers de specification de simulations
-# dans input/simu existent pour être déclenchées. On ne peut donc
-# pas simplement ajouter les règles de génération de fichiers en
-# dépendances, car elles ne seraient pas déclenchées.  D'autre part,
-# on évite de mettre l'executable haskfile en dépendances dans les
-# règles pour éviter que toutes les simulations soient refaites dès
-# qu'il est recompilé (ça rallonge le temps de build quand on modifie
-# des statistiques par exemple, sans toucher au code de simulation).
-# Avant de générer les figures, il faut donc exécuter `make setup`.
-
 all: figures
 .PHONY: all
 
 #### Executables ####
 
-# DELETE
-# template := formulas/.stack-work/dist/x86_64-linux/Cabal-2.2.0.1/build/template/template
-
 haskfile := formulas/.stack-work/dist/x86_64-linux/Cabal-2.2.0.1/build/haskfile/haskfile
 
-## Helpers ##
 
-# DELETE
-# input/simu/%:
-# > $(template) $@ > $@
-# 
+#### Setup ####
+
+# On évite de mettre l'executable haskfile ainsi que le container
+# openmole/formulas.container.tgz en dépendances dans les
+# règles plus bas pour éviter que toutes les simulations soient refaites dès
+# qu'il est recompilé (ça rallonge le temps de build quand on modifie
+# des statistiques par exemple, sans toucher au code de simulation).
+# Il faut donc penser à les regénére avec `make setup` puis quand nécessaire 
+# relancer l'ensemble des simulations avec `make -B`.
+
+setup: $(haskfile) openmole/formulas.container.tgz
+.PHONY: setup
+
+$(haskfile):
+> pushd formulas
+> stack build
+
+openmole/formulas.container.tgz: $(haskfile) openmole/lhs.oms
+> docker build -t formulas formulas/
+> docker save formulas:latest | gzip -c > $@
+
 
 #### Definitions ####
-
-# ## Simulations ##
-# 
-# simulations := \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeBias_100_0_1_10_stepMax100 \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeBias_100_0_1_10_stepMax100 \
-#   mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeBias_100_0_1_10_stepMax400 \
-#   mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeBias_100_0_1_10_stepMax10000 \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeVar_1_10_stepMax100 \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeVar_1_10_stepMax100 \
-#   mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeVar_1_10_stepMax400 \
-#   mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1_10_stepMax10000 \
-#   apmc_nGen1_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
-#   apmc_nGen1_nAlpha500_pAccMin0.05_parallel1_modelToy_stepMax100 \
-#   apmc_nGen1_nAlpha500_pAccMin0.1_parallel1_modelToy_stepMax100 \
-#   apmc_nGen1_nAlpha500_pAccMin0.2_parallel1_modelToy_stepMax100 \
-#   apmc_nGen25_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
-#   apmc_nGen25_nAlpha500_pAccMin0.05_parallel1_modelToy_stepMax100 \
-#   apmc_nGen25_nAlpha500_pAccMin0.1_parallel1_modelToy_stepMax100 \
-#   apmc_nGen25_nAlpha500_pAccMin0.2_parallel1_modelToy_stepMax100 \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToy_stepMax100 \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeBias_100_0_1_100_stepMax100 \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeVar_1_100_stepMax100 \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeVar_1_1_stepMax100 \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel2_modelToy_stepMax100 \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToy_stepMax100 \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeBias_100_0_1_100_stepMax100 \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeVar_1_100_stepMax100 \
-#   apmc_nGen4000_nAlpha500_pAccMin0.01_parallel4_modelToyTimeVar_1_1_stepMax100 \
-#   apmc_nGen4500_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
-#   apmc_nGen4500_nAlpha500_pAccMin0.05_parallel1_modelToy_stepMax100 \
-#   apmc_nGen4500_nAlpha500_pAccMin0.1_parallel1_modelToy_stepMax100 \
-#   apmc_nGen4500_nAlpha500_pAccMin0.2_parallel1_modelToy_stepMax100 \
-#   apmc_nGen500_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
-#   apmc_nGen500_nAlpha500_pAccMin0.05_parallel1_modelToy_stepMax100 \
-#   apmc_nGen500_nAlpha500_pAccMin0.1_parallel1_modelToy_stepMax100 \
-#   apmc_nGen500_nAlpha500_pAccMin0.2_parallel1_modelToy_stepMax100 \
-#   apmc_nGen55_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
-#   apmc_nGen55_nAlpha500_pAccMin0.05_parallel1_modelToy_stepMax100 \
-#   apmc_nGen55_nAlpha500_pAccMin0.1_parallel1_modelToy_stepMax100 \
-#   apmc_nGen55_nAlpha500_pAccMin0.2_parallel1_modelToy_stepMax100 \
-#   mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToy_stepMax400 \
-#   mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeBias_100_0_1_100_stepMax400 \
-#   mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeVar_1_100_stepMax400 \
-#   mon-apmc_nGen1000_nAlpha500_pAccMin0.01_stepSize1_parallel4_stopSampleSize4500_modelToyTimeVar_1_1_stepMax400 \
-#   mon-apmc_nGen1_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4000_modelToyTimeBias_100_0_1_100_stepMax400000 \
-#   mon-apmc_nGen1_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize1_modelToy_stepMax100 \
-#   mon-apmc_nGen1_nAlpha500_pAccMin0.05_stepSize1_parallel1_stopSampleSize1_modelToy_stepMax100 \
-#   mon-apmc_nGen1_nAlpha500_pAccMin0.1_stepSize1_parallel1_stopSampleSize1_modelToy_stepMax100 \
-#   mon-apmc_nGen1_nAlpha500_pAccMin0.2_stepSize1_parallel1_stopSampleSize1_modelToy_stepMax100 \
-#   mon-apmc_nGen2000_nAlpha500_pAccMin0.01_stepSize1_parallel2_stopSampleSize4500_modelToy_stepMax200 \
-#   mon-apmc_nGen25_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize125_modelToy_stepMax100 \
-#   mon-apmc_nGen25_nAlpha500_pAccMin0.05_stepSize1_parallel1_stopSampleSize125_modelToy_stepMax100 \
-#   mon-apmc_nGen25_nAlpha500_pAccMin0.1_stepSize1_parallel1_stopSampleSize125_modelToy_stepMax100 \
-#   mon-apmc_nGen25_nAlpha500_pAccMin0.2_stepSize1_parallel1_stopSampleSize125_modelToy_stepMax100 \
-#   mon-apmc_nGen4000_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100 \
-#   mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4000_modelToyTimeBias_100_0_1_100_stepMax10000 \
-#   mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToy_stepMax10000 \
-#   mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeBias_100_0_1_100_stepMax10000 \
-#   mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1_100_stepMax10000 \
-#   mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1_1_stepMax10000 \
-#   mon-apmc_nGen4500_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100 \
-#   mon-apmc_nGen4500_nAlpha500_pAccMin0.05_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100 \
-#   mon-apmc_nGen4500_nAlpha500_pAccMin0.1_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100 \
-#   mon-apmc_nGen4500_nAlpha500_pAccMin0.2_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100 \
-#   mon-apmc_nGen500_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize500_modelToy_stepMax100 \
-#   mon-apmc_nGen500_nAlpha500_pAccMin0.05_stepSize1_parallel1_stopSampleSize500_modelToy_stepMax100 \
-#   mon-apmc_nGen500_nAlpha500_pAccMin0.1_stepSize1_parallel1_stopSampleSize500_modelToy_stepMax100 \
-#   mon-apmc_nGen500_nAlpha500_pAccMin0.2_stepSize1_parallel1_stopSampleSize500_modelToy_stepMax100 \
-#   mon-apmc_nGen55_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize55_modelToy_stepMax100 \
-#   mon-apmc_nGen55_nAlpha500_pAccMin0.05_stepSize1_parallel1_stopSampleSize55_modelToy_stepMax100 \
-#   mon-apmc_nGen55_nAlpha500_pAccMin0.1_stepSize1_parallel1_stopSampleSize55_modelToy_stepMax100 \
-#   mon-apmc_nGen55_nAlpha500_pAccMin0.2_stepSize1_parallel1_stopSampleSize55_modelToy_stepMax100 \
-
- 
-
-
 
 ## Simulations Run ##
 
@@ -162,6 +82,11 @@ output/formulas/repli/run/%:
 output/formulas/repli/steps/%:
 > mkdir -p $(@D)
 > $(haskfile) repli-steps $(SEED) $(REPLICATIONS) `basename $@` $@
+
+
+## Simulation Run Comp LHS ##
+
+
 
 
 ## Stats histo run ##

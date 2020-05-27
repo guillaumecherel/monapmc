@@ -23,4 +23,4 @@ COPY . /opt/formulas/
 
 RUN stack build 
 
-ENTRYPOINT ["stack", "run", "--", "haskfile"]
+ENTRYPOINT ["/bin/sh", "-c"]

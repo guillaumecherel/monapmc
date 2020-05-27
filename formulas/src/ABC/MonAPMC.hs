@@ -117,16 +117,17 @@ step
 step p f ms = do
   s <- ms
   -- If s is empty or the number of particles it contains hasn't reach nAlpha
-  -- yet, keep generating particles (nGen at a time) from the prior
-  -- using the function APMC.stepOne and setting the parameter nAlpha to nGen and nGen to 0
-  -- (APMC.stepOne generates (nGen + nAlpha) particules and keeps the nAlpha best).
-  let p' = (_apmcP p){APMC.nGen = 0, APMC.nAlpha = APMC.nGen $ _apmcP p}
-  case s of
-    E -> (\(dur,s') -> (dur,S { _p = p, _t0 = 0, _s = s'})) <$> APMC.stepOne p' f
-    S{_s=s'} ->
-      if LA.rows (APMC.thetas s') < APMC.nAlpha (_apmcP p)
-        then (\(dur,s'') ->  (dur, s <> S { _p = p, _t0 = 0, _s = s''})) <$> APMC.stepOne p' f
-        else (\(dur, s'') -> (dur, s{_s = s''})) <$> APMC.step (_apmcP p) f s'
+  -- yet, keep generating particles (nGen at a time) from the prior using the
+  -- function APMC.stepOne and setting the parameter nAlpha to nGen (if nGen
+  -- positive, to 1 otherwise) and nGen to 0. (APMC.stepOne generates 
+  -- (nGen + nAlpha) particules and keeps the nAlpha best).
+  let p' = (_apmcP p){APMC.nGen = 0, APMC.nAlpha = max 1 $ APMC.nGen $ _apmcP p} 
+  case s of 
+    E -> (\(dur,s') -> (dur,S { _p = p, _t0 = 0, _s = s'})) <$> APMC.stepOne p' f 
+    S{_s=s'} -> if LA.rows (APMC.thetas s') < APMC.nAlpha (_apmcP p) 
+                   then (\(dur, s'') -> (dur, s <> S { _p = p, _t0 = 0, _s = s''})) 
+                                    <$> APMC.stepOne p' f 
+                   else (\(dur, s'') -> (dur, s{_s = s''})) <$> APMC.step (_apmcP p) f s'
 
 -- Stop condition
 stop :: (MonadRandom m) => P m -> m (S m) -> m Bool

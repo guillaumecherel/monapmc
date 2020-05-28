@@ -12,7 +12,7 @@ import Experiment (Simulation(..), Algorithm(..), CompParams(..))
 import Model (Model(..))
 import Data.Vector (Vector)
 import qualified Data.Vector as Vector
-import Util (Weight)
+import Util (Weight, strictlyPositive)
 
 emptyDef :: (Stream s m Char) => GenLanguageDef s u m
 emptyDef = LanguageDef
@@ -71,7 +71,7 @@ simulationSpecString =
        $  APMC
       <$  lex '_' (string "apmc")
       <*> lex '_' (string "nGen" *> int)
-      <*> lex '_' (string "nAlpha" *> int)
+      <*> lex '_' (string "nAlpha" *> fmap strictlyPositive int)
       <*> lex '_' (string "pAccMin" *> positiveDouble)
       <*> lex '_' (string "parallel" *> int)
     monApmc =
@@ -79,7 +79,7 @@ simulationSpecString =
        $  MonAPMC
       <$  lex '_' (string "mon-apmc")
       <*> lex '_' (string "nGen" *> int)
-      <*> lex '_' (string "nAlpha" *> int)
+      <*> lex '_' (string "nAlpha" *> fmap strictlyPositive int)
       <*> lex '_' (string "pAccMin" *> positiveDouble)
       <*> lex '_' (string "stepSize" *> int)
       <*> lex '_' (string "parallel" *> int)
@@ -121,7 +121,7 @@ compSpecString =
           CompParams
       <$  lex '_' (string "comp")
       <*> lex '_' (string "nGen" *> int)
-      <*> lex '_' (string "nAlpha" *> int)
+      <*> lex '_' (string "nAlpha" *> fmap strictlyPositive int)
       <*> lex '_' (string "pAccMin" *> positiveDouble)
       <*> lex '_' (string "parallel" *> int)
       <*> lex '_' (string "stepMax" *> int)

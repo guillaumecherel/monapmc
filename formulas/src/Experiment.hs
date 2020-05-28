@@ -26,7 +26,7 @@ import qualified Model
 import           Model (Model(..))
 import qualified Numeric.LinearAlgebra as LA
 import           Util.DataSet (DataSet(..))
-import           Util (strictlyPositive)
+import           Util (StrictlyPositive, strictlyPositive, getStrictlyPositive)
 import qualified Util.DataSet as DataSet
 import           Util.Duration (Duration)
 import qualified Util.Duration as Duration
@@ -44,13 +44,13 @@ import qualified Util.SteadyState as SteadyState
 data Algorithm =
   APMC
     { nGen :: Int
-    , nAlpha :: Int
+    , nAlpha :: StrictlyPositive Int
     , pAccMin :: Double
     , parallel :: Int
     }
   | MonAPMC
     { nGen :: Int
-    , nAlpha :: Int
+    , nAlpha :: StrictlyPositive Int
     , pAccMin :: Double
     , stepSize :: Int
     , parallel :: Int
@@ -73,7 +73,7 @@ algoFilename :: Algorithm -> FilePath
 algoFilename APMC{nGen, nAlpha, pAccMin, parallel} =
    unpack $ "apmc_"
              <> show nGen <> "_"
-             <> sformat (fixed 2) nAlpha <> "_"
+             <> sformat (fixed 2) (getStrictlyPositive nAlpha) <> "_"
              <> sformat (fixed 2) pAccMin <> "_"
              <> show parallel
 algoFilename MonAPMC{nGen, nAlpha, pAccMin, stepSize, parallel, stopSampleSize} =
@@ -102,7 +102,7 @@ getAlgoNGen MonAPMC {nGen} = nGen
 getAlgoNGen SteadyState{} = undefined
 getAlgoNGen Beaumont2009{} = undefined
 
-getAlgoNAlpha :: Algorithm -> Int
+getAlgoNAlpha :: Algorithm -> StrictlyPositive Int
 getAlgoNAlpha APMC {nAlpha} = nAlpha
 getAlgoNAlpha MonAPMC {nAlpha} = nAlpha
 getAlgoNAlpha SteadyState{} = undefined
@@ -406,7 +406,7 @@ data Comp = Comp
 
 data CompParams = CompParams
   { getCompParamsNGen :: Int
-  , getCompParamsNAlpha :: Int 
+  , getCompParamsNAlpha :: StrictlyPositive Int 
   , getCompParamsPAccMin :: Double
   , getCompParamsParallel :: Int 
   , getCompParamsStepMax :: Int 
@@ -424,7 +424,7 @@ comp c@(CompParams nGen nAlpha pAccMin parallel stepMax biasFactor meanRunTime v
     runMonApmc = run (Simulation algoMonApmc model stepMaxMonApmc)
     algoApmc = APMC nGen nAlpha pAccMin parallel
     stepMaxApmc = stepMax
-    algoMonApmc = MonAPMC (nGen `div` parallel) nAlpha pAccMin stepSize parallel (nGen + nAlpha)
+    algoMonApmc = MonAPMC (nGen `div` parallel) nAlpha pAccMin stepSize parallel (nGen + getStrictlyPositive nAlpha)
     stepSize = 1
     stepMaxMonApmc = stepMax * parallel 
     model = ToyTimeBias biasFactor 0 meanRunTime varRunTime
@@ -478,9 +478,9 @@ l2VsNSimusRun (Run algo model (RunResult _ nSteps sample)) =
   DataSet [( nSimus algo nSteps, Model.l2 model sample)]
 
 nSimus :: Algorithm -> Int -> Int
-nSimus APMC{nGen=nGen, nAlpha=nAlpha} step = nGen + nAlpha + nGen * step
+nSimus APMC{nGen=nGen, nAlpha=nAlpha} step = nGen + getStrictlyPositive nAlpha + nGen * step
 nSimus MonAPMC{nGen=nGen, stepSize=stepSize, nAlpha=nAlpha} step =
-  nGen + nAlpha + nGen * (step * stepSize)
+  nGen + getStrictlyPositive nAlpha + nGen * (step * stepSize)
 nSimus SteadyState{} step = step
 nSimus Beaumont2009{n=n} step = n * step
 

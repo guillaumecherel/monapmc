@@ -29,7 +29,7 @@ import           Util (StrictlyPositive, getStrictlyPositive)
 -- TODO. V.Vector performance issue vs LA.Vector?
 data P m = P
   { nGen :: Int
-  , nAlpha :: Int
+  , nAlpha :: StrictlyPositive Int
   , pAccMin :: Double
   , priorSample :: m (V.Vector Double)
   , priorDensity :: V.Vector Double -> Double
@@ -40,7 +40,7 @@ data P m = P
 instance NFData (P m) where
   rnf p =
           rnf (nGen p)
-    `seq` rnf (nAlpha p)
+    `seq` rnf (getStrictlyPositive $ nAlpha p)
     `seq` rnf (pAccMin p)
     `seq` rwhnf (priorSample p)
     `seq` rnf (priorDensity p)
@@ -145,7 +145,7 @@ stepOne p f = do
 
 
 stepOnePre :: (Monad m) => P m -> m [V.Vector Double]
-stepOnePre p = sequence $ replicate (nGen p + nAlpha p) (priorSample p)
+stepOnePre p = sequence $ replicate (nGen p + (getStrictlyPositive . nAlpha $ p)) (priorSample p)
 
 stepOnePost
   :: (Monad m) => P m -> [V.Vector Double] -> [V.Vector Double] -> m S
@@ -157,7 +157,7 @@ stepOnePost p thetasV xsV = do
   let newRhos = LA.cmap sqrt $
                ((xs - LA.asRow obs) ** 2) LA.#> LA.konst 1 dim
   let (select, rhoSelected) = second LA.fromList $ unzip
-                              $ take (nAlpha p)
+                              $ take (getStrictlyPositive . nAlpha $ p)
                               $ sortOn snd
                               $ zip [0..] (LA.toList newRhos)
   let newEpsilon = rhoSelected LA.! (LA.size rhoSelected - 1)
@@ -220,12 +220,12 @@ stepPost p s (sigmaSquared, newThetas) newXs = do
               (second LA.fromList . unzip . fmap snd)
               (second LA.fromList . unzip . fmap snd)
             $ List.partition (\(w,_) -> w == (1::Int))
-            $ take (nAlpha p)
+            $ take (getStrictlyPositive . nAlpha $ p)
             $ sortOn (snd . snd)
             $ (fmap (1,) (zip [0..] $ LA.toList $ rhos s)
                <> fmap (2,) (zip [0..] $ LA.toList $ newRhos))
   let rhosSelected = LA.vjoin [prevRhosSelected, newRhosSelected]
-  let newEpsilon = rhosSelected LA.! (nAlpha p - 1)
+  let newEpsilon = rhosSelected LA.! ((getStrictlyPositive . nAlpha $ p) - 1)
   let newPAcc = fromIntegral (LA.size newRhosSelected) / fromIntegral (nGen p)
   let prevThetasSelected = thetas s LA.? selectPrev
   let newThetasSelected = newThetas LA.? selectNew
@@ -234,7 +234,7 @@ stepPost p s (sigmaSquared, newThetas) newXs = do
   let newWeightsSelected = compWeights p s sigmaSquared newThetasSelected
   let weightsSelected = LA.vjoin [prevWeightsSelected, newWeightsSelected]
   let newT = t s + 1
-  let tsSelected = V.fromList $ take (nAlpha p) (fmap (ts s V.!) selectPrev <> repeat newT)
+  let tsSelected = V.fromList $ take (getStrictlyPositive . nAlpha $ p) (fmap (ts s V.!) selectPrev <> repeat newT)
   return $ S { t = newT
              , thetas = thetasSelected
              , weights = weightsSelected

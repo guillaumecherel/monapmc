@@ -18,7 +18,7 @@ import qualified ABC.Lenormand2012 as APMC
 import qualified Util.Execution as Execution
 
 import           Util.Duration (Duration)
-import           Util (getStrictlyPositive)
+import           Util (getStrictlyPositive, strictlyPositive)
 
 data P m = P {_apmcP :: APMC.P m,
               _stopSampleSize :: Int}
@@ -55,7 +55,7 @@ stepMerge s s' =
       -- While filtering the particles, sort them by their rho values and keep
       -- only those with lower rho.
       selectBoth = V.fromList
-                   $ take (APMC.nAlpha $ _apmcP p)
+                   $ take (getStrictlyPositive . APMC.nAlpha $ _apmcP p)
                    $ sortOn (\(which, i) -> if which == 1
                                              then APMC.rhos (_s s1) LA.! i
                                              else APMC.rhos (_s s2) LA.! i)
@@ -121,10 +121,10 @@ step p f ms = do
   -- function APMC.stepOne and setting the parameter nAlpha to nGen (if nGen
   -- positive, to 1 otherwise) and nGen to 0. (APMC.stepOne generates 
   -- (nGen + nAlpha) particules and keeps the nAlpha best).
-  let p' = (_apmcP p){APMC.nGen = 0, APMC.nAlpha = max 1 $ APMC.nGen $ _apmcP p} 
+  let p' = (_apmcP p){APMC.nGen = 0, APMC.nAlpha = strictlyPositive $ max 1 $ APMC.nGen $ _apmcP p} 
   case s of 
     E -> (\(dur,s') -> (dur,S { _p = p, _t0 = 0, _s = s'})) <$> APMC.stepOne p' f 
-    S{_s=s'} -> if LA.rows (APMC.thetas s') < APMC.nAlpha (_apmcP p) 
+    S{_s=s'} -> if LA.rows (APMC.thetas s') < (getStrictlyPositive . APMC.nAlpha . _apmcP $ p) 
                    then (\(dur, s'') -> (dur, s <> S { _p = p, _t0 = 0, _s = s''})) 
                                     <$> APMC.stepOne p' f 
                    else (\(dur, s'') -> (dur, s{_s = s''})) <$> APMC.step (_apmcP p) f s'

@@ -172,9 +172,19 @@ output/formulas/figure_data/l2_vs_time/%: output/formulas/repli/steps/%
 > $(haskfile) l2-vs-time $< $@
 
 
-## Stat Ratio L2 Time ##
+## Stats Comp Lhs ##
 
-ratio_l2_time := 
+stats_comp_lhs_input := $(run_comp_lhs_sentinel)
+stats_comp_lhs_output := output/formulas/figure_data/stats_comp_lhs
+stats_comp_lhs_sentinel := sentinel/stat_comp_lhs
+
+$(stats_comp_lhs_output): $(stats_comp_lhs_sentinel) ;
+
+$(stats_comp_lhs_sentinel): $(run_comp_lhs_sentinel)
+> mkdir -p output/formulas/figure_data/
+> $(haskfile) stats-comp-lhs output/formulas/run_comp_lhs/ $@
+> mkdir -p $(@D)
+> touch $@
 
 
 

@@ -229,7 +229,7 @@ Stats Comp LHS
     `Run Comp LHS`.
 
 :   Code def: Haskell
-:   Files: <file://./output/formulas/figure_data/ratio_l2_time>. 
+:   Files: <file://./output/formulas/figure_data/stats_comp_lhs>. 
     A table where each line corresponds to a point in the LHS, 7 columns give
     the values for each parameter to comp and six additionnal columns the l2
     error and runtime for each algorithm and l2 ratio and time ratio.  The

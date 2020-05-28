@@ -1,21 +1,30 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TupleSections #-}
 
 module Main where
 
 import Protolude
 
+import qualified Conduit
+import           Conduit ((.|))
 import           Control.Monad.Random.Lazy
+import qualified Control.Foldl as Fold
+import           Control.Foldl (Fold)
 import           Options.Applicative
 import           Experiment
+import           System.Directory (listDirectory)
+import           System.FilePath ((</>))
 import           Text.Parsec (parse)
+import           Util (getStrictlyPositive)
 import           Util.HaskFile
 import           Util.DataSet (DataSet(..))
 import           Util.Repli (Repli(..))
 import qualified Util.Repli as Repli
 import           Util.Sample (Sample(..))
 import           Util.Parser (simulationFileName, compFileName)
+
 
 data Cmd
   = Run
@@ -52,6 +61,9 @@ data Cmd
   | L2VsTime
       FilePath -- Replications
       FilePath -- L2 vs time.
+  | StatsCompLhs 
+      FilePath -- Comp Lhs directory
+      FilePath -- Stats Comp LHS.
   deriving (Show)
 
 cmd :: Parser Cmd
@@ -149,6 +161,14 @@ cmd = subparser
        )
        mempty
      )
+  <> command "stats-comp-lhs"
+     ( info
+       ( StatsCompLhs 
+         <$> argument str (metavar "Comp input dir")
+         <*> argument str (metavar "Stats Comp Lhs")
+       )
+       mempty
+     )
    )
 
 parseOpts :: IO Cmd
@@ -218,6 +238,32 @@ main = do
       repliSteps <- readSingle pathIn
       let stats = l2VsTimeRepliSteps repliSteps
       writeOneFile gnuplotData4 pathOut $ pureGnuplotDataSets (Repli.get stats)
+    StatsCompLhs dirIn pathOut -> do
+      let header = "nGen nAlpha pAccMin parallel stepMax biasFactor meanRunTime varRunTime compL2Apmc compTimeApmc compL2MonApmc compTimeMonApmc compL2Ratio compTimeRatio" :: Text
+      let row !c@(StatComp (CompParams nGen nAlpha pAccMin parallel stepMax biasFactor meanRunTime varRunTime) compL2Apmc compTimeApmc compL2MonApmc compTimeMonApmc compL2Ratio compTimeRatio) = 
+               show nGen 
+            <> " " <> show (getStrictlyPositive nAlpha)
+            <> " " <> show pAccMin 
+            <> " " <> show parallel 
+            <> " " <> show stepMax 
+            <> " " <> show biasFactor 
+            <> " " <> show meanRunTime 
+            <> " " <> show varRunTime 
+            <> " " <> show compL2Apmc 
+            <> " " <> show compTimeApmc 
+            <> " " <> show compL2MonApmc 
+            <> " " <> show compTimeMonApmc 
+            <> " " <> show compL2Ratio 
+            <> " " <> show compTimeRatio 
+            <> "\n":: Text
+      Conduit.runResourceT $ Conduit.runConduit
+          $ Conduit.sourceDirectory dirIn 
+         .| Conduit.mapMC 
+            (\x -> liftIO $ fmap (row . statsComp) . readSingle $ x)     
+         .| Conduit.encodeUtf8C
+         .| Conduit.sinkFile pathOut
+      --let toText x = header <> "\n" <> (gnuplotData row . pureGnuplotDataSet $ DataSet x)
+      --writeOneFile toText pathOut stats
     c -> panic $ "Command not implemented yet: " <> show c
     -- | RepliL2VsRealTime
     --     [FilePath] -- List of directories where each replication is written

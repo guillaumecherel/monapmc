@@ -549,84 +549,102 @@ l2Ratio c = l2Apmc / l2MonApmc
 timeRatio :: Comp -> Double 
 timeRatio c = Duration.seconds (getCompTimeApmc c) / Duration.seconds (getCompTimeMonApmc c)
 
-statsComp :: Comp -> (Double, Double, Double, Double, Double, Double)
+data StatComp = StatComp 
+  { getStatCompParams :: CompParams
+  , getStatCompL2Apmc :: Double
+  , getStatCompTimeApmc :: Double
+  , getStatCompL2MonApmc :: Double
+  , getStatCompTimeMonApmc :: Double
+  , getStatCompL2Ratio :: Double
+  , getStatCompTimeRatio :: Double
+  }
+
+statsComp :: Comp -> StatComp
 statsComp c =
   let 
       l2LhsA = Model.l2 (getCompModel c) (getCompSampleApmc c)
       timeLhsA = Duration.seconds (getCompTimeApmc c)
       l2LhsM = Model.l2 (getCompModel c) (getCompSampleMonApmc c)
       timeLhsM = Duration.seconds (getCompTimeMonApmc c)
-   in (l2LhsA, timeLhsA, l2LhsM, timeLhsM, l2Ratio c, timeRatio c)
+   in StatComp 
+     { getStatCompParams = getCompParams c
+     , getStatCompL2Apmc = l2LhsA 
+     , getStatCompTimeApmc = timeLhsA
+     , getStatCompL2MonApmc = l2LhsM
+     , getStatCompTimeMonApmc = timeLhsM
+     , getStatCompL2Ratio = l2Ratio c
+     , getStatCompTimeRatio = timeRatio c
+     }
 
-statsCompLhs :: [Comp] -> [(Double, Double, Double, Double, Double, Double)]
-statsCompLhs cs = fmap statsComp cs
+statsCompLhs :: [Comp] -> [StatComp]
+statsCompLhs cs = statsComp <$> cs
 
--- TO BE REMOVED
--- Plotting
+-- to be removed
+-- plotting
 
-line
-  :: Maybe Text
-  -> Maybe Int
-  -> Maybe Int
-  -> [DataSet (Double, Double)]
-  -> UFig.PlotLine
-line legend color style datasets =
-  UFig.PlotLine legend color style
-  $ fmap (\xys -> (Nothing, Just <$> DataSet.get xys)) datasets
-
-point 
-  :: Maybe Text
-  -> Maybe Int
-  -> Maybe Int
-  -> [DataSet (Double, Double)]
-  -> UFig.PlotPoint
-point legend color style datasets =
-   UFig.PlotPoint legend color style
-  $ fmap (\xys -> (Nothing, Just <$> DataSet.get xys)) datasets
-
-pointErrDelta
-  :: (Maybe Text)
-  -> (Maybe Int)
-  -> (Maybe Int)
-  -> [DataSet (Double, Double, Double, Double)]
-  -> UFig.PlotPointErrDelta
-pointErrDelta legend color style dataSets =
-   UFig.PlotPointErrDelta legend color style
-  $ fmap (\xys -> (Nothing, Just <$> DataSet.get xys)) dataSets
-
-bar
-  :: (Maybe Text)
-  -> (Maybe Int)
-  -> (Maybe Text)
-  -> [DataSet (Double, Double)]
-  -> UFig.PlotBar
-bar legend color fillstyle dataSets =
-  UFig.PlotBar legend color fillstyle
-  $ fmap (\xys -> (Nothing, Just <$> DataSet.get xys)) dataSets
-
-plotLine :: UFig.PlotLine -> UFig.Plot
-plotLine = UFig.Plot . pure . UFig.PlotCmdLine
-
-plotPoint :: UFig.PlotPoint -> UFig.Plot
-plotPoint = UFig.Plot . pure . UFig.PlotCmdPoint
-
-plotPointErrDelta :: UFig.PlotPointErrDelta -> UFig.Plot
-plotPointErrDelta = UFig.Plot . pure . UFig.PlotCmdPointErrDelta
-
-plotBar :: UFig.PlotBar -> UFig.Plot
-plotBar = UFig.Plot . pure . UFig.PlotCmdBar
-
-fig :: FilePath -> Maybe Text -> [Text] -> UFig.Plot -> UFig.Figure
-fig path title prelude =
-  UFig.Figure path prelude
-  . UFig.SinglePlot title
-
-rowSample :: Maybe Text -> [[Text]] -> Sample [UFig.Plot] -> UFig.PlotLayout
-rowSample title plotTitles (Sample xs) =
-  UFig.Multiplot UFig.Row title $ (zipWith . zipWith) (,) plotTitles xs
-
-stackPlots :: UFig.Plot -> UFig.Plot -> UFig.Plot
-stackPlots = (<>)
+-- line
+--   :: maybe text
+--   -> maybe int
+--   -> maybe int
+--   -> [dataset (double, double)]
+--   -> UFig.PlotLine
+-- line legend color style datasets =
+--   ufig.plotline legend color style
+--   $ fmap (\xys -> (nothing, just <$> dataset.get xys)) datasets
+-- 
+-- point 
+--   :: maybe text
+--   -> maybe int
+--   -> maybe int
+--   -> [dataset (double, double)]
+--   -> UFig.PlotPoint
+-- point legend color style datasets =
+--    uFig.PlotPoint legend color style
+--   $ fmap (\xys -> (Nothing, Just <$> DataSet.get xys)) datasets
+-- 
+-- pointErrDelta
+--   :: (Maybe Text)
+--   -> (Maybe Int)
+--   -> (Maybe Int)
+--   -> [DataSet (Double, Double, Double, Double)]
+--   -> UFig.PlotPointErrDelta
+-- pointErrDelta legend color style dataSets =
+--    UFig.PlotPointErrDelta legend color style
+--   $ fmap (\xys -> (Nothing, Just <$> DataSet.get xys)) dataSets
+-- 
+-- bar
+--   :: (Maybe Text)
+--   -> (Maybe Int)
+--   -> (Maybe Text)
+--   -> [DataSet (Double, Double)]
+--   -> UFig.PlotBar
+-- bar legend color fillstyle dataSets =
+--   UFig.PlotBar legend color fillstyle
+--   $ fmap (\xys -> (Nothing, Just <$> DataSet.get xys)) dataSets
+-- 
+-- plotLine :: UFig.PlotLine -> UFig.Plot
+-- plotLine = UFig.Plot . pure . UFig.PlotCmdLine
+-- 
+-- plotPoint :: UFig.PlotPoint -> UFig.Plot
+-- plotPoint = UFig.Plot . pure . UFig.PlotCmdPoint
+-- 
+-- plotPointErrDelta :: UFig.PlotPointErrDelta -> UFig.Plot
+-- plotPointErrDelta = UFig.Plot . pure . UFig.PlotCmdPointErrDelta
+-- 
+-- plotBar :: UFig.PlotBar -> UFig.Plot
+-- plotBar = UFig.Plot . pure . UFig.PlotCmdBar
+-- 
+-- fig :: FilePath -> Maybe Text -> [Text] -> UFig.Plot -> UFig.Figure
+-- fig path title prelude =
+--   UFig.Figure path prelude
+--   . UFig.SinglePlot title
+-- 
+-- rowSample :: Maybe Text -> [[Text]] -> Sample [UFig.Plot] -> UFig.PlotLayout
+-- rowSample title plotTitles (Sample xs) =
+--   UFig.Multiplot UFig.Row title $ (zipWith . zipWith) (,) plotTitles xs
+-- 
+-- stackPlots :: UFig.Plot -> UFig.Plot -> UFig.Plot
+-- stackPlots = (<>)
 
 -- TO BE REMOVED
 -- realTime :: Algorithm -> Int -> Double

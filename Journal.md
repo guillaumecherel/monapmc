@@ -241,3 +241,18 @@ Lors d'un run MonAPMC consomme constamment autant de mémoire que APMC en consom
 L'empreinte mémoire est grande et constante quand le parallelisme est grand (100) et nGen petit (40), mais plus petite et en pics quand le parallelisme
 est petit (4) est nGen grand (1000). MonAPMC maintient
 un nombre d'états complets de l'algorithme égal au le niveau de parallélisme et chacun contient un échantillon de taille nAlpha (500). C'est normal que l'empreinte mémoire totale soit plus importante quand le parallélisme est grand. Il faut noter qu'en situation de parallélisation à distance, l'empreinte mémoire sera aussi divisée entre les différents nœuds en parallèle. 
+
+
+jeudi 28 mai 2020, 14:50:40 (UTC+0200)
+======================================
+
+Lancé les simulations LHS sur grille. 
+
+Ajouté la contraintes que nAlpha soit strictement positif. Quand nAlpha est nul,
+on obtient une erreur "vector index out of bounds." Ça n'a pas de sens qu'nAlpha
+puisse être nul, ça voudrait dire qu'on veut obtenir un échantillon de taille
+nulle. On autorise nGen a être nul par contre. Ça n'a pas vraiment de sens non
+plus, mais on s'en sert dans la fonction step de MonAPMC: on fixe nAlpha = nGen 
+puis nGen = 0 avant d'appeler la fonction stepOne d'APMC, qu'on réutilise pour
+générer les particules initiales (jusqu'à ce que la taille de l'échantillon dans
+l'état de MonAPMC atteigne nAlpha).

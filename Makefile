@@ -361,20 +361,20 @@ $(l2_vs_bias_factor_sentinel): $(l2_vs_bias_factor_input)
 > touch $@
 
 
-## Figure L2 vs Time LHS ##
+## Figure Scatter L2 Time LHS ##
 
-l2_vs_time_lhs_script := report/l2_vs_time_lhs.gnuplot
-l2_vs_time_lhs_data := output/formulas/figure_data/stats_comp_lhs
+scatter_l2_time_lhs_script := report/scatter_l2_time_lhs.gnuplot
+scatter_l2_time_lhs_data := output/formulas/figure_data/stats_comp_lhs
 
-l2_vs_time_lhs_input := $(l2_vs_time_lhs_script) $(l2_vs_time_lhs_data)
-l2_vs_time_lhs_output := output/report/l2_vs_time_lhs.png
-l2_vs_time_lhs_sentinel := sentinel/l2_vs_time_lhs
+scatter_l2_time_lhs_input := $(scatter_l2_time_lhs_script) $(scatter_l2_time_lhs_data)
+scatter_l2_time_lhs_output := output/report/scatter_l2_time_lhs.png
+scatter_l2_time_lhs_sentinel := sentinel/scatter_l2_time_lhs
 
-$(l2_vs_time_lhs_output) : $(l2_vs_time_lhs_sentinel) ;
+$(scatter_l2_time_lhs_output) : $(scatter_l2_time_lhs_sentinel) ;
 
-$(l2_vs_time_lhs_sentinel): $(l2_vs_time_lhs_input)
+$(scatter_l2_time_lhs_sentinel): $(scatter_l2_time_lhs_input)
 > mkdir -p output/report
-> gnuplot -c $(l2_vs_time_lhs_script) $(l2_vs_time_lhs_output) $(l2_vs_time_lhs_data)
+> gnuplot -c $(scatter_l2_time_lhs_script) $(scatter_l2_time_lhs_output) $(scatter_l2_time_lhs_data)
 > mkdir -p $(@D)
 > touch $@
 

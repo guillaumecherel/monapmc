@@ -7,8 +7,10 @@ module Main where
 
 import Protolude
 
-import qualified Conduit
-import           Conduit ((.|))
+import           Data.Streaming.Filesystem (openDirStream, readDirStream, closeDirStream)
+import           Streamly
+import           Streamly.Prelude ((|:), nil)
+import qualified Streamly.Prelude as S
 import           Control.Monad.Random.Lazy
 import qualified Control.Foldl as Fold
 import           Control.Foldl (Fold)
@@ -16,6 +18,7 @@ import           Options.Applicative
 import           Experiment
 import           System.Directory (listDirectory)
 import           System.FilePath ((</>))
+import           System.IO (hClose)
 import           Text.Parsec (parse)
 import           Util (getStrictlyPositive)
 import           Util.HaskFile
@@ -254,16 +257,23 @@ main = do
             <> " " <> show compL2MonApmc 
             <> " " <> show compTimeMonApmc 
             <> " " <> show compL2Ratio 
-            <> " " <> show compTimeRatio 
-            <> "\n":: Text
-      Conduit.runResourceT $ Conduit.runConduit
-          $ Conduit.sourceDirectory dirIn 
-         .| Conduit.mapMC 
-            (\x -> liftIO $ fmap (row . statsComp) . readSingle $ x)     
-         .| Conduit.encodeUtf8C
-         .| Conduit.sinkFile pathOut
-      --let toText x = header <> "\n" <> (gnuplotData row . pureGnuplotDataSet $ DataSet x)
-      --writeOneFile toText pathOut stats
+            <> " " <> show compTimeRatio :: Text
+      dirStream <- openDirStream dirIn
+      -- files
+      (S.unfoldrM (\_ -> do
+                   mpath <- readDirStream dirStream 
+                   case mpath of
+                     Nothing -> closeDirStream dirStream >> return Nothing
+                     Just path -> return $ Just (dirIn </> path, ()))
+                 ()
+        -- Transform to rows 
+        & S.mapM (fmap (row . statsComp) . readSingle)
+        -- Add header to the head of the stream
+        & S.cons header
+        -- Write each line to file          
+        & S.foldxM (\h l -> hPutStrLn h l >> return h) 
+                   (openFile pathOut WriteMode) 
+                   (\h -> hClose h >> return ()))
     c -> panic $ "Command not implemented yet: " <> show c
     -- | RepliL2VsRealTime
     --     [FilePath] -- List of directories where each replication is written

@@ -86,7 +86,15 @@ output/formulas/repli/steps/%:
 
 ## Simulation Run Comp LHS ##
 
+run_comp_lhs_input := openmole/lhs.oms
+run_comp_lhs_output := output/formulas/run_comp_lhs
+run_comp_lhs_sentinel := sentinel/run_comp_lhs
 
+$(run_comp_lhs_sentinel): $(run_comp_lhs_input)
+> mkdir -p output/formulas/run_comp_lhs/
+> openmole --script openmole/lhs.oms 
+> mkdir -p $(@D)
+> touch $@
 
 
 ## Stats histo run ##
@@ -174,15 +182,15 @@ output/formulas/figure_data/l2_vs_time/%: output/formulas/repli/steps/%
 
 ## Stats Comp Lhs ##
 
-stats_comp_lhs_input := $(run_comp_lhs_sentinel)
+stats_comp_lhs_input := $(run_comp_lhs_output)
 stats_comp_lhs_output := output/formulas/figure_data/stats_comp_lhs
-stats_comp_lhs_sentinel := sentinel/stat_comp_lhs
+stats_comp_lhs_sentinel := sentinel/stats_comp_lhs
 
 $(stats_comp_lhs_output): $(stats_comp_lhs_sentinel) ;
 
 $(stats_comp_lhs_sentinel): $(run_comp_lhs_sentinel)
 > mkdir -p output/formulas/figure_data/
-> $(haskfile) stats-comp-lhs output/formulas/run_comp_lhs/ $@
+> $(haskfile) stats-comp-lhs output/formulas/run_comp_lhs/ $(stats_comp_lhs_output)
 > mkdir -p $(@D)
 > touch $@
 

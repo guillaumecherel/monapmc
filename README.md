@@ -237,7 +237,7 @@ Stats Comp LHS
 
 Fig L2 vs biasFactor
 
-:   A scatter plot of L2 Errors vs biasFactor for the MonAPMC simulation runs in
+:   A scatter plot of MonAPMC L2 Errors vs biasFactor for the MonAPMC simulation runs in
     `Stats Comp LHS`.
 :   File: <file://./output/report/l2_vs_bias_factor.png>.
 :   Code def: Gnuplot 
@@ -250,7 +250,7 @@ Fig Scatter L2 Time LHS
 :   Two scatter plots of respectively L2 errors and run time for each algorithm 
     of each comparison in `Stat Ratio L2 Time`.
 :   File: <file:///output/report/l2_time_lhs.png>. 
-:   Exe: `gnuplot -c report/l2_vs_bias_fuctor.gnuplot File(Stat LHS) File(Fig Scatter L2 Time LHS)`
+:   Exe: `gnuplot -c report/l2_time_lhs.gnuplot File(Stat LHS) File(Fig Scatter L2 Time LHS)`
 
 This scatter plot shows that the L2 errors made by both algorithms are comparable. We
 can thus focus on comparing them on their run time.

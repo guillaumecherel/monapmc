@@ -343,6 +343,41 @@ $(time_bias_sentinel): $(time_bias_input)
 > touch $@
 
 
+## Figure L2 vs Bias Factor ##
+
+l2_vs_bias_factor_script := report/l2_vs_bias_factor.gnuplot
+l2_vs_bias_factor_data := output/formulas/figure_data/stats_comp_lhs
+
+l2_vs_bias_factor_input := $(l2_vs_bias_factor_script) $(l2_vs_bias_factor_data)
+l2_vs_bias_factor_output := output/report/l2_vs_bias_factor.png
+l2_vs_bias_factor_sentinel := sentinel/l2_vs_bias_factor
+
+$(l2_vs_bias_factor_output) : $(l2_vs_bias_factor_sentinel) ;
+
+$(l2_vs_bias_factor_sentinel): $(l2_vs_bias_factor_input)
+> mkdir -p output/report
+> gnuplot -c $(l2_vs_bias_factor_script) $(l2_vs_bias_factor_output) $(l2_vs_bias_factor_data)
+> mkdir -p $(@D)
+> touch $@
+
+
+## Figure L2 vs Time LHS ##
+
+l2_vs_time_lhs_script := report/l2_vs_time_lhs.gnuplot
+l2_vs_time_lhs_data := output/formulas/figure_data/stats_comp_lhs
+
+l2_vs_time_lhs_input := $(l2_vs_time_lhs_script) $(l2_vs_time_lhs_data)
+l2_vs_time_lhs_output := output/report/l2_vs_time_lhs.png
+l2_vs_time_lhs_sentinel := sentinel/l2_vs_time_lhs
+
+$(l2_vs_time_lhs_output) : $(l2_vs_time_lhs_sentinel) ;
+
+$(l2_vs_time_lhs_sentinel): $(l2_vs_time_lhs_input)
+> mkdir -p output/report
+> gnuplot -c $(l2_vs_time_lhs_script) $(l2_vs_time_lhs_output) $(l2_vs_time_lhs_data)
+> mkdir -p $(@D)
+> touch $@
+
 
 #### Helper rules ####
 

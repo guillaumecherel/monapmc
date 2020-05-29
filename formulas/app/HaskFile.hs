@@ -260,12 +260,13 @@ main = do
             <> " " <> show compTimeRatio :: Text
       dirStream <- openDirStream dirIn
       -- files
-      (S.unfoldrM (\_ -> do
+      S.unfoldrM (\_ -> do
                    mpath <- readDirStream dirStream 
                    case mpath of
                      Nothing -> closeDirStream dirStream >> return Nothing
                      Just path -> return $ Just (dirIn </> path, ()))
                  ()
+        & asyncly
         -- Transform to rows 
         & S.mapM (fmap (row . statsComp) . readSingle)
         -- Add header to the head of the stream
@@ -273,7 +274,7 @@ main = do
         -- Write each line to file          
         & S.foldxM (\h l -> hPutStrLn h l >> return h) 
                    (openFile pathOut WriteMode) 
-                   (\h -> hClose h >> return ()))
+                   (\h -> hClose h >> return ())
     c -> panic $ "Command not implemented yet: " <> show c
     -- | RepliL2VsRealTime
     --     [FilePath] -- List of directories where each replication is written

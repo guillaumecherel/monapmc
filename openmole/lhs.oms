@@ -37,7 +37,6 @@ val container =
   
 val seed_d = Val[Double]
 val nGen_d = Val[Double]
-val alpha = Val[Double]
 val nAlpha_d = Val[Double]
 val parallel_d = Val[Double]
 val stepMax_d = Val[Double]
@@ -46,11 +45,11 @@ val mkParams = ScalaTask(
     """
     val seed = seed_d.toInt
     val nGen = nGen_d.toInt
-    val nAlpha = 1.max(((alpha * nGen) / (1 - alpha)).toInt)
+    val nAlpha = nAlpha_d.toInt
     val parallel = parallel_d.toInt
     val stepMax = stepMax_d.toInt
     """) set (
-    inputs += (seed_d, nGen_d, alpha, pAccMin, parallel_d, stepMax_d, biasFactor, meanRunTime, varRunTime),
+    inputs += (seed_d, nGen_d, nAlpha_d, pAccMin, parallel_d, stepMax_d, biasFactor, meanRunTime, varRunTime),
     outputs += (seed, nGen, nAlpha, pAccMin, parallel, stepMax, biasFactor, meanRunTime, varRunTime),
     )
   
@@ -62,7 +61,7 @@ val lhs = DirectSampling(
   sampling = LHS( 1000,
     seed_d in (Double.MinValue, Double.MaxValue),
     nGen_d in (1.0, 2000.0),
-    alpha in (0.001, 0.9),
+    nAlpha_d in (100.0, 2000.0),
     pAccMin in (0.1, 0.01), 
     parallel_d in (1.0, 1000.0), 
     stepMax_d in (100.0, 100.0),

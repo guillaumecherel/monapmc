@@ -49,6 +49,10 @@ toBin :: Double -> Double -> Int -> Double -> Double
 toBin lowerBound upperBound bins x = lowerBound + width * fromIntegral (floor ((x - lowerBound) / width) :: Int) + width / 2
   where width = (upperBound - lowerBound) / fromIntegral bins
 
+toBinEpsilon :: Double -> Double -> Double -> Double
+toBinEpsilon anchor epsilon x = anchor + width * fromIntegral (floor ((x - anchor) / width) :: Int) + epsilon 
+  where width = epsilon * 2.0
+
 
 --------
 -- Fold stats

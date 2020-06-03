@@ -46,7 +46,7 @@ val mkParams = ScalaTask(
     """
     val seed = seed_d.toInt
     val nGen = nGen_d.toInt
-    val nAlpha = max(1,(alpha * nGen).toInt)
+    val nAlpha = max(1,(nGen / (alpha - 1)).toInt)
     val parallel = parallel_d.toInt
     val stepMax = stepMax_d.toInt
     """) set (
@@ -59,9 +59,9 @@ val mkParams = ScalaTask(
 val env = EGIEnvironment("vo.complex-systems.eu")
 
 val lhs = DirectSampling(
-  sampling = LHS( 10000,
+  sampling = LHS( 1000,
     seed_d in (Double.MinValue, Double.MaxValue),
-    nGen_d in (1.0, 10000.0),
+    nGen_d in (1.0, 2000.0),
     alpha in (0.001, 0.9),
     pAccMin in (0.1, 0.01), 
     parallel_d in (1.0, 1000.0), 

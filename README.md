@@ -235,6 +235,7 @@ Stats Comp LHS
     error and runtime for each algorithm and l2 ratio and time ratio.  The
     first line gives the columns labels.
 
+
 Fig L2 vs biasFactor
 
 :   A scatter plot of MonAPMC L2 Errors vs biasFactor for the MonAPMC simulation runs in
@@ -255,7 +256,18 @@ Fig Scatter L2 Time LHS
 This scatter plot shows that the L2 errors made by both algorithms are comparable. We
 can thus focus on comparing them on their run time.
 
-Stat Time Ratio vs K V
+
+Fig L2 Ratio Effects LHS
+
+:   
+
+
+Fig Time Ratio Effects LHS
+
+:
+
+
+Stats Time Ratio LHS K V
 
 :   Let's define the subset of time ratios in `Stats Comp LHS` whose
     corresponding run was parameterized with a parallelism
@@ -263,19 +275,23 @@ Stat Time Ratio vs K V
 
         timeRatio_lhs_k_v(k, v, epsilon) = 
           {timeRatio_lhs(i) | 1 <= i <= lhsN, 
-                              parallel_lhs(i) == k, varRunTime_lhs(i) - v < epsilon}
-
-    We define the function `min` which, given such a subset, returns its
-    smallest element. Likewise, we will use the functions `max, mean, 5p and 95p`
-    which give respectively the biggest element, the mean, the 5th percentile
-    and 95th percentile.
+                              parallel_lhs(i) == k, 
+                              varRunTime_lhs(i) - v < epsilon}
 
 :   Code def: Haskell
-:   File: <file:///output/formulas/figure_data/time_ratio_vs_k_v>
+
+Stats Dist Time Ratio LHS K V
+
+:   We compute the function minimum and mean value for each subset
+    `timeRatio_lhs_k_v(k, v, epsilon)` for each `k=1, 2...1000`, 
+    `v=0.5, 1.5... 99.5`, `epsilon=0.5`.
+
+:   Code def: Haskell
+:   File: <./output/formulas/figure_data/dist_time_ratio_lhs_k_v>
 
 Fig Time Ratio vs K V
 
-:   3 heatmaps showing respectively minimum and mean run time ratio as a 
+:   2 heatmaps showing respectively minimum and mean run time ratio as a 
     function of K and V, binned.
 :   Code def: Gnuplot
 :   File: <file:///output/report/time_vs_k_v.png>.
@@ -284,17 +300,26 @@ This figure shows that MonAPMC is at least as efficient as APMC for all sampled
 values of the parameter space and that it gets better as the parallelism and
 model run time variance increase, averaged over the other parameter values. 
 
-Stat Time Ratio vs K nGen
+Stat Time Ratio LHS K nGen
 
 :   This definition is similar to `Stat Time Ratio` where the model run time
     variance is replaced with the number of generated simulation per step in
     APMC.
 
-        timeRatio_lhs_k_nGen(k, g, epsilon) = 
+        timeRatio_lhs_k_nGen(k, g) = 
           {timeRatio_lhs(i) | 1 <= i <= lhsN, 
-                              parallel_lhs(i) == k, nGen_lhs(i) - g < epsilon}
+                              parallel_lhs(i) == k, 
+                              nGen_lhs(i) == g}
 :   Code def: Haskell
 :   File: <file:///output/formulas/figure_data/time_ratio_vs_k_nGen>
+
+Stats Dist Time Ratio LHS K nGen
+
+:   We compute the function minimum and mean value for each subset
+    `timeRatio_lhs_k_nGen(k, g)` for each `k=1, 2...1000`, `g=1, 2... 10^5`
+
+:   Code def: Haskell
+:   File: <./output/formulas/figure_data/dist_time_ratio_lhs_k_nGen>
 
 Fig T vs K nGen
 

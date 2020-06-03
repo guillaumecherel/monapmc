@@ -46,7 +46,7 @@ val mkParams = ScalaTask(
     """
     val seed = seed_d.toInt
     val nGen = nGen_d.toInt
-    val nAlpha = max(1,(nGen / (alpha - 1)).toInt)
+    val nAlpha = 1.max((nGen / (alpha - 1)).toInt)
     val parallel = parallel_d.toInt
     val stepMax = stepMax_d.toInt
     """) set (

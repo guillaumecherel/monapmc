@@ -424,8 +424,10 @@ comp c@(CompParams nGen nAlpha pAccMin parallel stepMax biasFactor meanRunTime v
     runMonApmc = run (Simulation algoMonApmc model stepMaxMonApmc)
     algoApmc = APMC nGen nAlpha pAccMin parallel
     stepMaxApmc = stepMax
-    algoMonApmc = MonAPMC (nGen `div` parallel) nAlpha pAccMin stepSize parallel (nGen + getStrictlyPositive nAlpha)
+    algoMonApmc = MonAPMC nGenMonApmc nAlpha pAccMin stepSize parallel stopSampleSizeMonApmc
     stepSize = 1
+    nGenMonApmc = max 1 (nGen `div` parallel)
+    stopSampleSizeMonApmc = nGen + getStrictlyPositive nAlpha
     stepMaxMonApmc = stepMax * parallel 
     model = ToyTimeBias biasFactor 0 meanRunTime varRunTime
 

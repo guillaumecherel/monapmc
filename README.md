@@ -261,85 +261,26 @@ Fig L2 Effects LHS
 :   Scatter plots of L2 error against each comparison parameter. Each point
     corresponds to a simulation of one algorithm
 
+These plots show that the quality of the estimation in only affected by the size
+of the posterior sample, `nAlpha`. It is similar for both algorithms.
 
 Fig Time Effects LHS
 
 :   Scatter plots of simulation run time against each comparison parameter. Each point
     corresponds to a simulation of one algorithm
 
+These plots show that the only parameter affecting the simulation run time are the
+parallelism and the model run time variance. Both algorithms are quicker as
+the level of parallelism increases. The model run time variance affects the run
+time of APMC but not MonApmc.
 
 Fig Time Ratio Effects LHS
 
 :   Scatter plots of Time ratio against each comparison parameter. One point per
     comparison.
 
-
-Stats Time Ratio LHS K V
-
-:   Let's define the subset of time ratios in `Stats Comp LHS` whose
-    corresponding run was parameterized with a parallelism
-    level `k` and a model run time variance close to `v`:
-
-        timeRatio_lhs_k_v(k, v, epsilon) = 
-          {timeRatio_lhs(i) | 1 <= i <= lhsN, 
-                              parallel_lhs(i) == k, 
-                              varRunTime_lhs(i) - v < epsilon}
-
-:   Code def: Haskell
-
-Stats Dist Time Ratio LHS K V
-
-:   We compute the function minimum and mean value for each subset
-    `timeRatio_lhs_k_v(k, v, epsilon)` for each `k=1, 2...1000`, 
-    `v=0.5, 1.5... 99.5`, `epsilon=0.5`.
-
-:   Code def: Haskell
-:   File: <./output/formulas/figure_data/dist_time_ratio_lhs_k_v>
-
-Fig Time Ratio vs K V
-
-:   2 heatmaps showing respectively minimum and mean run time ratio as a 
-    function of K and V, binned.
-:   Code def: Gnuplot
-:   File: <file:///output/report/time_vs_k_v.png>.
-
-This figure shows that MonAPMC is at least as efficient as APMC for all sampled
-values of the parameter space and that it gets better as the parallelism and
-model run time variance increase, averaged over the other parameter values. 
-
-Stat Time Ratio LHS K nGen
-
-:   This definition is similar to `Stat Time Ratio` where the model run time
-    variance is replaced with the number of generated simulation per step in
-    APMC.
-
-        timeRatio_lhs_k_nGen(k, g) = 
-          {timeRatio_lhs(i) | 1 <= i <= lhsN, 
-                              parallel_lhs(i) == k, 
-                              nGen_lhs(i) == g}
-:   Code def: Haskell
-:   File: <file:///output/formulas/figure_data/time_ratio_vs_k_nGen>
-
-Stats Dist Time Ratio LHS K nGen
-
-:   We compute the function minimum and mean value for each subset
-    `timeRatio_lhs_k_nGen(k, g)` for each `k=1, 2...1000`, `g=1, 2... 10^5`
-
-:   Code def: Haskell
-:   File: <./output/formulas/figure_data/dist_time_ratio_lhs_k_nGen>
-
-Fig T vs K nGen
-
-:   3 heatmaps showing respectively the minimum and mean run time as a 
-    function of K and nGen, binned.
-:   File: <file://./output/formulas/figure_data/t_vs_k_nGen_minimum>,
-    <file://./output/formulas/figure_data/t_vs_k_nGen_mean>. Each file has 3
-    columns: k, nGen and the median or corresponding percentile for t.
-:   Exe: `gnuplot -c report/time_ratio_vs_k_nGen.gnuplot File(Stat Time Ratio vs K V) File(Fig Time Ratio vs K V)`.
-
-This figure shows that the advantage of MonAPMC is stronger as the level of
-parallelism is close to the number of simulations performed per iteration in
-APMC.
+In these plots, each point show how many times MonApmc is quicker than Apmc for
+each comparison run from the LHS. They show that ... 
 
 We check that the posterior sample is not biased by ensuring that the value of
 L2 does not increase compared to the settings where the model run time is

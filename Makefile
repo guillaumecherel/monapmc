@@ -193,36 +193,6 @@ $(stats_comp_lhs_sentinel): $(run_comp_lhs_sentinel) $(haskfile)
 > touch $@
 
 
-## Stats Dist Time Ratio LHS K V
-
-stats_dist_time_ratio_lhs_k_v_input := $(stats_comp_lhs_output)
-stats_dist_time_ratio_lhs_k_v_output := output/formulas/figure_data/dist_time_ratio_lhs_k_v
-stats_dist_time_ratio_lhs_k_v_sentinel := sentinel/dist_time_ratio_lhs_k_v
-
-$(stats_dist_time_ratio_lhs_k_v_output): $(stats_dist_time_ratio_lhs_k_v_sentinel) ;
-
-$(stats_dist_time_ratio_lhs_k_v_sentinel): $(stats_comp_lhs_sentinel) $(haskfile)
-> mkdir -p output/formulas/figure_data/
-> $(haskfile) dist-time-ratio-lhs-k-v $(stats_dist_time_ratio_lhs_k_v_input) $(stats_dist_time_ratio_lhs_k_v_output)
-> mkdir -p $(@D)
-> touch $@
-
-
-## Stats Dist Time Ratio LHS K nGen
-
-stats_dist_time_ratio_lhs_k_nGen_input := $(stats_comp_lhs_output)
-stats_dist_time_ratio_lhs_k_nGen_output := output/formulas/figure_data/dist_time_ratio_lhs_k_nGen
-stats_dist_time_ratio_lhs_k_nGen_sentinel := sentinel/dist_time_ratio_lhs_k_nGen
-
-$(stats_dist_time_ratio_lhs_k_nGen_output): $(stats_dist_time_ratio_lhs_k_nGen_sentinel) ;
-
-$(stats_dist_time_ratio_lhs_k_nGen_sentinel): $(stats_comp_lhs_sentinel) $(haskfile)
-> mkdir -p output/formulas/figure_data/
-> $(haskfile) dist-time-ratio-lhs-k-nGen $(stats_dist_time_ratio_lhs_k_nGen_input) $(stats_dist_time_ratio_lhs_k_nGen_output)
-> mkdir -p $(@D)
-> touch $@
-
-
 ## Figure Steps ##
 
 steps_simus := \
@@ -458,60 +428,6 @@ $(time_ratio_effects_lhs_sentinel): $(time_ratio_effects_lhs_input)
 > gnuplot -c $(time_ratio_effects_lhs_script) $(time_ratio_effects_lhs_output) $(time_ratio_effects_lhs_data)
 > mkdir -p $(@D)
 > touch $@
-
-
-## Figure Time Ratio LHS K V
-
-time_ratio_lhs_k_v_script := report/time_ratio_lhs_k_v.gnuplot
-time_ratio_lhs_k_v_data := $(stats_dist_time_ratio_lhs_k_v_output)
-
-time_ratio_lhs_k_v_input := $(time_ratio_lhs_k_v_script) $(stats_dist_time_ratio_lhs_k_v_output)
-time_ratio_lhs_k_v_output := output/report/time_ratio_lhs_k_v.png
-time_ratio_lhs_k_v_sentinel := sentinel/time_ratio_lhs_k_v
-
-$(time_ratio_lhs_k_v_output): $(time_ratio_lhs_k_v_sentinel) ;
-
-$(time_ratio_lhs_k_v_sentinel): $(stats_dist_time_ratio_lhs_k_v_sentinel)
-> mkdir -p output/report
-> gnuplot -c $(time_ratio_lhs_k_v_script) $(time_ratio_lhs_k_v_output) $(time_ratio_lhs_k_v_data)
-> mkdir -p $(@D)
-> touch $@
-
-
-## Figure Time Ratio LHS K nGen
-
-time_ratio_lhs_k_nGen_script := report/time_ratio_lhs_k_nGen.gnuplot
-time_ratio_lhs_k_nGen_data := $(stats_dist_time_ratio_lhs_k_nGen_output)
-
-time_ratio_lhs_k_nGen_input := $(time_ratio_lhs_k_nGen_script) $(stats_dist_time_ratio_lhs_k_nGen_output)
-time_ratio_lhs_k_nGen_output := output/report/time_ratio_lhs_k_nGen.png
-time_ratio_lhs_k_nGen_sentinel := sentinel/time_ratio_lhs_k_nGen
-
-$(time_ratio_lhs_k_nGen_output): $(time_ratio_lhs_k_nGen_sentinel) ;
-
-$(time_ratio_lhs_k_nGen_sentinel): $(stats_dist_time_ratio_lhs_k_nGen_sentinel)
-> mkdir -p output/report
-> gnuplot -c $(time_ratio_lhs_k_nGen_script) $(time_ratio_lhs_k_nGen_output) $(time_ratio_lhs_k_nGen_data)
-> mkdir -p $(@D)
-> touch $@
-
-
-## Figure Time Ratio Lhs K V ##
-
-# scatter_l2_time_lhs_script := report/scatter_l2_time_lhs.gnuplot
-# scatter_l2_time_lhs_data := output/formulas/figure_data/stats_comp_lhs
-# 
-# scatter_l2_time_lhs_input := $(scatter_l2_time_lhs_script) $(scatter_l2_time_lhs_data)
-# scatter_l2_time_lhs_output := output/report/scatter_l2_time_lhs.png
-# scatter_l2_time_lhs_sentinel := sentinel/scatter_l2_time_lhs
-# 
-# $(scatter_l2_time_lhs_output) : $(scatter_l2_time_lhs_sentinel) ;
-# 
-# $(scatter_l2_time_lhs_sentinel): $(scatter_l2_time_lhs_input)
-# > mkdir -p output/report
-# > gnuplot -c $(scatter_l2_time_lhs_script) $(scatter_l2_time_lhs_output) $(scatter_l2_time_lhs_data)
-# > mkdir -p $(@D)
-# > touch $@
 
 
 #### Helper rules ####

@@ -69,12 +69,6 @@ data Cmd
   | StatsCompLhs 
       FilePath -- Comp Lhs directory
       FilePath -- Stats Comp LHS.
-  | DistTimeRatioLhsKV
-      FilePath -- Stats Comp LHS. 
-      FilePath -- Time Ratio LHS KV.
-  | DistTimeRatioLhsKNGen
-      FilePath -- Stats Comp LHS. 
-      FilePath -- Time Ratio LHS K nGen.
   deriving (Show)
 
 cmd :: Parser Cmd
@@ -177,22 +171,6 @@ cmd = subparser
        ( StatsCompLhs 
          <$> argument str (metavar "Comp input dir")
          <*> argument str (metavar "Stats Comp Lhs")
-       )
-       mempty
-     )
-  <> command "dist-time-ratio-lhs-k-v"
-     ( info
-       ( Main.DistTimeRatioLhsKV 
-         <$> argument str (metavar "StatsCompLhs")
-         <*> argument str (metavar "DistTimeRatioLhsKV")
-       )
-       mempty
-     )
-  <> command "dist-time-ratio-lhs-k-nGen"
-     ( info
-       ( Main.DistTimeRatioLhsKNGen 
-         <$> argument str (metavar "StatsCompLhs")
-         <*> argument str (metavar "DistTimeRatioLhsKNGen")
        )
        mempty
      )
@@ -299,31 +277,5 @@ main = do
         & S.foldxM (\h l -> hPutStrLn h l >> return h) 
                    (openFile pathOut WriteMode) 
                    (\h -> hClose h >> return ())
-    Main.DistTimeRatioLhsKV pathIn pathOut -> do
-      rows <- readFile pathIn
-            <&> Csv.decodeText
-            <&> either 
-                  (\err -> panic $ "Could not parse CSV " <> show pathIn <> ": " <> err )
-                  identity
-      let mkStatComp (nGen, nAlpha, pAccMin, parallel, stepMax, biasFactor, meanRunTime, varRunTime, compL2Apmc, compTimeApmc, compL2MonApmc, compTimeMonApmc, compL2Ratio, compTimeRatio) = 
-            StatComp (CompParams nGen (strictlyPositive nAlpha) pAccMin parallel stepMax biasFactor meanRunTime varRunTime) compL2Apmc compTimeApmc compL2MonApmc compTimeMonApmc compL2Ratio compTimeRatio
-      let stats = toList $ mkStatComp <$> rows
-      writeOneFile gnuplotData4 pathOut $ pureGnuplotDataSets
-        $ (fmap . DataSet.map) 
-            (\(Experiment.DistTimeRatioLhsKV k v min mean) -> (k, v, min, mean))
-        $ distTimeRatioLhsKV $ timeRatioLhsKV 100 5 stats 
-    Main.DistTimeRatioLhsKNGen pathIn pathOut -> do
-      rows <- readFile pathIn
-            <&> Csv.decodeText
-            <&> either 
-                  (\err -> panic $ "Could not parse CSV " <> show pathIn <> ": " <> err )
-                  identity
-      let mkStatComp (nGen, nAlpha, pAccMin, parallel, stepMax, biasFactor, meanRunTime, varRunTime, compL2Apmc, compTimeApmc, compL2MonApmc, compTimeMonApmc, compL2Ratio, compTimeRatio) = 
-            StatComp (CompParams nGen (strictlyPositive nAlpha) pAccMin parallel stepMax biasFactor meanRunTime varRunTime) compL2Apmc compTimeApmc compL2MonApmc compTimeMonApmc compL2Ratio compTimeRatio
-      let stats = toList $ mkStatComp <$> rows
-      writeOneFile gnuplotData4 pathOut $ pureGnuplotDataSets
-        $ (fmap . DataSet.map) 
-            (\(Experiment.DistTimeRatioLhsKNGen k nGen min mean) -> (k, nGen, min, mean))
-        $ distTimeRatioLhsKNGen $ timeRatioLhsKNGen 100 (10^5 / 10) stats 
     c -> panic $ "Command not implemented yet: " <> show c
 

@@ -406,6 +406,42 @@ $(scatter_l2_time_lhs_sentinel): $(scatter_l2_time_lhs_input)
 > touch $@
 
 
+## Figure L2 Effects LHS ##
+
+l2_effects_lhs_script := report/l2_effects_lhs.gnuplot
+l2_effects_lhs_data := output/formulas/figure_data/stats_comp_lhs
+
+l2_effects_lhs_input := $(l2_effects_lhs_script) $(l2_effects_lhs_data)
+l2_effects_lhs_output := output/report/l2_effects_lhs.png
+l2_effects_lhs_sentinel := sentinel/l2_effects_lhs
+
+$(l2_effects_lhs_output) : $(l2_effects_lhs_sentinel) ;
+
+$(l2_effects_lhs_sentinel): $(l2_effects_lhs_input)
+> mkdir -p output/report
+> gnuplot -c $(l2_effects_lhs_script) $(l2_effects_lhs_output) $(l2_effects_lhs_data)
+> mkdir -p $(@D)
+> touch $@
+
+
+## Figure Time Ratio Effects LHS ##
+
+time_effects_lhs_script := report/time_effects_lhs.gnuplot
+time_effects_lhs_data := output/formulas/figure_data/stats_comp_lhs
+
+time_effects_lhs_input := $(time_effects_lhs_script) $(time_effects_lhs_data)
+time_effects_lhs_output := output/report/time_effects_lhs.png
+time_effects_lhs_sentinel := sentinel/time_effects_lhs
+
+$(time_effects_lhs_output) : $(time_effects_lhs_sentinel) ;
+
+$(time_effects_lhs_sentinel): $(time_effects_lhs_input)
+> mkdir -p output/report
+> gnuplot -c $(time_effects_lhs_script) $(time_effects_lhs_output) $(time_effects_lhs_data)
+> mkdir -p $(@D)
+> touch $@
+
+
 ## Figure Time Ratio Effects LHS ##
 
 time_ratio_effects_lhs_script := report/time_ratio_effects_lhs.gnuplot
@@ -420,23 +456,6 @@ $(time_ratio_effects_lhs_output) : $(time_ratio_effects_lhs_sentinel) ;
 $(time_ratio_effects_lhs_sentinel): $(time_ratio_effects_lhs_input)
 > mkdir -p output/report
 > gnuplot -c $(time_ratio_effects_lhs_script) $(time_ratio_effects_lhs_output) $(time_ratio_effects_lhs_data)
-> mkdir -p $(@D)
-> touch $@
-
-## Figure L2 Ratio Effects LHS ##
-
-l2_ratio_effects_lhs_script := report/l2_ratio_effects_lhs.gnuplot
-l2_ratio_effects_lhs_data := output/formulas/figure_data/stats_comp_lhs
-
-l2_ratio_effects_lhs_input := $(l2_ratio_effects_lhs_script) $(l2_ratio_effects_lhs_data)
-l2_ratio_effects_lhs_output := output/report/l2_ratio_effects_lhs.png
-l2_ratio_effects_lhs_sentinel := sentinel/l2_ratio_effects_lhs
-
-$(l2_ratio_effects_lhs_output) : $(l2_ratio_effects_lhs_sentinel) ;
-
-$(l2_ratio_effects_lhs_sentinel): $(l2_ratio_effects_lhs_input)
-> mkdir -p output/report
-> gnuplot -c $(l2_ratio_effects_lhs_script) $(l2_ratio_effects_lhs_output) $(l2_ratio_effects_lhs_data)
 > mkdir -p $(@D)
 > touch $@
 

@@ -256,15 +256,22 @@ Fig Scatter L2 Time LHS
 This scatter plot shows that the L2 errors made by both algorithms are comparable. We
 can thus focus on comparing them on their run time.
 
+Fig L2 Effects LHS
 
-Fig L2 Ratio Effects LHS
+:   Scatter plots of L2 error against each comparison parameter. Each point
+    corresponds to a simulation of one algorithm
 
-:   
+
+Fig Time Effects LHS
+
+:   Scatter plots of simulation run time against each comparison parameter. Each point
+    corresponds to a simulation of one algorithm
 
 
 Fig Time Ratio Effects LHS
 
-:
+:   Scatter plots of Time ratio against each comparison parameter. One point per
+    comparison.
 
 
 Stats Time Ratio LHS K V

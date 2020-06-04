@@ -503,6 +503,8 @@ figures: \
   $(l2_vs_time_k_output) \
   $(l2_vs_time_k_v_output) \
   $(time_bias_output) \
+  $(l2_vs_bias_factor_output) \
+  $(scatter_l2_time_lhs_output) \
   $(time_ratio_lhs_k_v_output) \
   $(time_ratio_lhs_k_nGen_output) \
   $(l2_ratio_effects_lhs_output) \

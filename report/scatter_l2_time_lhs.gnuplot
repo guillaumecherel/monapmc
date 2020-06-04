@@ -15,24 +15,29 @@ set key off
 
 set multiplot layout 1,2
 
-set xlabel "MonAPMC L2 error"
 set ylabel "APMC L2 error"
+set xlabel "MonAPMC L2 error"
 
-set xrange [0:.6]
-set yrange [0:.6]
+set yrange [0:*]
+set xrange [0:*]
 
 set style data circles 
-set style circle radius screen 0.003 nowedge noclip
-set style fill transparent solid 0.2 noborder
+set style circle radius screen 0.003 nowedge noclip 
+set style fill transparent solid 1 noborder
 
-plot datafile using "compL2MonApmc":"compL2Apmc" linecolor 1
+plot datafile using "compL2MonApmc":"compL2Apmc" lc 0.8, \
+     x with line lc black lw 2
 
-set xlabel "MonAPMC run time"
 set ylabel "APMC run time"
+set xlabel "MonAPMC run time"
 
-set xrange [0:1e7]
-set yrange [0:1e9]
+set yrange [0:3e8]
+set xrange [0:1e6]
 
+set xtics format "%.0e"
+set ytics format "%.0e"
 
-plot datafile using "compTimeMonApmc":"compTimeApmc" linecolor 2 
+plot datafile using "compTimeMonApmc":"compTimeApmc" lc 0.8, \
+     x with line lc black lw 2
+
 

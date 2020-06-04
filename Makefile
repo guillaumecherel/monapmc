@@ -215,6 +215,8 @@ $(steps_sentinel): $(steps_input)
 > mkdir -p $(@D)
 > touch $@
 
+figures: $(steps_output)
+
 
 ## Figure L2 vs nsimus ## 
 
@@ -232,6 +234,8 @@ $(l2_vs_nsimus_sentinel): $(l2_vs_nsimus_input)
 > gnuplot -c $(l2_vs_nsimus_gnuplot_script) $(l2_vs_nsimus_output) $(l2_vs_nsimus_data)
 > mkdir -p $(@D)
 > touch $@
+
+figures: $(l2_vs_nsimus_output)
 
 
 ## Figure L2 vs Time K ##
@@ -267,6 +271,8 @@ $(l2_vs_time_k_sentinel): $(l2_vs_time_k_input)
 > | gnuplot - $(l2_vs_time_k_gnuplot_script)
 > mkdir -p $(@D)
 > touch $@
+
+figures: $(l2_vs_time_k_output)
 
 
 ## Figure L2 vs Time K V ##
@@ -315,6 +321,8 @@ $(l2_vs_time_k_v_sentinel): $(l2_vs_time_k_v_input)
 > mkdir -p $(@D)
 > touch $@
 
+figures: $(l2_vs_time_k_v_output)
+
 
 
 ## Figure Time Bias ##
@@ -339,6 +347,8 @@ $(time_bias_sentinel): $(time_bias_input)
 > mkdir -p $(@D)
 > touch $@
 
+figures: $(time_bias_output)
+
 
 ## Figure L2 vs Bias Factor ##
 
@@ -356,6 +366,8 @@ $(l2_vs_bias_factor_sentinel): $(l2_vs_bias_factor_input)
 > gnuplot -c $(l2_vs_bias_factor_script) $(l2_vs_bias_factor_output) $(l2_vs_bias_factor_data)
 > mkdir -p $(@D)
 > touch $@
+
+figures: $(l2_vs_bias_factor_output)
 
 
 ## Figure Scatter L2 Time LHS ##
@@ -375,6 +387,8 @@ $(scatter_l2_time_lhs_sentinel): $(scatter_l2_time_lhs_input)
 > mkdir -p $(@D)
 > touch $@
 
+figures: $(scatter_l2_time_lhs_output)
+
 
 ## Figure L2 Effects LHS ##
 
@@ -392,6 +406,8 @@ $(l2_effects_lhs_sentinel): $(l2_effects_lhs_input)
 > gnuplot -c $(l2_effects_lhs_script) $(l2_effects_lhs_output) $(l2_effects_lhs_data)
 > mkdir -p $(@D)
 > touch $@
+
+figures: $(l2_effects_lhs_output)
 
 
 ## Figure Time Ratio Effects LHS ##
@@ -411,6 +427,8 @@ $(time_effects_lhs_sentinel): $(time_effects_lhs_input)
 > mkdir -p $(@D)
 > touch $@
 
+figures: $(l2_effects_lhs_output)
+
 
 ## Figure Time Ratio Effects LHS ##
 
@@ -429,22 +447,10 @@ $(time_ratio_effects_lhs_sentinel): $(time_ratio_effects_lhs_input)
 > mkdir -p $(@D)
 > touch $@
 
+figures: $(time_ratio_effects_lhs_output)
+
 
 #### Helper rules ####
-
-figures: \
-  $(steps_output) \
-  $(l2_vs_nsimus_output) \
-  $(l2_vs_time_k_output) \
-  $(l2_vs_time_k_v_output) \
-  $(time_bias_output) \
-  $(l2_vs_bias_factor_output) \
-  $(scatter_l2_time_lhs_output) \
-  $(time_ratio_lhs_k_v_output) \
-  $(time_ratio_lhs_k_nGen_output) \
-  $(l2_ratio_effects_lhs_output) \
-  $(time_ratio_effects_lhs_output)
-.PHONY: figures
 
 setup: $(haskfile)
 .PHONY: setup

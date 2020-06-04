@@ -163,9 +163,9 @@ data RunResult = RunResult (Duration, Duration) Int (Vector (Weight, Vector Doub
   deriving (Show, Read)
 
 runResult :: Int -> Algorithm -> Model -> RandT StdGen IO RunResult
-runResult stepMax APMC{nGen, nAlpha, pAccMin} model =
+runResult stepMax APMC{nGen, nAlpha, pAccMin, parallel} model =
   let res :: RandT StdGen IO ((Duration, Duration), APMC.S)
-      res = APMC.runPar 1 p (Model.model model)
+      res = APMC.runPar parallel p (Model.model model)
       p = APMC.P
         { APMC.nGen = nGen
         , APMC.nAlpha = nAlpha

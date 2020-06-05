@@ -357,7 +357,7 @@ l2_vs_bias_factor_data := output/formulas/figure_data/stats_comp_lhs
 
 l2_vs_bias_factor_input := $(l2_vs_bias_factor_script) $(l2_vs_bias_factor_data)
 l2_vs_bias_factor_output := output/report/l2_vs_bias_factor.png
-l2_vs_bias_factor_sentinel := sentinel/l2_vs_bias_factor
+l2_vs_bias_factor_sentinel := sentinel/figure_l2_vs_bias_factor
 
 $(l2_vs_bias_factor_output) : $(l2_vs_bias_factor_sentinel) ;
 
@@ -377,7 +377,7 @@ scatter_l2_time_lhs_data := output/formulas/figure_data/stats_comp_lhs
 
 scatter_l2_time_lhs_input := $(scatter_l2_time_lhs_script) $(scatter_l2_time_lhs_data)
 scatter_l2_time_lhs_output := output/report/scatter_l2_time_lhs.png
-scatter_l2_time_lhs_sentinel := sentinel/scatter_l2_time_lhs
+scatter_l2_time_lhs_sentinel := sentinel/figure_scatter_l2_time_lhs
 
 $(scatter_l2_time_lhs_output) : $(scatter_l2_time_lhs_sentinel) ;
 
@@ -397,7 +397,7 @@ l2_effects_lhs_data := output/formulas/figure_data/stats_comp_lhs
 
 l2_effects_lhs_input := $(l2_effects_lhs_script) $(l2_effects_lhs_data)
 l2_effects_lhs_output := output/report/l2_effects_lhs.png
-l2_effects_lhs_sentinel := sentinel/l2_effects_lhs
+l2_effects_lhs_sentinel := sentinel/figure_l2_effects_lhs
 
 $(l2_effects_lhs_output) : $(l2_effects_lhs_sentinel) ;
 
@@ -417,7 +417,7 @@ time_effects_lhs_data := output/formulas/figure_data/stats_comp_lhs
 
 time_effects_lhs_input := $(time_effects_lhs_script) $(time_effects_lhs_data)
 time_effects_lhs_output := output/report/time_effects_lhs.png
-time_effects_lhs_sentinel := sentinel/time_effects_lhs
+time_effects_lhs_sentinel := sentinel/figure_time_effects_lhs
 
 $(time_effects_lhs_output) : $(time_effects_lhs_sentinel) ;
 
@@ -427,7 +427,7 @@ $(time_effects_lhs_sentinel): $(time_effects_lhs_input)
 > mkdir -p $(@D)
 > touch $@
 
-figures: $(l2_effects_lhs_output)
+figures: $(time_effects_lhs_output)
 
 
 ## Figure Time Ratio Effects LHS ##
@@ -437,7 +437,7 @@ time_ratio_effects_lhs_data := output/formulas/figure_data/stats_comp_lhs
 
 time_ratio_effects_lhs_input := $(time_ratio_effects_lhs_script) $(time_ratio_effects_lhs_data)
 time_ratio_effects_lhs_output := output/report/time_ratio_effects_lhs.png
-time_ratio_effects_lhs_sentinel := sentinel/time_ratio_effects_lhs
+time_ratio_effects_lhs_sentinel := sentinel/figure_time_ratio_effects_lhs
 
 $(time_ratio_effects_lhs_output) : $(time_ratio_effects_lhs_sentinel) ;
 

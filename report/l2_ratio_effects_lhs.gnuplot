@@ -12,22 +12,16 @@ set multiplot layout 2,4
 
 parameters = "nGen nAlpha pAccMin parallel biasFactor meanRunTime varRunTime"
 
-set ylabel "Run time ratio"
-set yrange [0.5:50]
-set log y
+set ylabel "L2 error ratio"
+set yrange [0.1:5]
+#set log y
 set ytics format "%g"
 
 do for [par in parameters] {
   set xlabel par
   set xtics rotate by -45
-  plot datafile using par:"compTimeRatio" with dots lc 3, \
+  plot datafile using par:"compL2Ratio" with dots lc 3, \
        1 with line lw 2 lc black
 }
 
-set xlabel "nGen / parallel"
-set xrange [0:5]
-plot datafile using (column("nGen") / column("parallel")):"compTimeRatio" with dots lc 3, \
-     1 with line lw 2 lc black
-
 unset multiplot
-

@@ -410,7 +410,27 @@ $(l2_effects_lhs_sentinel): $(l2_effects_lhs_input)
 figures: $(l2_effects_lhs_output)
 
 
-## Figure Time Ratio Effects LHS ##
+## Figure L2 Ratio Effects LHS ##
+
+l2_ratio_effects_lhs_script := report/l2_ratio_effects_lhs.gnuplot
+l2_ratio_effects_lhs_data := output/formulas/figure_data/stats_comp_lhs
+
+l2_ratio_effects_lhs_input := $(l2_ratio_effects_lhs_script) $(l2_ratio_effects_lhs_data)
+l2_ratio_effects_lhs_output := output/report/l2_ratio_effects_lhs.png
+l2_ratio_effects_lhs_sentinel := sentinel/figure_l2_ratio_effects_lhs
+
+$(l2_ratio_effects_lhs_output) : $(l2_ratio_effects_lhs_sentinel) ;
+
+$(l2_ratio_effects_lhs_sentinel): $(l2_ratio_effects_lhs_input)
+> mkdir -p output/report
+> gnuplot -c $(l2_ratio_effects_lhs_script) $(l2_ratio_effects_lhs_output) $(l2_ratio_effects_lhs_data)
+> mkdir -p $(@D)
+> touch $@
+
+figures: $(l2_ratio_effects_lhs_output)
+
+
+## Figure Time Effects LHS ##
 
 time_effects_lhs_script := report/time_effects_lhs.gnuplot
 time_effects_lhs_data := output/formulas/figure_data/stats_comp_lhs

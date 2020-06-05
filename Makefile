@@ -94,6 +94,12 @@ $(run_comp_lhs_sentinel): $(haskfile) $(run_comp_lhs_input)
 > mkdir -p $(@D)
 > touch $@
 
+## Simulation Repli Comp ##
+
+output/formulas/repli/comp/%: $(haskfile)
+> mkdir -p $(@D)
+> $(haskfile) repli-comp $(SEED) $(REPLICATIONS) `basename $@` $@
+
 
 ## Stats histo run ##
 
@@ -192,6 +198,37 @@ $(stats_comp_lhs_sentinel): $(run_comp_lhs_sentinel) $(haskfile)
 > mkdir -p $(@D)
 > touch $@
 
+
+## Stats Comp Test Cases ##
+
+stats_comp_test_cases_simus := \
+comp_nGen4000_nAlpha500_pAccMin0.01_parallel8_stepMax100_biasFactor1_meanRunTime1_varRunTime0.000001 \
+comp_nGen4000_nAlpha500_pAccMin0.01_parallel8_stepMax100_biasFactor1_meanRunTime1_varRunTime0.0001 \
+comp_nGen4000_nAlpha500_pAccMin0.01_parallel8_stepMax100_biasFactor1_meanRunTime1_varRunTime0.01 \
+comp_nGen4000_nAlpha500_pAccMin0.01_parallel8_stepMax100_biasFactor1_meanRunTime1_varRunTime1 \
+comp_nGen4000_nAlpha500_pAccMin0.01_parallel80_stepMax100_biasFactor1_meanRunTime60_varRunTime0.0036 \
+comp_nGen4000_nAlpha500_pAccMin0.01_parallel80_stepMax100_biasFactor1_meanRunTime60_varRunTime0.36 \
+comp_nGen4000_nAlpha500_pAccMin0.01_parallel80_stepMax100_biasFactor1_meanRunTime60_varRunTime36 \
+comp_nGen4000_nAlpha500_pAccMin0.01_parallel80_stepMax100_biasFactor1_meanRunTime60_varRunTime3600 \
+comp_nGen4000_nAlpha500_pAccMin0.01_parallel1000_stepMax100_biasFactor1_meanRunTime3600_varRunTime12.96 \
+comp_nGen4000_nAlpha500_pAccMin0.01_parallel1000_stepMax100_biasFactor1_meanRunTime3600_varRunTime1296 \
+comp_nGen4000_nAlpha500_pAccMin0.01_parallel1000_stepMax100_biasFactor1_meanRunTime3600_varRunTime129600 \
+comp_nGen4000_nAlpha500_pAccMin0.01_parallel1000_stepMax100_biasFactor1_meanRunTime3600_varRunTime12960000
+
+stats_comp_test_cases_input := \
+$(foreach simu, $(stats_comp_test_cases_simus), output/formulas/repli/comp/$(simu))
+stats_comp_test_cases_output := output/formulas/figure_data/stats_comp_test_cases
+stats_comp_test_cases_sentinel := sentinel/stats_comp_test_cases
+  
+$(stats_comp_test_cases_output): $(stats_comp_test_cases_sentinel) ;
+
+$(stats_comp_test_cases_sentinel): $(stats_comp_test_cases_input) $(haskfile) 
+> mkdir -p output/formulas/figure_data/
+> $(haskfile) stats-comp-test-cases \
+>   $(foreach simu, $(stats_comp_test_cases_simus), --comp output/formulas/repli/comp/$(simu)) \
+>   --out $(stats_comp_test_cases_output)
+> mkdir -p $(@D)
+> touch $@
 
 ## Figure Steps ##
 
@@ -468,6 +505,25 @@ $(time_ratio_effects_lhs_sentinel): $(time_ratio_effects_lhs_input)
 > touch $@
 
 figures: $(time_ratio_effects_lhs_output)
+
+
+## Figure Comp Test Cases ##
+
+comp_test_cases_script := report/comp_test_cases.gnuplot
+comp_test_cases_data := output/formulas/figure_data/stats_comp_test_cases
+
+comp_test_cases_input := $(comp_test_cases_script) $(comp_test_cases_data)
+comp_test_cases_output := output/report/comp_test_cases.png
+comp_test_cases_sentinel := sentinel/figure_comp_test_case
+$(comp_test_cases_output) : $(comp_test_cases_sentinel) ;
+
+$(comp_test_cases_sentinel): $(comp_test_cases_input)
+> mkdir -p output/report
+> gnuplot -c $(comp_test_cases_script) $(comp_test_cases_output) $(comp_test_cases_data)
+> mkdir -p $(@D)
+> touch $@
+
+figures: $(comp_test_cases_output)
 
 
 #### Helper rules ####

@@ -54,6 +54,11 @@ data Cmd
       Int        -- Seed
       Text       -- Comp spec
       FilePath   -- Comp value output file
+  | RepliComp
+      Int        -- Seed
+      Int        -- Replications
+      Text       -- Comp spec
+      FilePath   -- Steps
   | HistoRun
       FilePath -- Run
       FilePath -- Histogram
@@ -69,6 +74,9 @@ data Cmd
   | StatsCompLhs 
       FilePath -- Comp Lhs directory
       FilePath -- Stats Comp LHS.
+  | StatsCompTestCases
+      [FilePath] -- Files where replicated comps are written
+      FilePath -- Outpath 
   deriving (Show)
 
 cmd :: Parser Cmd
@@ -117,6 +125,16 @@ cmd = subparser
          <$> argument auto (metavar "Seed")
          <*> argument str (metavar "Comp")
          <*> argument str (metavar "FilePath")
+       )
+       mempty
+     )
+  <> command "repli-comp"
+     ( info
+       ( RepliComp
+         <$> argument auto (metavar "Seed")
+         <*> argument auto (metavar "Replications")
+         <*> argument str (metavar "Comp")
+         <*> argument str (metavar "OutPath")
        )
        mempty
      )
@@ -174,6 +192,20 @@ cmd = subparser
        )
        mempty
      )
+  <> command "stats-comp-test-cases"
+     ( info
+       ( StatsCompTestCases 
+         <$> some
+             ( strOption
+                ( long "comp"
+               <> metavar "Comp replications...")
+             )
+         <*> strOption
+              ( long "out"
+             <> metavar "Gnuplot Data File")
+       )
+       mempty
+     )
    )
 
 parseOpts :: IO Cmd
@@ -215,6 +247,10 @@ main = do
     Main.Comp seed input output -> do
       let compParams = parseCompSpecStringOrPanic input
       res <- evalRandT (comp compParams) (mkStdGen seed)
+      writeSingle output res
+    RepliComp seed replications input output -> do
+      let sim = parseCompSpecStringOrPanic input
+      res <- evalRandT (repliComp replications sim) (mkStdGen seed)
       writeSingle output res
     HistoRun pathRun pathHisto -> do
       run <- readSingle pathRun
@@ -271,6 +307,36 @@ main = do
         & asyncly
         -- Transform to rows 
         & S.mapM (fmap (row . statsComp) . readSingle)
+        -- Add header to the head of the stream
+        & S.cons header
+        -- Write each line to file          
+        & S.foldxM (\h l -> hPutStrLn h l >> return h) 
+                   (openFile pathOut WriteMode) 
+                   (\h -> hClose h >> return ())
+    StatsCompTestCases pathsComps pathOut -> do
+      comps <- (Repli.get =<<) <$> readList pathsComps :: IO [Comp]
+      let header = "nGen, nAlpha, pAccMin, parallel, stepMax, biasFactor, meanRunTime, varRunTime, compL2Apmc, compTimeApmc, compL2MonApmc, compTimeMonApmc, compL2Ratio, compTimeRatio" :: Text
+      let row !c@(StatComp (CompParams nGen nAlpha pAccMin parallel stepMax biasFactor meanRunTime varRunTime) compL2Apmc compTimeApmc compL2MonApmc compTimeMonApmc compL2Ratio compTimeRatio) = 
+               show nGen 
+            <> ", " <> show (getStrictlyPositive nAlpha)
+            <> ", " <> show pAccMin 
+            <> ", " <> show parallel 
+            <> ", " <> show stepMax 
+            <> ", " <> show biasFactor 
+            <> ", " <> show meanRunTime 
+            <> ", " <> show varRunTime 
+            <> ", " <> show compL2Apmc 
+            <> ", " <> show compTimeApmc 
+            <> ", " <> show compL2MonApmc 
+            <> ", " <> show compTimeMonApmc 
+            <> ", " <> show compL2Ratio 
+            <> ", " <> show compTimeRatio :: Text
+      let testCase !c@(StatComp (CompParams nGen nAlpha pAccMin parallel stepMax biasFactor meanRunTime varRunTime) compL2Apmc compTimeApmc compL2MonApmc compTimeMonApmc compL2Ratio compTimeRatio) = 
+            (meanRunTime, parallel) 
+      -- Comps 
+      S.fromFoldable comps
+        -- Transform to rows 
+        & fmap (row . statsComp)
         -- Add header to the head of the stream
         & S.cons header
         -- Write each line to file          

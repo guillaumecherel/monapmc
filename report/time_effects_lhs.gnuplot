@@ -13,7 +13,7 @@ set multiplot layout 2,4
 parameters = "nGen nAlpha pAccMin parallel biasFactor meanRunTime varRunTime"
 
 set ylabel "Run time"
-set yrange [100:4e6]
+set yrange [100:5e7]
 set log y
 set ytics format "%g"
 

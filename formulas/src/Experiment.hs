@@ -379,21 +379,6 @@ peekList i peek v =
 
 
 
----- Simulation Repli Run ----
-
-repliRun :: Int -> Simulation -> RandT StdGen IO (Repli Run)
-repliRun n sim = Repli.repliM n $ run sim
-
-
-
-
----- Simulation Repli Steps ----
-
-repliSteps :: Int -> Simulation -> RandT StdGen IO (Repli Steps)
-repliSteps n sim = Repli.repliM n $ steps sim
-
-
-
 ---- Simulation Comp ----
 
 data Comp = Comp 
@@ -435,6 +420,24 @@ getCompSampleApmc = getRunSample . getCompApmcRun
 getCompSampleMonApmc = getRunSample . getCompMonApmcRun
 getCompTimeApmc = getRunResultSimTime . getRunRunResult . getCompApmcRun
 getCompTimeMonApmc = getRunResultSimTime . getRunRunResult . getCompMonApmcRun
+
+
+---- Simulation Repli Run ----
+
+repliRun :: Int -> Simulation -> RandT StdGen IO (Repli Run)
+repliRun n sim = Repli.repliM n $ run sim
+
+
+---- Simulation Repli Steps ----
+
+repliSteps :: Int -> Simulation -> RandT StdGen IO (Repli Steps)
+repliSteps n sim = Repli.repliM n $ steps sim
+
+
+---- Simulation Relpi Comp ----
+repliComp :: Int -> CompParams -> RandT StdGen IO (Repli Comp)
+repliComp n c = Repli.repliM n $ comp c
+
 
 ---- Stats histo ----
 
@@ -580,8 +583,8 @@ statsComp c =
      , getStatCompTimeRatio = timeRatio c
      }
 
-statsCompLhs :: [Comp] -> [StatComp]
-statsCompLhs cs = statsComp <$> cs
+-- statsCompLhs :: [Comp] -> [StatComp]
+-- statsCompLhs cs = statsComp <$> cs
 
 
 -- to be removed

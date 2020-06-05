@@ -256,3 +256,31 @@ plus, mais on s'en sert dans la fonction step de MonAPMC: on fixe nAlpha = nGen
 puis nGen = 0 avant d'appeler la fonction stepOne d'APMC, qu'on réutilise pour
 générer les particules initiales (jusqu'à ce que la taille de l'échantillon dans
 l'état de MonAPMC atteigne nAlpha).
+
+
+vendredi 5 juin 2020, 20:04:07 (UTC+0200)
+=========================================
+
+On ne commence à voir un effet de la variance du temps d'execution du modèle sur
+le Time Ratio seulement pour de grandes valeurs par rapport au temps moyen
+d'execution, c'est-à-dire quand l'écart-type est au moins égal à meanRunTime,
+donc quand la variance est au moins égale à `meanRunTime ** 2`. Par exemple:
+* CompParams 1000 1000 0.05 100 100 1 100 ((100 * 1) ** 2) -> time ratio = 1.47292893931291
+* CompParams 1000 1000 0.05 100 100 1 100 ((100 * 2) ** 2)) -> time ratio = 2.4873363930645107
+* CompParams 1000 1000 0.05 100 100 1 100 ((100 * 3) ** 2)) -> time ratio = 3.6797020447571023
+
+Ça explique peut-être pourquoi on ne voit pas d'effet net dans Fig Time Ratio
+Effects LHS. Dans l'échantillonnage LHS, la variance et le temps moyen
+d'execution varient tous les deux entre 0 et 100. La variance est donc souvent en
+dessous du seuil où on commence à observer un effet (pour meanRunTime = 10,
+c'est 100, pour meanRunTime = 20, c'est 400...).
+
+Un écart-type de temps d'exécution au moins égal au temps moyen de calcul ne me
+semble pas réaliste. On peut donc en rester là avec cette histoire de l'effet de
+la variance. Le résultat principal pour MonAPMC reste que le time ratio augmente
+en sa faveur avec le parallélisme. 
+
+Todo: Changer Stats Comp Test Cases pour ne plus faire varier varRunTime mais le
+fixer à 1/10 du meanRunTime. Faire des réplications et calculer le gain de
+temps simplement. Pas besoin de Fig Comp Test Cases.
+

@@ -243,7 +243,7 @@ Fig L2 vs biasFactor
 :   File: <file://./output/report/l2_vs_bias_factor.png>.
 :   Code def: Gnuplot 
 
-This figure confirms that, with MonAPMC, the L2 value remains constant as the
+This figure confirms that the MonAPMC's L2 error remains constant as the
 bias in the model run time increases.
 
 Fig Scatter L2 Time LHS
@@ -253,40 +253,96 @@ Fig Scatter L2 Time LHS
 :   File: <file:///output/report/l2_time_lhs.png>. 
 :   Exe: `gnuplot -c report/l2_time_lhs.gnuplot File(Stat LHS) File(Fig Scatter L2 Time LHS)`
 
-This scatter plot shows that the L2 errors made by both algorithms are comparable. We
-can thus focus on comparing them on their run time.
+The left-hand scatter plot shows that the L2 errors made by both algorithms are roughly
+distributed around the `y=x` line. We notice a few points on the top left part
+of the plot located apart from that line. They correspond to comparisons with
+small values of `nGen` (see Fig L2 Effects Ratio LHS). The right-hand scatter
+plot shows that most points are located on above the `y=x` line, where APMC's
+run time is higher than MonAPMC's. This figures confirms MonAPMC's advantage
+being on the run time while not incurring degradation in the posterior sample's
+quality.
 
 Fig L2 Effects LHS
 
-:   Scatter plots of L2 error against each comparison parameter. Each point
-    corresponds to a simulation of one algorithm
+:   Scatter plots of L2 errors for both algorithm against each comparison
+    parameter. Each point corresponds to a simulation of one algorithm
 
-These plots show that the quality of the estimation in only affected by the size
-of the posterior sample, `nAlpha`. It is similar for both algorithms.
+These plots show that the size of the posterior sample, `nAlpha`, clearly
+affects the L2 error. It does so similarly for both algorithms. We also notice that
+the L2 error rises for APMC for small values of `nGen`. This parameter
+indirectly affects the algorithm's stopping criteria: APMC stops when the
+proportion of model simulations accepted during the last iteration is less than 
+`pAccMin`. `nGen` is the size of the sample on which this proportion is
+computed. This proportion is more variable for small samples, they are thus more
+likely to satisfy the condition by chance, leading to an early exit before
+posterior sample has had the chance to actually get better. 
+
+Fig L2 Ratio Effects LHS
+
+:   Scatter plots of L2 ratios against each comparison parameter. Each point
+    corresponds to a comparable pair of algorithms.
 
 Fig Time Effects LHS
 
 :   Scatter plots of simulation run time against each comparison parameter. Each point
     corresponds to a simulation of one algorithm
 
-These plots show that the only parameter affecting the simulation run time are the
-parallelism and the model run time variance. Both algorithms are quicker as
-the level of parallelism increases. The model run time variance affects the run
-time of APMC but not MonApmc.
+The scatter plot of run time vs. parallel confirms that the parallelism levels
+reduces the run time for both algorithms. Both algorithms are quicker as
+the level of parallelism increases. 
 
 Fig Time Ratio Effects LHS
 
 :   Scatter plots of Time ratio against each comparison parameter. One point per
     comparison.
 
-In these plots, each point show how many times MonApmc is quicker than Apmc for
-each comparison run from the LHS. They show that ... 
+In these plots, each point shows how many times MonApmc is quicker than Apmc for
+each comparison run from the LHS. Higher parallelism increases the speed of
+MonAPMC compared to APMC. Lower values of `nGen` also increases the ratio in
+favor of MonAPMC. Since the LHS samples variable uniformly within their respective
+bounds, low `nGen` values to be associated with `parallel` values such that 
+`nGen < parallel`. In this case, APMC will systematically run fewer model
+simulation than there are computing units available, while MonAPMC will always
+use all available cores.
 
-We check that the posterior sample is not biased by ensuring that the value of
-L2 does not increase compared to the settings where the model run time is
-independant from the model parameter values, i.e. as the bias factor increases.
-TODO: mesurer le biais avec le modèle gaussien aussi pour tester cet effet du
-bias factor avec un modèle pas trop facile (pas uniforme).
+The LHS sampling does not clearly allow us to verify the effect of the model
+run time variance on the relative speed of both algorithms. To make it more
+appearent, we run a new set of comparisons where `varRunTime` varies such that
+the model run time standard deviation is equal to `meanRunTime / 1000`,
+`meanRunTime / 100`, `meanRunTime / 10` and `meanRunTime`. We use three test
+cases: a small model with an average run time of 1 second running on a local 8
+cores machine, an intermediate model with an average run time of 1 minute
+running on a 80 cores cluster and a large model with an average run time of 1
+hour using 1000 cores on a grid computing infrastructure. Each is comparison replicated
+10 times and we measure the run time of each algorithm and their ratio.
+
+Test Cases
+
+:    The parameter take the default values except `varRunTime`, `meanRunTime`
+     and `paralleism`. The three following test cases fix set values for the latter two: 
+
+     - `meanRunTime` = 1s, `parallel` = 8
+     - `meanRunTime` = 60s, `parallel` = 80
+     - `meanRunTime` = 3600s, `parallel` = 1000
+
+     For each test case, `varRunTime` takes successively the values 
+     `meanRunTime / 1000`, `meanRunTime / 100`, `meanRunTime / 10` and
+     `meanRunTime`.
+
+
+Stats Comp Test Cases
+
+:   A table whith the same colums as Stats Comp LHS, each row corresponding to a
+    different test case and `varRunTime` value.
+
+:   Def: Haskell
+
+
+Fig Comp Test Cases
+
+:   Time ratio vs `sqrt(varRunTime)/meanRunTime` for each replication of each
+    test case.
+:   Def: Gnuplot
 
 In what setting is MonAPMC's parallelism scheme actually an advantage? Are these
 conditions interesting in practice? How much is gained? Case studies accross

@@ -1,3 +1,10 @@
+Model run time: single moder run
+Total run time: total time taken to run all the model runs during a whole
+algorithm run.
+Algorithm run time: time taken by the algorithm during a whole run excluding the
+time taken by model runs. This quantity is left out of the study as it is
+negligible compared to the model run time and varies accross algorithm implementations.
+
 This repository contains the numerical experiments to test the algorithm
 MonAPMC. This algorithm is an attempt to implement an APMC algorithm that scales
 well with the number of computing cores available to perform simulations and the
@@ -290,30 +297,41 @@ The scatter plot of run time vs. parallel confirms that the parallelism levels
 reduces the run time for both algorithms. Both algorithms are quicker as
 the level of parallelism increases. 
 
+Small mean model run times result in a drop of total run times for MonAPMC that we
+don't observe with APMC.
+
 Fig Time Ratio Effects LHS
 
 :   Scatter plots of Time ratio against each comparison parameter. One point per
     comparison.
 
-In these plots, each point shows how many times MonApmc is quicker than Apmc for
-each comparison run from the LHS. Higher parallelism increases the speed of
-MonAPMC compared to APMC. Lower values of `nGen` also increases the ratio in
-favor of MonAPMC. Since the LHS samples variable uniformly within their respective
-bounds, low `nGen` values to be associated with `parallel` values such that 
-`nGen < parallel`. In this case, APMC will systematically run fewer model
-simulation than there are computing units available, while MonAPMC will always
-use all available cores.
+These plots focus on comparing both algorithms. Each point shows how many times
+MonApmc is quicker than Apmc for each comparison run from the LHS. Higher
+parallelism increases the speed of MonAPMC compared to APMC. Lower values of
+`nGen` also increases the ratio in favor of MonAPMC. Since the LHS samples
+variable uniformly within their respective bounds, low `nGen` values to be
+associated with `parallel` values such that `nGen < parallel`. In this case,
+APMC will systematically run fewer model simulation than there are computing
+units available, while MonAPMC will always use all available cores. Last, the
+mean model run time also seems to affect the relative total run time, small
+values benefiting MonAPMC's.
 
-The LHS sampling does not clearly allow us to verify the effect of the model
-run time variance on the relative speed of both algorithms. To make it more
-appearent, we run a new set of comparisons where `varRunTime` varies such that
-the model run time standard deviation is equal to `meanRunTime / 1000`,
-`meanRunTime / 100`, `meanRunTime / 10` and `meanRunTime`. We use three test
-cases: a small model with an average run time of 1 second running on a local 8
-cores machine, an intermediate model with an average run time of 1 minute
-running on a 80 cores cluster and a large model with an average run time of 1
-hour using 1000 cores on a grid computing infrastructure. Each is comparison replicated
-10 times and we measure the run time of each algorithm and their ratio.
+MonAPMC seems to offer the strongest advantage over APMC when the ratio
+of `nGen`, the number of particules generated at each time by APMC, over the
+parallelism level is small (bottom rightmost plot).
+
+The LHS sampling does not clearly allow us to verify the effect of the model run
+time variance on the relative speed of both algorithms. It does appear again
+however the model run time standard deviation becomes large compared to the mean
+model run time. We run a new set of comparisons where `varRunTime` varies such
+that the model run time standard deviation is equal to `meanRunTime / 10`,
+`meanRunTime / 2`, `meanRunTime`, `meanRunTime * 2`, `meanRunTime * 3` and
+`meanRunTime * 4`. We use three test cases: a small model with an average run
+time of 1 second running on a local 8 cores machine, an intermediate model with
+an average run time of 1 minute running on a 80 cores cluster and a large model
+with an average run time of 1 hour using 1000 cores on a grid computing
+infrastructure. Each is comparison replicated 10 times and we measure the total
+run time ratio.
 
 Test Cases
 
@@ -333,7 +351,6 @@ Stats Comp Test Cases
 
 :   For each test case and each value of `varRunTime`, we run 10 replications and compute 
     the run time ratio mean and standard deviation.
-
 :   Def: Haskell
 
 
@@ -344,6 +361,13 @@ Fig Comp Test Cases
     deviation. 
 :   Def: Gnuplot
 
+MonAPMC can offer a strong speedup over APMC when the level of parallelism 
+high and the model run time is highly variable. For smaller parallelism and
+model run time variance, MonAPMC is still an improvement over APMC, but less
+dramatically. 
+
+# Conclusion
+
 In what setting is MonAPMC's parallelism scheme actually an advantage? Are these
 conditions interesting in practice? How much is gained? Case studies accross
 predefined parameter values representing different settings: computing resources
@@ -352,8 +376,6 @@ performance cluster ~ 100 cores, grid 1000 cores), model averange run time (to
 model to ABM), model run time variance. Measure `T(ParApmc, ParMonApmc)` over a
 full factorial design of these conditions.
 
-MonAPMC's Memory requirement over the same conditions as before. Local memory
-and memory on each node.
 
 
 

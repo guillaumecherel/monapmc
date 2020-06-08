@@ -23,8 +23,8 @@ set xrange [0:*]
 set offset graph 0.0, 0.05, 0.05, 0.05
 
 set multiplot layout 1,3
-plot datafile index 0 using 1:2:3 with errorlines lc 1 t "Test case 1"
-plot datafile index 1 using 1:2:3 with errorlines lc 2 t "Test case 2"
-plot datafile index 2 using 1:2:3 with errorlines lc 3 t "Test case 3"
+plot datafile index 0 using 1:2:3 with errorlines lc 1 t "Test case 1", 1 lc black lw 2
+plot datafile index 1 using 1:2:3 with errorlines lc 2 t "Test case 2", 1 lc black lw 2
+plot datafile index 2 using 1:2:3 with errorlines lc 3 t "Test case 3", 1 lc black lw 2
 unset multiplot
 

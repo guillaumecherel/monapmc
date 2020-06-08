@@ -25,7 +25,7 @@ do for [par in parameters] {
 }
 
 set xlabel "nGen / parallel"
-set xrange [0:5]
+set xrange [0:6]
 plot datafile using (column("nGen") / column("parallel")):"compTimeRatio" with dots lc 3, \
      1 with line lw 2 lc black
 

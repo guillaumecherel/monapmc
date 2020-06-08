@@ -314,34 +314,7 @@ main = do
                    (openFile pathOut WriteMode) 
                    (\h -> hClose h >> return ())
     StatsCompTestCases pathsComps pathOut -> do
-      comps <- (Repli.get =<<) <$> readList pathsComps :: IO [Comp]
-      let header = "nGen, nAlpha, pAccMin, parallel, stepMax, biasFactor, meanRunTime, varRunTime, compL2Apmc, compTimeApmc, compL2MonApmc, compTimeMonApmc, compL2Ratio, compTimeRatio" :: Text
-      let row !c@(StatComp (CompParams nGen nAlpha pAccMin parallel stepMax biasFactor meanRunTime varRunTime) compL2Apmc compTimeApmc compL2MonApmc compTimeMonApmc compL2Ratio compTimeRatio) = 
-               show nGen 
-            <> ", " <> show (getStrictlyPositive nAlpha)
-            <> ", " <> show pAccMin 
-            <> ", " <> show parallel 
-            <> ", " <> show stepMax 
-            <> ", " <> show biasFactor 
-            <> ", " <> show meanRunTime 
-            <> ", " <> show varRunTime 
-            <> ", " <> show compL2Apmc 
-            <> ", " <> show compTimeApmc 
-            <> ", " <> show compL2MonApmc 
-            <> ", " <> show compTimeMonApmc 
-            <> ", " <> show compL2Ratio 
-            <> ", " <> show compTimeRatio :: Text
-      let testCase !c@(StatComp (CompParams nGen nAlpha pAccMin parallel stepMax biasFactor meanRunTime varRunTime) compL2Apmc compTimeApmc compL2MonApmc compTimeMonApmc compL2Ratio compTimeRatio) = 
-            (meanRunTime, parallel) 
-      -- Comps 
-      S.fromFoldable comps
-        -- Transform to rows 
-        & fmap (row . statsComp)
-        -- Add header to the head of the stream
-        & S.cons header
-        -- Write each line to file          
-        & S.foldxM (\h l -> hPutStrLn h l >> return h) 
-                   (openFile pathOut WriteMode) 
-                   (\h -> hClose h >> return ())
+      comps <- readList pathsComps :: IO [Repli Comp]
+      writeOneFile gnuplotData3 pathOut $ pureGnuplotDataSets $ statsCompTestCases comps
     c -> panic $ "Command not implemented yet: " <> show c
 

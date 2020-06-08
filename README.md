@@ -235,7 +235,6 @@ Stats Comp LHS
     error and runtime for each algorithm and l2 ratio and time ratio.  The
     first line gives the columns labels.
 
-
 Fig L2 vs biasFactor
 
 :   A scatter plot of MonAPMC L2 Errors vs biasFactor for the MonAPMC simulation runs in
@@ -321,9 +320,9 @@ Test Cases
 :    The parameter take the default values except `varRunTime`, `meanRunTime`
      and `paralleism`. The three following test cases fix set values for the latter two: 
 
-     - `meanRunTime` = 1s, `parallel` = 8
-     - `meanRunTime` = 60s, `parallel` = 80
-     - `meanRunTime` = 3600s, `parallel` = 1000
+     1. `meanRunTime` = 1s, `parallel` = 8
+     2. `meanRunTime` = 60s, `parallel` = 80
+     3. `meanRunTime` = 3600s, `parallel` = 1000
 
      For each test case, `varRunTime` takes successively the values 
      `meanRunTime / 1000`, `meanRunTime / 100`, `meanRunTime / 10` and
@@ -332,16 +331,17 @@ Test Cases
 
 Stats Comp Test Cases
 
-:   A table whith the same colums as Stats Comp LHS, each row corresponding to a
-    different test case and `varRunTime` value.
+:   For each test case and each value of `varRunTime`, we run 10 replications and compute 
+    the run time ratio mean and standard deviation.
 
 :   Def: Haskell
 
 
 Fig Comp Test Cases
 
-:   Time ratio vs `sqrt(varRunTime)/meanRunTime` for each replication of each
-    test case.
+:   Mean time ratio vs `sqrt(varRunTime)/meanRunTime` for each test case,
+    computed over 10 replications for each. Error bars give the standard
+    deviation. 
 :   Def: Gnuplot
 
 In what setting is MonAPMC's parallelism scheme actually an advantage? Are these

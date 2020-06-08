@@ -587,6 +587,40 @@ statsComp c =
 -- statsCompLhs cs = statsComp <$> cs
 
 
+---- Stats Comp Test Cases ----
+
+statsCompTestCases :: [Repli Comp] -> [DataSet (Double, Double, Double)]
+statsCompTestCases comps = 
+      flip Fold.fold comps
+    $ Fold.groupBy testCase (Fold.groupBy varRunTime single)
+    & (fmap . fmap . fmap) (Fold.fold meanStdPoints . Repli.get)
+    & (fmap . fmap) (DataSet . fmap snd . Map.toAscList)
+    & fmap (fmap snd . Map.toAscList)
+  where 
+    single :: Fold a a
+    single = singleOrPanic <$> Fold.list  
+    singleOrPanic [x] = x 
+    singleOrPanic _ = panic "statsCompTestCases: There should be only one Repli set per test case and varRunTime value."
+    varRunTime (Repli _ cs) = case headMay cs of
+      Just c -> getCompParamsVarRunTime . getCompParams $ c
+      Nothing -> panic "statsCompTestCases: There should be at least one replication."
+    testCase (Repli _ cs) = case headMay cs of
+      Just c -> (,) 
+            <$> getCompParamsParallel 
+            <*> getCompParamsMeanRunTime 
+              $ getCompParams 
+              $ c
+      Nothing -> panic "statsCompTestCases: There should be at least one replication."
+    meanStdPoints :: Fold Comp (Double, Double, Double)
+    meanStdPoints =
+      (,,)
+      <$> Fold.premap 
+            (\c -> (sqrt $ getCompParamsVarRunTime $ getCompParams c) 
+                   / (getCompParamsMeanRunTime $ getCompParams c) ) 
+            Fold.mean
+      <*> Fold.premap timeRatio Fold.mean
+      <*> Fold.premap timeRatio Fold.std
+
 -- to be removed
 -- plotting
 

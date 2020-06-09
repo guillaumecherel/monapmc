@@ -545,7 +545,7 @@ l2VsTimeRepliSteps repliSteps = Repli.map l2VsTimeSteps repliSteps
 
 
 
----- Stat Comp LHS ----
+---- Stats Comp LHS ----
 
 l2Ratio :: Comp -> Double 
 l2Ratio c = l2Apmc / l2MonApmc 
@@ -583,8 +583,6 @@ statsComp c =
      , getStatCompTimeRatio = timeRatio c
      }
 
--- statsCompLhs :: [Comp] -> [StatComp]
--- statsCompLhs cs = statsComp <$> cs
 
 
 ---- Stats Comp Test Cases ----

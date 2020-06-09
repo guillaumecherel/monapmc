@@ -29,8 +29,9 @@ model Toy x = (fromSeconds 1,) <$> toyModel x
 model (ToyTimeVar mean var) x =
   (,) <$> (fromSeconds <$> gammaRandomSample mean var) <*> toyModel x
 model (ToyTimeBias biasFactor biasThreshold mean var) x =
-  (,) <$> (fromSeconds <$> biasedRandomSample (V.head x)) -- <*> toyModel x
-  <*> (V.singleton <$> uniformRandomSample (V.head x - 1, V.head x + 1))
+  (,) <$> (fromSeconds <$> biasedRandomSample (V.head x)) 
+  <*> toyModel x
+  -- <*> (V.singleton <$> uniformRandomSample (V.head x - 1, V.head x + 1))
   -- (,) <$> (fromSeconds <$> gammaRandomSample (max 1 (power * (V.head x + 1))) var) <*> toyModel x
   where
     biasedRandomSample x' = if x' < biasThreshold

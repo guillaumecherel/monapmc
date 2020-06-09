@@ -242,12 +242,12 @@ steps_simus := \
 apmc_nGen4500_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
 mon-apmc_nGen4500_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100
 
-steps_gnuplot_script := report/steps.gnuplot
+steps_gnuplot_script := report/fig_steps.gnuplot
 
 steps_data := $(foreach simu,$(steps_simus),output/formulas/figure_data/histo_steps/$(simu))
 
 steps_input := $(steps_gnuplot_script) $(steps_data)
-steps_output := output/report/steps.png
+steps_output := output/report/fig_steps.png
 steps_sentinel := sentinel/figure_steps
 
 $(steps_output) : $(steps_sentinel) ;
@@ -263,10 +263,10 @@ figures: $(steps_output)
 
 ## Figure L2 vs nsimus ## 
 
-l2_vs_nsimus_gnuplot_script := report/l2_vs_nsimus.gnuplot
+l2_vs_nsimus_gnuplot_script := report/fig_l2_vs_nsimus.gnuplot
 l2_vs_nsimus_data := output/formulas/figure_data/mean_std_l2_vs_nsimus
 
-l2_vs_nsimus_output := output/report/l2_vs_nsimus.png
+l2_vs_nsimus_output := output/report/fig_l2_vs_nsimus.png
 l2_vs_nsimus_input := $(l2_vs_nsimus_gnuplot_script) $(l2_vs_nsimus_data)
 l2_vs_nsimus_sentinel := sentinel/figure_l2_vs_nsimus
 
@@ -283,7 +283,7 @@ figures: $(l2_vs_nsimus_output)
 
 ## Figure L2 vs Time K ##
 
-l2_vs_time_k_gnuplot_script := report/l2_vs_time_k.gnuplot
+l2_vs_time_k_gnuplot_script := report/fig_l2_vs_time_k.gnuplot
 
 l2_vs_time_k_simus := \
 apmc_nGen4000_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
@@ -295,7 +295,7 @@ mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_m
 
 l2_vs_time_k_data := $(foreach simu,$(l2_vs_time_k_simus),output/formulas/figure_data/l2_vs_time/$(simu))
 
-l2_vs_time_k_output := output/report/l2_vs_time_k.png
+l2_vs_time_k_output := output/report/fig_l2_vs_time_k.png
 l2_vs_time_k_input := $(l2_vs_time_k_gnuplot_script) $(l2_vs_time_k_data)
 l2_vs_time_k_sentinel := sentinel/figure_l2_vs_time_k
 
@@ -334,11 +334,11 @@ mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_m
 mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1_1_stepMax10000 \
 mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_modelToyTimeVar_1_10_stepMax10000
 
-l2_vs_time_k_v_gnuplot_script := report/l2_vs_time_k_v.gnuplot
+l2_vs_time_k_v_gnuplot_script := report/fig_l2_vs_time_k_v.gnuplot
 
 l2_vs_time_k_v_data := $(foreach simu,$(l2_vs_time_k_v_simus),output/formulas/figure_data/l2_vs_time/$(simu))
 
-l2_vs_time_k_v_output := output/report/l2_vs_time_k_v.png
+l2_vs_time_k_v_output := output/report/fig_l2_vs_time_k_v.png
 l2_vs_time_k_v_input := $(l2_vs_time_k_v_gnuplot_script) $(l2_vs_time_k_v_data)
 l2_vs_time_k_v_sentinel := sentinel/figure_l2_vs_time_k_v
 
@@ -370,7 +370,7 @@ figures: $(l2_vs_time_k_v_output)
 
 ## Figure Time Bias ##
 
-time_bias_gnuplot_script := report/time_bias.gnuplot
+time_bias_gnuplot_script := report/fig_time_bias.gnuplot
 
 time_bias_simus := \
 apmc_nGen4000_nAlpha500_pAccMin0.01_parallel100_modelToyTimeBias_100_0_1_100_stepMax100 \
@@ -379,7 +379,7 @@ mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4000_m
 time_bias_data := $(foreach simu,$(time_bias_simus),output/formulas/figure_data/histo_run/$(simu))
   
 time_bias_input := $(time_bias_gnuplot_script) $(time_bias_data)
-time_bias_output := output/report/time_bias.png
+time_bias_output := output/report/fig_time_bias.png
 time_bias_sentinel := sentinel/figure_time_bias
 
 $(time_bias_output) : $(time_bias_sentinel) ;
@@ -395,11 +395,11 @@ figures: $(time_bias_output)
 
 ## Figure L2 vs Bias Factor ##
 
-l2_vs_bias_factor_script := report/l2_vs_bias_factor.gnuplot
+l2_vs_bias_factor_script := report/fig_l2_vs_bias_factor.gnuplot
 l2_vs_bias_factor_data := output/formulas/figure_data/stats_comp_lhs
 
 l2_vs_bias_factor_input := $(l2_vs_bias_factor_script) $(l2_vs_bias_factor_data)
-l2_vs_bias_factor_output := output/report/l2_vs_bias_factor.png
+l2_vs_bias_factor_output := output/report/fig_l2_vs_bias_factor.png
 l2_vs_bias_factor_sentinel := sentinel/figure_l2_vs_bias_factor
 
 $(l2_vs_bias_factor_output) : $(l2_vs_bias_factor_sentinel) ;
@@ -415,11 +415,11 @@ figures: $(l2_vs_bias_factor_output)
 
 ## Figure Scatter L2 Time LHS ##
 
-scatter_l2_time_lhs_script := report/scatter_l2_time_lhs.gnuplot
+scatter_l2_time_lhs_script := report/fig_scatter_l2_time_lhs.gnuplot
 scatter_l2_time_lhs_data := output/formulas/figure_data/stats_comp_lhs
 
 scatter_l2_time_lhs_input := $(scatter_l2_time_lhs_script) $(scatter_l2_time_lhs_data)
-scatter_l2_time_lhs_output := output/report/scatter_l2_time_lhs.png
+scatter_l2_time_lhs_output := output/report/fig_scatter_l2_time_lhs.png
 scatter_l2_time_lhs_sentinel := sentinel/figure_scatter_l2_time_lhs
 
 $(scatter_l2_time_lhs_output) : $(scatter_l2_time_lhs_sentinel) ;
@@ -435,11 +435,11 @@ figures: $(scatter_l2_time_lhs_output)
 
 ## Figure L2 Effects LHS ##
 
-l2_effects_lhs_script := report/l2_effects_lhs.gnuplot
+l2_effects_lhs_script := report/fig_l2_effects_lhs.gnuplot
 l2_effects_lhs_data := output/formulas/figure_data/stats_comp_lhs
 
 l2_effects_lhs_input := $(l2_effects_lhs_script) $(l2_effects_lhs_data)
-l2_effects_lhs_output := output/report/l2_effects_lhs.png
+l2_effects_lhs_output := output/report/fig_l2_effects_lhs.png
 l2_effects_lhs_sentinel := sentinel/figure_l2_effects_lhs
 
 $(l2_effects_lhs_output) : $(l2_effects_lhs_sentinel) ;
@@ -455,11 +455,11 @@ figures: $(l2_effects_lhs_output)
 
 ## Figure L2 Ratio Effects LHS ##
 
-l2_ratio_effects_lhs_script := report/l2_ratio_effects_lhs.gnuplot
+l2_ratio_effects_lhs_script := report/fig_l2_ratio_effects_lhs.gnuplot
 l2_ratio_effects_lhs_data := output/formulas/figure_data/stats_comp_lhs
 
 l2_ratio_effects_lhs_input := $(l2_ratio_effects_lhs_script) $(l2_ratio_effects_lhs_data)
-l2_ratio_effects_lhs_output := output/report/l2_ratio_effects_lhs.png
+l2_ratio_effects_lhs_output := output/report/fig_l2_ratio_effects_lhs.png
 l2_ratio_effects_lhs_sentinel := sentinel/figure_l2_ratio_effects_lhs
 
 $(l2_ratio_effects_lhs_output) : $(l2_ratio_effects_lhs_sentinel) ;
@@ -475,11 +475,11 @@ figures: $(l2_ratio_effects_lhs_output)
 
 ## Figure Time Effects LHS ##
 
-time_effects_lhs_script := report/time_effects_lhs.gnuplot
+time_effects_lhs_script := report/fig_time_effects_lhs.gnuplot
 time_effects_lhs_data := output/formulas/figure_data/stats_comp_lhs
 
 time_effects_lhs_input := $(time_effects_lhs_script) $(time_effects_lhs_data)
-time_effects_lhs_output := output/report/time_effects_lhs.png
+time_effects_lhs_output := output/report/fig_time_effects_lhs.png
 time_effects_lhs_sentinel := sentinel/figure_time_effects_lhs
 
 $(time_effects_lhs_output) : $(time_effects_lhs_sentinel) ;
@@ -495,11 +495,11 @@ figures: $(time_effects_lhs_output)
 
 ## Figure Time Ratio Effects LHS ##
 
-time_ratio_effects_lhs_script := report/time_ratio_effects_lhs.gnuplot
+time_ratio_effects_lhs_script := report/fig_time_ratio_effects_lhs.gnuplot
 time_ratio_effects_lhs_data := output/formulas/figure_data/stats_comp_lhs
 
 time_ratio_effects_lhs_input := $(time_ratio_effects_lhs_script) $(time_ratio_effects_lhs_data)
-time_ratio_effects_lhs_output := output/report/time_ratio_effects_lhs.png
+time_ratio_effects_lhs_output := output/report/fig_time_ratio_effects_lhs.png
 time_ratio_effects_lhs_sentinel := sentinel/figure_time_ratio_effects_lhs
 
 $(time_ratio_effects_lhs_output) : $(time_ratio_effects_lhs_sentinel) ;
@@ -515,11 +515,11 @@ figures: $(time_ratio_effects_lhs_output)
 
 ## Figure Comp Test Cases ##
 
-comp_test_cases_script := report/comp_test_cases.gnuplot
+comp_test_cases_script := report/fig_comp_test_cases.gnuplot
 comp_test_cases_data := output/formulas/figure_data/stats_comp_test_cases
 
 comp_test_cases_input := $(comp_test_cases_script) $(comp_test_cases_data)
-comp_test_cases_output := output/report/comp_test_cases.png
+comp_test_cases_output := output/report/fig_comp_test_cases.png
 comp_test_cases_sentinel := sentinel/figure_comp_test_case
 $(comp_test_cases_output) : $(comp_test_cases_sentinel) ;
 

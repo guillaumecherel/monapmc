@@ -62,7 +62,7 @@ val lhs = DirectSampling(
     seed_d in (Double.MinValue, Double.MaxValue),
     nGen_d in (1.0, 2000.0),
     nAlpha_d in (100.0, 2000.0),
-    pAccMin in (0.1, 0.01), 
+    pAccMin in (0.01, 0.1), 
     parallel_d in (1.0, 1000.0), 
     stepMax_d in (100.0, 100.0),
     biasFactor in (0.0, 100.0), 

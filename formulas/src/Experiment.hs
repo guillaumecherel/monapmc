@@ -441,9 +441,9 @@ repliComp n c = Repli.repliM n $ comp c
 
 ---- Stats histo ----
 
-postDensityEstimate Toy = Statistics.estPostDen (-10) 10 300
-postDensityEstimate (ToyTimeVar _ _) = Statistics.estPostDen (-10) 10 300
-postDensityEstimate (ToyTimeBias _ _ _ _) = Statistics.estPostDen (-2) 2 20
+postDensityEstimate Toy = Statistics.estPostDen (-10) 10 150
+postDensityEstimate (ToyTimeVar _ _) = Statistics.estPostDen (-10) 10 150
+postDensityEstimate (ToyTimeBias _ _ _ _) = Statistics.estPostDen (-10) 10 150
 
 histogramRun :: Run -> DataSet (Double, Double)
 histogramRun run =

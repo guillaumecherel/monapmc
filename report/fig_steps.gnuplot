@@ -2,9 +2,9 @@ output_path=ARG1
 data_apmc=ARG2
 data_mon_apmc=ARG3
 
-set terminal png truecolor size 1000,700 font ',12'
-set xrange [-4:4]
-set yrange [0:3]
+set terminal pngcairo truecolor size 1000,500 font ',12'
+set xrange [-3:3]
+set yrange [0:2.2]
 # set samples 500
 # set isosamples 500
 set style fill solid 1.0

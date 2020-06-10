@@ -26,6 +26,7 @@ various definitions in the text are defined in code and data files.
 
 ## Directory structure
 
+```
 .
 ├── formulas: The haskell code implementing the algorithms, simulations and statistics.
 │   ├── app: code of the haskell executables used to run the simulations and statistics.
@@ -49,6 +50,7 @@ various definitions in the text are defined in code and data files.
 │   └── report: generated figures.
 ├── report: gnuplot scripts generating the figures.
 └── sentinel: sentinel files (used by the Makefile).
+```
 
 
 ## Usage: how to reproduce the results?
@@ -81,7 +83,6 @@ Here is a list of definitions given in the companion paper. This lists will help
 the reader make the correspondance between the paper and this repository by
 specifying where each definition is defined as code, stored as data or as an
 image file when appropriate.
-
 
 - Comp
   - Code <./formulas/src/Experiment.hs>

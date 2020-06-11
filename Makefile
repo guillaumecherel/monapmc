@@ -15,7 +15,6 @@ ifeq ($(origin .RECIPEPREFIX), undefined)
 ##################
 
 SEED = $(shell od -An -N2 -i /dev/random | tr -d ' ')
-REPLICATIONS = 50
 
 all: figures
 .PHONY: all
@@ -63,15 +62,15 @@ output/formulas/steps/%: $(haskfile)
 
 ## Simulation Repli Run ##
 
-output/formulas/repli/run/%: $(haskfile)
+output/formulas/repli/50/run/%: $(haskfile)
 > mkdir -p $(@D)
-> $(haskfile) repli-run $(SEED) $(REPLICATIONS) `basename $@` $@
+> $(haskfile) repli-run $(SEED) 50 `basename $@` $@
 
 
  
-output/formulas/repli/steps/%: $(haskfile)
+output/formulas/repli/10/steps/%: $(haskfile)
 > mkdir -p $(@D)
-> $(haskfile) repli-steps $(SEED) $(REPLICATIONS) `basename $@` $@
+> $(haskfile) repli-steps $(SEED) 10 `basename $@` $@
 
 
 ## Simulation Run Comp LHS ##
@@ -88,9 +87,9 @@ $(run_comp_lhs_sentinel): $(run_comp_lhs_input)
 
 ## Simulation Repli Comp ##
 
-output/formulas/repli/comp/%: $(haskfile)
+output/formulas/repli/50/comp/%: $(haskfile)
 > mkdir -p $(@D)
-> $(haskfile) repli-comp $(SEED) $(REPLICATIONS) `basename $@` $@
+> $(haskfile) repli-comp $(SEED) 50 `basename $@` $@
 
 
 ## Stats histo run ##
@@ -153,7 +152,7 @@ mon-apmc_nGen500_nAlpha500_pAccMin0.2_stepSize1_parallel1_stopSampleSize500_mode
 mon-apmc_nGen4500_nAlpha500_pAccMin0.2_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100
 
 mean_std_l2_vs_nsimus_input := \
-$(foreach simu, $(mean_std_l2_vs_nsimus_simus), output/formulas/repli/run/$(simu))
+$(foreach simu, $(mean_std_l2_vs_nsimus_simus), output/formulas/repli/50/run/$(simu))
 mean_std_l2_vs_nsimus_output := output/formulas/figure_data/mean_std_l2_vs_nsimus
 mean_std_l2_vs_nsimus_sentinel := sentinel/stat_mean_std_l2_vs_nsimus
   
@@ -162,7 +161,7 @@ $(mean_std_l2_vs_nsimus_output): $(mean_std_l2_vs_nsimus_sentinel) ;
 $(mean_std_l2_vs_nsimus_sentinel): $(mean_std_l2_vs_nsimus_input) $(haskfile) 
 > mkdir -p output/formulas/figure_data/
 > $(haskfile) mean-std-l2-vs-nsimus \
->   $(foreach simu, $(mean_std_l2_vs_nsimus_simus), --run output/formulas/repli/run/$(simu)) \
+>   $(foreach simu, $(mean_std_l2_vs_nsimus_simus), --run output/formulas/repli/50/run/$(simu)) \
 >   --out $(mean_std_l2_vs_nsimus_output)
 > mkdir -p $(@D)
 > touch $@
@@ -171,7 +170,7 @@ $(mean_std_l2_vs_nsimus_sentinel): $(mean_std_l2_vs_nsimus_input) $(haskfile)
 ## Stat L2 vs time ##
 
 # No sentinel here.
-output/formulas/figure_data/l2_vs_time/%: output/formulas/repli/steps/% $(haskfile)
+output/formulas/figure_data/l2_vs_time/%: output/formulas/repli/10/steps/% $(haskfile)
 > mkdir -p $(@D)
 > $(haskfile) l2-vs-time $< $@
 
@@ -214,7 +213,7 @@ comp_nGen4000_nAlpha500_pAccMin0.01_parallel1000_stepMax100_biasFactor1_meanRunT
 comp_nGen4000_nAlpha500_pAccMin0.01_parallel1000_stepMax100_biasFactor1_meanRunTime3600_varRunTime207.36e6
 
 stats_comp_test_cases_input := \
-$(foreach simu, $(stats_comp_test_cases_simus), output/formulas/repli/comp/$(simu))
+$(foreach simu, $(stats_comp_test_cases_simus), output/formulas/repli/50/comp/$(simu))
 stats_comp_test_cases_output := output/formulas/figure_data/stats_comp_test_cases
 stats_comp_test_cases_sentinel := sentinel/stats_comp_test_cases
   
@@ -223,7 +222,7 @@ $(stats_comp_test_cases_output): $(stats_comp_test_cases_sentinel) ;
 $(stats_comp_test_cases_sentinel): $(stats_comp_test_cases_input) $(haskfile) 
 > mkdir -p output/formulas/figure_data/
 > $(haskfile) stats-comp-test-cases \
->   $(foreach simu, $(stats_comp_test_cases_simus), --comp output/formulas/repli/comp/$(simu)) \
+>   $(foreach simu, $(stats_comp_test_cases_simus), --comp output/formulas/repli/50/comp/$(simu)) \
 >   --out $(stats_comp_test_cases_output)
 > mkdir -p $(@D)
 > touch $@

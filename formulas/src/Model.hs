@@ -51,7 +51,7 @@ prior (ToyTimeBias _ _ _ _) = toyPrior
 posterior :: Model -> V.Vector Double -> Double
 posterior Toy = toyPosteriorCDF 0 . V.head
 posterior (ToyTimeVar _ _) = toyPosteriorCDF 0 . V.head
-posterior (ToyTimeBias _ _ _ _) = uniformCDF (-1, 1) . V.head
+posterior (ToyTimeBias _ _ _ _) = toyPosteriorCDF 0 . V.head 
 
 l2 :: Model -> V.Vector (Double, V.Vector Double) -> Double
 l2 m@(Toy) sample = posteriorL2 (-10) 10 300 (posterior m . V.singleton)

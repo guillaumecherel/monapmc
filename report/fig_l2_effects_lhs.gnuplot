@@ -12,6 +12,8 @@ set multiplot layout 2,4
 
 parameters = "nGen nAlpha pAccMin parallel biasFactor meanRunTime varRunTime"
 
+set yrange [0:0.3]
+
 set ylabel "L2 error"
 
 do for [par in parameters] {

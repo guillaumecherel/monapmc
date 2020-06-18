@@ -41,7 +41,7 @@ do for [i in "1 2 3 4 5"] {
   set title "MonAPMC\nStep ".i
   plot \
     data_mon_apmc \
-      index (i - 1) using 1:2 linecolor 3 with boxes fillstyle solid 1.0, \
+      index (i - 0) using 1:2 linecolor 3 with boxes fillstyle solid 1.0, \
     posterior(x) linecolor 0 dashtype 1 with line
 }
 

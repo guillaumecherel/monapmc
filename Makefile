@@ -230,8 +230,8 @@ $(stats_comp_test_cases_sentinel): $(stats_comp_test_cases_input) $(haskfile)
 ## Figure Steps ##
 
 steps_simus := \
-apmc_nGen4500_nAlpha500_pAccMin0.01_parallel1_modelToy_stepMax100 \
-mon-apmc_nGen4500_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToy_stepMax100
+apmc_nGen4000_nAlpha500_pAccMin0.01_parallel1_modelToyTimeBias_1_0_1_1_stepMax100 \
+mon-apmc_nGen4500_nAlpha500_pAccMin0.01_stepSize1_parallel1_stopSampleSize4500_modelToyTimeBias_1_0_1_1_stepMax100
 
 steps_gnuplot_script := report/fig_steps.gnuplot
 

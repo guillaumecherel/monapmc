@@ -3,12 +3,12 @@ datafile=ARG2
 
 set datafile separator ","
 
-set terminal png truecolor size 1200,500 font ',12'
+set terminal png truecolor size 700,1000 font ',12'
 set output output_path
 
 set key off
 
-set multiplot layout 2,4
+set multiplot layout 4,2
 
 parameters = "nGen nAlpha pAccMin parallel biasFactor meanRunTime varRunTime"
 

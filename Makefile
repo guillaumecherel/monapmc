@@ -602,7 +602,7 @@ $(comp_test_cases_sentinel): $(comp_test_cases_input)
 > mkdir -p output/report/png
 > gnuplot \
 >   -e 'dpi=300.0' \
->   -e 'width_cm=6.0' \
+>   -e 'width_cm=8.0' \
 >   -e 'height_cm=6.0' \
 >   -e 'font_pt=10.0' \
 >   -e 'set terminal pngcairo truecolor size (width_cm * dpi / 2.54),(height_cm * dpi / 2.54) font sprintf("XITS Math,%f", font_pt) fontscale (72.0/96.0 * dpi / 72.0) linewidth (0.5 * dpi / 72.0)'\

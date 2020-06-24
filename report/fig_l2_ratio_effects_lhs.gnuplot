@@ -19,8 +19,13 @@ set ytics format "%g"
 set style circle radius screen 0.001
 set style fill solid noborder 
 
+parToEnhanced(par) = \
+par eq "nAlpha"?"Nα": \
+par eq "parallel"?"K": \
+par
+
 do for [par in parameters] {
-  set xlabel par
+  set xlabel parToEnhanced(par)
   set xtics rotate by -45
   plot datafile using par:"compL2Ratio" with circle lc 3, \
        1 with line lw 2 lc black

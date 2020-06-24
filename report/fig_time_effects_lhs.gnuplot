@@ -19,8 +19,13 @@ set ytics format "%g"
 set style circle radius screen 0.001
 set style fill solid noborder 
 
+parToEnhanced(par) = \
+par eq "nAlpha"?"Nα": \
+par eq "parallel"?"K": \
+par
+
 do for [par in parameters] {
-  set xlabel par
+  set xlabel parToEnhanced(par)
   set xtics rotate by -60
   plot datafile using par:"compTimeApmc" with circles lc 1, \
        datafile using par:"compTimeMonApmc" with circles lc 2

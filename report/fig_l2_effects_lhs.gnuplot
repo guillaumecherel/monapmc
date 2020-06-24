@@ -18,8 +18,13 @@ set ylabel "L2 error"
 set style circle radius screen 0.001
 set style fill solid noborder 
 
+parToEnhanced(par) = \
+par eq "nAlpha"?"Nα": \
+par eq "parallel"?"K": \
+par
+
 do for [par in parameters] {
-  set xlabel par
+  set xlabel parToEnhanced(par)
   set xtics rotate by -60
   plot datafile using par:"compL2Apmc" with circle lc 1, \
        datafile using par:"compL2MonApmc" with circle lc 2

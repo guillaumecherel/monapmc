@@ -237,15 +237,27 @@ steps_gnuplot_script := report/fig_steps.gnuplot
 
 steps_data := $(foreach simu,$(steps_simus),output/formulas/figure_data/histo_steps/$(simu))
 
+steps_output_png := output/report/png/fig_steps.png
+steps_output_tex := output/report/tex/fig_steps.tex
+
 steps_input := $(steps_gnuplot_script) $(steps_data)
-steps_output := output/report/png/fig_steps.png
+steps_output := $(steps_output_png) $(steps_output_tex)
 steps_sentinel := sentinel/figure_steps
 
 $(steps_output) : $(steps_sentinel) ;
 
 $(steps_sentinel): $(steps_input)
 > mkdir -p output/report/png
-> gnuplot -c $(steps_gnuplot_script) $(steps_output) $(steps_data)
+> mkdir -p output/report/tex
+> gnuplot \
+>   -e 'dpi=300.0' \
+>   -e 'width_cm=12.0' \
+>   -e 'height_cm=7.0' \
+>   -e 'font_pt=10.0' \
+>   -e 'set terminal pngcairo truecolor size (width_cm * dpi / 2.54),(height_cm * dpi / 2.54) font sprintf("XITS Math,%f", font_pt) fontscale (72.0/96.0 * dpi / 72.0) linewidth (0.5 * dpi / 72.0)'\
+>   -c $(steps_gnuplot_script) $(steps_output_png) $(steps_data)
+> gnuplot -e 'set terminal tikz size 10cm,7cm color createstyle' \
+>   -c $(steps_gnuplot_script) $(steps_output_tex) $(steps_data)
 > mkdir -p $(@D)
 > touch $@
 
@@ -286,7 +298,10 @@ mon-apmc_nGen40_nAlpha500_pAccMin0.01_stepSize1_parallel100_stopSampleSize4500_m
 
 l2_vs_time_k_data := $(foreach simu,$(l2_vs_time_k_simus),output/formulas/figure_data/l2_vs_time/$(simu))
 
-l2_vs_time_k_output := output/report/png/fig_l2_vs_time_k.png
+l2_vs_time_k_output_png := output/report/png/fig_l2_vs_time_k.png
+l2_vs_time_k_output_tex := output/report/tex/fig_l2_vs_time_k.tex
+
+l2_vs_time_k_output := $(l2_vs_time_k_output_png) $(l2_vs_time_k_output_tex)
 l2_vs_time_k_input := $(l2_vs_time_k_gnuplot_script) $(l2_vs_time_k_data)
 l2_vs_time_k_sentinel := sentinel/figure_l2_vs_time_k
 
@@ -294,8 +309,17 @@ $(l2_vs_time_k_output) : $(l2_vs_time_k_sentinel) ;
 
 $(l2_vs_time_k_sentinel): $(l2_vs_time_k_input)
 > mkdir -p output/report/png
-> echo -e ""\
->   "output_path=\"$(l2_vs_time_k_output)\"\n" \
+> echo -e "set terminal pngcairo truecolor size 1000,300 font ',12'\n"\
+>   "output_path=\"$(l2_vs_time_k_output_png)\"\n" \
+>   "apmc_k_low=\"$(word 1, $(l2_vs_time_k_data))\"\n" \
+>   "apmc_k_med=\"$(word 2, $(l2_vs_time_k_data))\"\n" \
+>   "apmc_k_high=\"$(word 3, $(l2_vs_time_k_data))\"\n" \
+>   "monApmc_k_low=\"$(word 4, $(l2_vs_time_k_data))\"\n" \
+>   "monApmc_k_med=\"$(word 5, $(l2_vs_time_k_data))\"\n" \
+>   "monApmc_k_high=\"$(word 6, $(l2_vs_time_k_data))\"\n" \
+> | gnuplot - $(l2_vs_time_k_gnuplot_script)
+> echo -e "set terminal tikz size 10cm,3cm color createstyle\n"\
+>   "output_path=\"$(l2_vs_time_k_output_tex)\"\n" \
 >   "apmc_k_low=\"$(word 1, $(l2_vs_time_k_data))\"\n" \
 >   "apmc_k_med=\"$(word 2, $(l2_vs_time_k_data))\"\n" \
 >   "apmc_k_high=\"$(word 3, $(l2_vs_time_k_data))\"\n" \
@@ -329,7 +353,10 @@ l2_vs_time_k_v_gnuplot_script := report/fig_l2_vs_time_k_v.gnuplot
 
 l2_vs_time_k_v_data := $(foreach simu,$(l2_vs_time_k_v_simus),output/formulas/figure_data/l2_vs_time/$(simu))
 
-l2_vs_time_k_v_output := output/report/png/fig_l2_vs_time_k_v.png
+l2_vs_time_k_v_output_png := output/report/png/fig_l2_vs_time_k_v.png
+l2_vs_time_k_v_output_tex := output/report/tex/fig_l2_vs_time_k_v.tex
+
+l2_vs_time_k_v_output := $(l2_vs_time_k_v_output_png) $(l2_vs_time_k_v_output_tex)
 l2_vs_time_k_v_input := $(l2_vs_time_k_v_gnuplot_script) $(l2_vs_time_k_v_data)
 l2_vs_time_k_v_sentinel := sentinel/figure_l2_vs_time_k_v
 
@@ -337,8 +364,29 @@ $(l2_vs_time_k_v_output) : $(l2_vs_time_k_v_sentinel) ;
 
 $(l2_vs_time_k_v_sentinel): $(l2_vs_time_k_v_input)
 > mkdir -p output/report/png
-> echo -e ""\
->   "output_path=\"$(l2_vs_time_k_v_output)\"\n" \
+> mkdir -p output/report/tex
+> gnuplot \
+>   -e 'dpi=300.0' \
+>   -e 'width_cm=12.0' \
+>   -e 'height_cm=10.0' \
+>   -e 'font_pt=10.0' \
+>   -e 'set terminal pngcairo truecolor size (width_cm * dpi / 2.54),(height_cm * dpi / 2.54) font sprintf("XITS Math,%f", font_pt) fontscale (72.0/96.0 * dpi / 72.0) linewidth (0.5 * dpi / 72.0)'\
+>   -e 'output_path="'$(l2_vs_time_k_v_output_png)'"' \
+>   -e 'apmc_kLow_vLow="'$(word 1, $(l2_vs_time_k_v_data))'"' \
+>   -e 'apmc_kLow_vHigh="'$(word 2, $(l2_vs_time_k_v_data))'"' \
+>   -e 'apmc_kLow_vBias="'$(word 3, $(l2_vs_time_k_v_data))'"' \
+>   -e 'apmc_kHigh_vLow="'$(word 4, $(l2_vs_time_k_v_data))'"' \
+>   -e 'apmc_kHigh_vHigh="'$(word 5, $(l2_vs_time_k_v_data))'"' \
+>   -e 'apmc_kHigh_vBias="'$(word 6, $(l2_vs_time_k_v_data))'"' \
+>   -e 'monApmc_kLow_vLow="'$(word 7, $(l2_vs_time_k_v_data))'"' \
+>   -e 'monApmc_kLow_vHigh="'$(word 8, $(l2_vs_time_k_v_data))'"' \
+>   -e 'monApmc_kLow_vBias="'$(word 9, $(l2_vs_time_k_v_data))'"' \
+>   -e 'monApmc_kHigh_vLow="'$(word 10, $(l2_vs_time_k_v_data))'"' \
+>   -e 'monApmc_kHigh_vHigh="'$(word 11, $(l2_vs_time_k_v_data))'"' \
+>   -e 'monApmc_kHigh_vBias="'$(word 12, $(l2_vs_time_k_v_data))'"' \
+>   -c $(l2_vs_time_k_v_gnuplot_script)
+> echo -e "set terminal tikz size 12cm,10cm color createstyle\n"\
+>   "output_path=\"$(l2_vs_time_k_v_output_tex)\"\n" \
 >   "apmc_kLow_vLow=\"$(word 1, $(l2_vs_time_k_v_data))\"\n" \
 >   "apmc_kLow_vHigh=\"$(word 2, $(l2_vs_time_k_v_data))\"\n" \
 >   "apmc_kLow_vBias=\"$(word 3, $(l2_vs_time_k_v_data))\"\n" \
@@ -397,7 +445,13 @@ $(l2_vs_bias_factor_output) : $(l2_vs_bias_factor_sentinel) ;
 
 $(l2_vs_bias_factor_sentinel): $(l2_vs_bias_factor_input)
 > mkdir -p output/report/png
-> gnuplot -c $(l2_vs_bias_factor_script) $(l2_vs_bias_factor_output) $(l2_vs_bias_factor_data)
+> gnuplot \
+>   -e 'dpi=300.0' \
+>   -e 'width_cm=8.0' \
+>   -e 'height_cm=6.0' \
+>   -e 'font_pt=10.0' \
+>   -e 'set terminal pngcairo truecolor size (width_cm * dpi / 2.54),(height_cm * dpi / 2.54) font sprintf("XITS Math,%f", font_pt) fontscale (72.0/96.0 * dpi / 72.0) linewidth (0.5 * dpi / 72.0)'\
+>   -c $(l2_vs_bias_factor_script) $(l2_vs_bias_factor_output) $(l2_vs_bias_factor_data)
 > mkdir -p $(@D)
 > touch $@
 
@@ -417,7 +471,13 @@ $(scatter_l2_time_lhs_output) : $(scatter_l2_time_lhs_sentinel) ;
 
 $(scatter_l2_time_lhs_sentinel): $(scatter_l2_time_lhs_input)
 > mkdir -p output/report/png
-> gnuplot -c $(scatter_l2_time_lhs_script) $(scatter_l2_time_lhs_output) $(scatter_l2_time_lhs_data)
+> gnuplot \
+>   -e 'dpi=300.0' \
+>   -e 'width_cm=10.0' \
+>   -e 'height_cm=4.5' \
+>   -e 'font_pt=10.0' \
+>   -e 'set terminal pngcairo truecolor size (width_cm * dpi / 2.54),(height_cm * dpi / 2.54) font sprintf("XITS Math,%f", font_pt) fontscale (72.0/96.0 * dpi / 72.0) linewidth (0.5 * dpi / 72.0)'\
+>   -c $(scatter_l2_time_lhs_script) $(scatter_l2_time_lhs_output) $(scatter_l2_time_lhs_data)
 > mkdir -p $(@D)
 > touch $@
 
@@ -437,7 +497,13 @@ $(l2_effects_lhs_output) : $(l2_effects_lhs_sentinel) ;
 
 $(l2_effects_lhs_sentinel): $(l2_effects_lhs_input)
 > mkdir -p output/report/png
-> gnuplot -c $(l2_effects_lhs_script) $(l2_effects_lhs_output) $(l2_effects_lhs_data)
+> gnuplot \
+>   -e 'dpi=300.0' \
+>   -e 'width_cm=12.0' \
+>   -e 'height_cm=18.0' \
+>   -e 'font_pt=10.0' \
+>   -e 'set terminal pngcairo truecolor size (width_cm * dpi / 2.54),(height_cm * dpi / 2.54) font sprintf("XITS Math,%f", font_pt) fontscale (72.0/96.0 * dpi / 72.0) linewidth (0.5 * dpi / 72.0)'\
+>   -c $(l2_effects_lhs_script) $(l2_effects_lhs_output) $(l2_effects_lhs_data)
 > mkdir -p $(@D)
 > touch $@
 
@@ -457,7 +523,13 @@ $(l2_ratio_effects_lhs_output) : $(l2_ratio_effects_lhs_sentinel) ;
 
 $(l2_ratio_effects_lhs_sentinel): $(l2_ratio_effects_lhs_input)
 > mkdir -p output/report/png
-> gnuplot -c $(l2_ratio_effects_lhs_script) $(l2_ratio_effects_lhs_output) $(l2_ratio_effects_lhs_data)
+> gnuplot \
+>   -e 'dpi=300.0' \
+>   -e 'width_cm=12.0' \
+>   -e 'height_cm=18.0' \
+>   -e 'font_pt=10.0' \
+>   -e 'set terminal pngcairo truecolor size (width_cm * dpi / 2.54),(height_cm * dpi / 2.54) font sprintf("XITS Math,%f", font_pt) fontscale (72.0/96.0 * dpi / 72.0) linewidth (0.5 * dpi / 72.0)'\
+>   -c $(l2_ratio_effects_lhs_script) $(l2_ratio_effects_lhs_output) $(l2_ratio_effects_lhs_data)
 > mkdir -p $(@D)
 > touch $@
 
@@ -477,7 +549,13 @@ $(time_effects_lhs_output) : $(time_effects_lhs_sentinel) ;
 
 $(time_effects_lhs_sentinel): $(time_effects_lhs_input)
 > mkdir -p output/report/png
-> gnuplot -c $(time_effects_lhs_script) $(time_effects_lhs_output) $(time_effects_lhs_data)
+> gnuplot \
+>   -e 'dpi=300.0' \
+>   -e 'width_cm=12.0' \
+>   -e 'height_cm=18.0' \
+>   -e 'font_pt=10.0' \
+>   -e 'set terminal pngcairo truecolor size (width_cm * dpi / 2.54),(height_cm * dpi / 2.54) font sprintf("XITS Math,%f", font_pt) fontscale (72.0/96.0 * dpi / 72.0) linewidth (0.5 * dpi / 72.0)'\
+>   -c $(time_effects_lhs_script) $(time_effects_lhs_output) $(time_effects_lhs_data)
 > mkdir -p $(@D)
 > touch $@
 
@@ -497,7 +575,13 @@ $(time_ratio_effects_lhs_output) : $(time_ratio_effects_lhs_sentinel) ;
 
 $(time_ratio_effects_lhs_sentinel): $(time_ratio_effects_lhs_input)
 > mkdir -p output/report/png
-> gnuplot -c $(time_ratio_effects_lhs_script) $(time_ratio_effects_lhs_output) $(time_ratio_effects_lhs_data)
+> gnuplot \
+>   -e 'dpi=300.0' \
+>   -e 'width_cm=12.0' \
+>   -e 'height_cm=18.0' \
+>   -e 'font_pt=10.0' \
+>   -e 'set terminal pngcairo truecolor size (width_cm * dpi / 2.54),(height_cm * dpi / 2.54) font sprintf("XITS Math,%f", font_pt) fontscale (72.0/96.0 * dpi / 72.0) linewidth (0.5 * dpi / 72.0)'\
+>   -c $(time_ratio_effects_lhs_script) $(time_ratio_effects_lhs_output) $(time_ratio_effects_lhs_data)
 > mkdir -p $(@D)
 > touch $@
 
@@ -516,7 +600,13 @@ $(comp_test_cases_output) : $(comp_test_cases_sentinel) ;
 
 $(comp_test_cases_sentinel): $(comp_test_cases_input)
 > mkdir -p output/report/png
-> gnuplot -c $(comp_test_cases_script) $(comp_test_cases_output) $(comp_test_cases_data)
+> gnuplot \
+>   -e 'dpi=300.0' \
+>   -e 'width_cm=6.0' \
+>   -e 'height_cm=6.0' \
+>   -e 'font_pt=10.0' \
+>   -e 'set terminal pngcairo truecolor size (width_cm * dpi / 2.54),(height_cm * dpi / 2.54) font sprintf("XITS Math,%f", font_pt) fontscale (72.0/96.0 * dpi / 72.0) linewidth (0.5 * dpi / 72.0)'\
+>   -c $(comp_test_cases_script) $(comp_test_cases_output) $(comp_test_cases_data)
 > mkdir -p $(@D)
 > touch $@
 

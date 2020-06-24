@@ -7,7 +7,6 @@
 # monApmc_k_med
 # monApmc_k_high
 
-set terminal pngcairo truecolor size 1000,300 font ',12'
 set output output_path
 
 set xrange [0:*]

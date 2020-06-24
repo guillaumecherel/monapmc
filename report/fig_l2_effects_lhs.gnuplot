@@ -3,7 +3,6 @@ datafile=ARG2
 
 set datafile separator ","
 
-set terminal png truecolor size 700,1000 font ',12'
 set output output_path
 
 set key off
@@ -16,14 +15,17 @@ set yrange [0:0.3]
 
 set ylabel "L2 error"
 
+set style circle radius screen 0.001
+set style fill solid noborder 
+
 do for [par in parameters] {
   set xlabel par
   set xtics rotate by -60
-  plot datafile using par:"compL2Apmc" with dots lc 1, \
-       datafile using par:"compL2MonApmc" with dots lc 2
+  plot datafile using par:"compL2Apmc" with circle lc 1, \
+       datafile using par:"compL2MonApmc" with circle lc 2
 }
 
-set style circle radius 2
+set style circle radius 0.05
 set style fill solid noborder 
 set key on right center opaque nobox
 unset border

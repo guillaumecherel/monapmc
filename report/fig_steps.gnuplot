@@ -2,15 +2,11 @@ output_path=ARG1
 data_apmc=ARG2
 data_mon_apmc=ARG3
 
-set terminal pngcairo truecolor size 1000,500 font ',12'
 set xrange [-3:3]
 set yrange [0:2.2]
 # set samples 500
 # set isosamples 500
 set style fill solid 1.0
-
-ROW=2
-COL=5
 
 set key off
 
@@ -19,32 +15,65 @@ normal(x, mean, var) = exp(- ((x - mean) ** 2.0) / (2.0 * var)) / sqrt(2.0 * pi 
 
 set output output_path
 
-set multiplot layout ROW,COL rowsfirst
+COLUMNS=5
+ROWS=2
+LEFTMARGIN=0.1
+RIGHTMARGIN=0.02
+PLOTMARGINH=0.0
+PLOTWIDTH=(1 - (COLUMNS - 1) * PLOTMARGINH - LEFTMARGIN - RIGHTMARGIN) / COLUMNS
 
-# stats data_apmc nooutput
+TOPMARGIN=0.1
+BOTTOMMARGIN=0.15
+PLOTMARGINV=0.01
+PLOTHEIGHT=(1 - (ROWS - 1) * PLOTMARGINV - TOPMARGIN - BOTTOMMARGIN) / ROWS
 
-# do for [i=1:STATS_blocks] {
+set multiplot layout ROWS,COLUMNS rowsfirst
+
+set grid
+set ytics 0, 1, 2 scale 0
+set xtics -2, 2, 2  scale 0
+
+set format y "%.0f"
+set format x ""
+
+set ylabel "APMC\np(θ∣y=yObs)"
+set xlabel ''
+
+set tmargin at screen (BOTTOMMARGIN + (PLOTHEIGHT + PLOTMARGINV) * 1)
+set bmargin at screen (BOTTOMMARGIN + (PLOTHEIGHT + PLOTMARGINV) * 1 + PLOTHEIGHT)
+
 do for [i in "1 2 3 4 5"] {
-  set title "APMC\nStep ".i
+  set lmargin at screen (LEFTMARGIN + (PLOTWIDTH + PLOTMARGINH) * (i - 1))
+  set rmargin at screen (LEFTMARGIN + (PLOTWIDTH + PLOTMARGINH) * (i - 1) + PLOTWIDTH)
+  set title "Step ".i
   plot \
     data_apmc \
       index (i - 1) using 1:2 linecolor 3 with boxes fillstyle solid 1.0, \
-    posterior(x) linecolor 0 dashtype 1 with line
+    posterior(x) linecolor black dashtype 1 with line
+  set format y ""
+  set ylabel ""
+
 }
 
-# do for [i=1:COL - STATS_blocks] {set multiplot next}
+set format y "%.0f"
+set format x "%.0f"
 
-# stats data_mon_apmc nooutput
+set ylabel "MonAPMC\np(θ∣y=yObs)"
+set xlabel "θ"
 
-# do for [i=1:STATS_blocks] {
+set tmargin at screen (BOTTOMMARGIN + (PLOTHEIGHT + PLOTMARGINV) * 0)
+set bmargin at screen (BOTTOMMARGIN + (PLOTHEIGHT + PLOTMARGINV) * 0 + PLOTHEIGHT)
+
 do for [i in "1 2 3 4 5"] {
-  set title "MonAPMC\nStep ".i
+  set lmargin at screen (LEFTMARGIN + (PLOTWIDTH + PLOTMARGINH) * (i - 1))
+  set rmargin at screen (LEFTMARGIN + (PLOTWIDTH + PLOTMARGINH) * (i - 1) + PLOTWIDTH)
+  set title ""
   plot \
     data_mon_apmc \
       index (i - 0) using 1:2 linecolor 3 with boxes fillstyle solid 1.0, \
-    posterior(x) linecolor 0 dashtype 1 with line
+    posterior(x) linecolor black dashtype 1 with line
+  set format y ""
+  set ylabel ""
 }
-
-# do for [i=1:COL - STATS_blocks] {set multiplot next}
 
 unset multiplot

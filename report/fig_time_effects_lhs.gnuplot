@@ -3,7 +3,6 @@ datafile=ARG2
 
 set datafile separator ","
 
-set terminal png truecolor size 700,1000 font 'XITS Math,12'
 set output output_path
 
 set key off 
@@ -17,11 +16,14 @@ set yrange [100:5e7]
 set log y
 set ytics format "%g"
 
+set style circle radius screen 0.001
+set style fill solid noborder 
+
 do for [par in parameters] {
   set xlabel par
   set xtics rotate by -60
-  plot datafile using par:"compTimeApmc" with dots lc 1, \
-       datafile using par:"compTimeMonApmc" with dots lc 2
+  plot datafile using par:"compTimeApmc" with circles lc 1, \
+       datafile using par:"compTimeMonApmc" with circles lc 2
 }
 
 set style circle radius 2

@@ -3,7 +3,6 @@ datafile=ARG2
 
 set datafile separator ","
 
-set terminal png truecolor size 700,1000 font ',12'
 set output output_path
 
 set key off
@@ -17,10 +16,13 @@ set yrange [0.1:5]
 #set log y
 set ytics format "%g"
 
+set style circle radius screen 0.001
+set style fill solid noborder 
+
 do for [par in parameters] {
   set xlabel par
   set xtics rotate by -45
-  plot datafile using par:"compL2Ratio" with dots lc 3, \
+  plot datafile using par:"compL2Ratio" with circle lc 3, \
        1 with line lw 2 lc black
 }
 

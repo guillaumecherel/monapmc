@@ -24,6 +24,7 @@ A consistent naming scheme accross the companion paper, the haskell code,
 gnuplot script files and the `Makefile` helps keeping track of where the
 various definitions in the text are defined in code and data files.
 
+
 ## Directory structure
 
 ```
@@ -77,7 +78,7 @@ prerequisites are built with `make openmole/formulas.container.tgz`, then run
 the script <./openmole/lhs.oms> yourself using openmole.
 
 
-# Definitions 
+# Definitions
 
 Here is a list of definitions given in the companion paper. This lists will help
 the reader make the correspondance between the paper and this repository by

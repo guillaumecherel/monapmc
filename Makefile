@@ -613,6 +613,31 @@ $(comp_test_cases_sentinel): $(comp_test_cases_input)
 figures: $(comp_test_cases_output)
 
 
+## Figure Model Run Time vs Theta Bias ##
+
+model_run_time_vs_theta_bias_script := report/fig_model_run_time_vs_theta_bias.gnuplot
+
+model_run_time_vs_theta_bias_input := $(model_run_time_vs_theta_bias_script) 
+
+model_run_time_vs_theta_bias_output := output/report/png/fig_model_run_time_vs_theta_bias.png
+model_run_time_vs_theta_bias_sentinel := sentinel/figure_model_run_time_vs_theta_bias
+$(model_run_time_vs_theta_bias_output) : $(model_run_time_vs_theta_bias_sentinel) ;
+
+$(model_run_time_vs_theta_bias_sentinel): $(model_run_time_vs_theta_bias_input)
+> mkdir -p output/report/png
+> gnuplot \
+>   -e 'dpi=300.0' \
+>   -e 'width_cm=12.0' \
+>   -e 'height_cm=5.0' \
+>   -e 'font_pt=10.0' \
+>   -e 'set terminal pngcairo truecolor size (width_cm * dpi / 2.54),(height_cm * dpi / 2.54) font sprintf("XITS Math,%f", font_pt) fontscale (72.0/96.0 * dpi / 72.0) linewidth (0.5 * dpi / 72.0)'\
+>   -c $(model_run_time_vs_theta_bias_script) $(model_run_time_vs_theta_bias_output) 
+> mkdir -p $(@D)
+> touch $@
+
+figures: $(model_run_time_vs_theta_bias_output)
+
+
 #### Helper rules ####
 
 setup: $(haskfile)

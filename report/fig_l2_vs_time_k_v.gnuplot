@@ -79,7 +79,7 @@ set key on
 set title "K = 4\nvarRunTime = 10"
 set grid xtics ytics linestyle 81
 plot apmc_kLow_vBias u 3:4 with lines t 'APMC', \
-     monApmc_kLow_vBias u 3:4 with lines t 'MonAPMC0'
+     monApmc_kLow_vBias u 3:4 with lines t 'MonAPMC'
 
 col = 1
 row = 1
